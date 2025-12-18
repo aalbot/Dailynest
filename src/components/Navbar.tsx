@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { 
+import {
   Crown,
   Star,
   Package,
@@ -11,7 +11,10 @@ import {
   Building2,
   Grid3X3,
   Search,
-  Bell
+  Bell,
+  Sun,
+  Moon,
+  X
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
@@ -20,19 +23,35 @@ const appItems = [
   { icon: Star, label: "Rating Entry", path: "/rating-entry", color: "bg-orange-500" },
   { icon: Package, label: "Stock Entry", path: "/stock-entry", color: "bg-blue-500" },
   { icon: ShoppingBag, label: "Product Entry", path: "/product-entry", color: "bg-violet-500" },
-  { icon: Truck, label: "Delivery Screen", path: "/delivery-screen", color: "bg-emerald-500" },
+  { icon: Truck, label: "Delivery Screen", path: "/delivery", color: "bg-emerald-500" },
   { icon: LayoutDashboard, label: "Overview", path: "/overview", color: "bg-cyan-500" },
-  { icon: ClipboardList, label: "Order Management", path: "/order-management", color: "bg-pink-500" },
-  { icon: Keyboard, label: "Keyboard Entry", path: "/keyboard-entry", color: "bg-indigo-500" },
+  { icon: ClipboardList, label: "Order Management", path: "/orders", color: "bg-pink-500" },
+  { icon: Keyboard, label: "Keyword Entry", path: "/keyword-entry", color: "bg-indigo-500" },
   { icon: Building2, label: "Back Office", path: "/back-office", color: "bg-teal-500" },
 ];
 
 const Navbar = () => {
   const location = useLocation();
+  const [isDark, setIsDark] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
   const menuRef = useRef<HTMLDivElement>(null);
 
+  const filteredApps = searchQuery ? appItems.filter(item => item.label.toLowerCase().includes(searchQuery.toLowerCase())) : [];
+
   useEffect(() => {
+    // Check local storage or system preference
+    const storedTheme = localStorage.getItem('theme');
+    if (storedTheme === 'dark' || (!storedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      setIsDark(true);
+      document.documentElement.classList.add('dark');
+    } else {
+      setIsDark(false);
+      document.documentElement.classList.remove('dark');
+    }
+
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setMenuOpen(false);
@@ -42,40 +61,110 @@ const Navbar = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const toggleTheme = () => {
+    const newTheme = !isDark;
+    setIsDark(newTheme);
+    if (newTheme) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  };
+
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-md">
-              <span className="text-white font-bold text-lg">W</span>
-            </div>
-            <span className="font-semibold text-gray-900 text-lg tracking-tight">Workspace</span>
+            <img src="/logo.png" alt="DailyClub" className="w-9 h-9 rounded-xl object-contain" />
+            <span className="font-bold text-lg tracking-tight text-slate-500 dark:text-slate-400">DailyClub <span className="font-medium opacity-80">Admin</span></span>
           </Link>
 
           {/* Right side icons */}
           <div className="flex items-center gap-2">
-            {/* Search */}
-            <button className="p-2.5 rounded-full hover:bg-gray-100 transition-colors">
-              <Search className="w-5 h-5 text-gray-600" />
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="p-2.5 rounded-full hover:bg-secondary transition-colors relative overflow-hidden group"
+              aria-label="Toggle Theme"
+            >
+              <div className="relative w-5 h-5">
+                <Sun
+                  className={`w-5 h-5 text-amber-500 absolute top-0 left-0 transition-all duration-300 transform ${isDark ? 'opacity-0 rotate-90 scale-0' : 'opacity-100 rotate-0 scale-100'}`}
+                />
+                <Moon
+                  className={`w-5 h-5 text-indigo-500 dark:text-sky-300 absolute top-0 left-0 transition-all duration-300 transform ${isDark ? 'opacity-100 rotate-0 scale-100' : 'opacity-0 -rotate-90 scale-0'}`}
+                />
+              </div>
             </button>
 
+            {/* Search */}
+            {/* Search */}
+            <div className="relative">
+              <div className={`flex items-center transition-all duration-300 ease-in-out border ${searchOpen ? 'w-64 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700' : 'w-10 h-10 border-transparent hover:bg-secondary justify-center cursor-pointer'} rounded-full`}>
+                <Search
+                  onClick={() => { if (!searchOpen) setSearchOpen(true); }}
+                  className={`w-5 h-5 text-muted-foreground flex-shrink-0 transition-opacity ${searchOpen ? 'opacity-50' : ''}`}
+                />
+                {searchOpen && (
+                  <>
+                    <input
+                      autoFocus
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search menus..."
+                      className="ml-2 w-full bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground"
+                    />
+                    <button onClick={() => { setSearchOpen(false); setSearchQuery(""); }} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full flex-shrink-0">
+                      <X size={14} className="text-muted-foreground" />
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Search Results */}
+              {searchOpen && searchQuery && (
+                <div className="absolute top-full right-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                  <div className="max-h-64 overflow-y-auto p-1.5 space-y-0.5 custom-scrollbar">
+                    {filteredApps.length > 0 ? (
+                      filteredApps.map(item => (
+                        <Link
+                          key={item.path}
+                          to={item.path}
+                          onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
+                          className="flex items-center gap-3 p-2 hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-lg group transition-colors"
+                        >
+                          <div className={`w-8 h-8 rounded-lg ${item.color} flex items-center justify-center text-white shadow-sm`}>
+                            <item.icon size={14} strokeWidth={2.5} />
+                          </div>
+                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{item.label}</span>
+                        </Link>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center text-xs text-slate-400">No matching apps found</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Notifications */}
-            <button className="p-2.5 rounded-full hover:bg-gray-100 transition-colors relative">
-              <Bell className="w-5 h-5 text-gray-600" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+            <button className="p-2.5 rounded-full hover:bg-secondary transition-colors relative">
+              <Bell className="w-5 h-5 text-muted-foreground" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full" />
             </button>
 
             {/* App Launcher */}
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
-                className={`p-2.5 rounded-full transition-colors ${
-                  menuOpen ? "bg-gray-100" : "hover:bg-gray-100"
-                }`}
+                className={`p-2.5 rounded-full transition-colors ${menuOpen ? "bg-secondary" : "hover:bg-secondary"
+                  }`}
               >
-                <Grid3X3 className="w-5 h-5 text-gray-600" />
+                <Grid3X3 className="w-5 h-5 text-muted-foreground" />
               </button>
 
               {/* App Menu Dropdown */}
@@ -87,9 +176,8 @@ const Navbar = () => {
                         key={item.path}
                         to={item.path}
                         onClick={() => setMenuOpen(false)}
-                        className={`flex flex-col items-center gap-2 p-3 rounded-xl transition-all duration-200 group hover:bg-gray-50 ${
-                          location.pathname === item.path ? "bg-gray-50" : ""
-                        }`}
+                        className={`flex flex-col items-center gap-2 p-3 rounded-xl transition-all duration-200 group hover:bg-gray-50 ${location.pathname === item.path ? "bg-gray-50" : ""
+                          }`}
                       >
                         <div className={`w-11 h-11 rounded-full ${item.color} flex items-center justify-center shadow-sm group-hover:scale-110 group-hover:shadow-md transition-all duration-200`}>
                           <item.icon className="w-5 h-5 text-white" />

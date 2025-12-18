@@ -4,18 +4,16 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
-import Dashboard from "./pages/Dashboard";
-import Analytics from "./pages/Analytics";
-import CRM from "./pages/CRM";
-import Inventory from "./pages/Inventory";
-import Payroll from "./pages/Payroll";
-import HRPortal from "./pages/HRPortal";
-import Support from "./pages/Support";
-import Reports from "./pages/Reports";
-import Settings from "./pages/Settings";
-import Slack from "./pages/Slack";
-import Notes from "./pages/Notes";
 import NotFound from "./pages/NotFound";
+import OrderManagement from "./pages/OrderManagement";
+import PremiumEntry from "./pages/PremiumEntry";
+import RatingEntry from "./pages/RatingEntry";
+import StockEntry from "./pages/StockEntry";
+import ProductEntry from "./pages/ProductEntry";
+import DeliveryScreen from "./pages/DeliveryScreen";
+import Overview from "./pages/Overview";
+import KeywordEntry from "./pages/KeywordEntry";
+import BackOffice from "./pages/BackOffice";
 
 const queryClient = new QueryClient();
 
@@ -27,17 +25,15 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/crm" element={<CRM />} />
-          <Route path="/inventory" element={<Inventory />} />
-          <Route path="/payroll" element={<Payroll />} />
-          <Route path="/hr-portal" element={<HRPortal />} />
-          <Route path="/support" element={<Support />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/slack" element={<Slack />} />
-          <Route path="/notes" element={<Notes />} />
+          <Route path="/orders" element={<OrderManagement />} />
+          <Route path="/premium-entry" element={<PremiumEntry />} />
+          <Route path="/rating-entry" element={<RatingEntry />} />
+          <Route path="/stock-entry" element={<StockEntry />} />
+          <Route path="/product-entry" element={<ProductEntry />} />
+          <Route path="/delivery" element={<DeliveryScreen />} />
+          <Route path="/overview" element={<Overview />} />
+          <Route path="/keyword-entry" element={<KeywordEntry />} />
+          <Route path="/back-office" element={<BackOffice />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

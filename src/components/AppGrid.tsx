@@ -17,10 +17,10 @@ const apps = [
   { icon: Star, label: "Rating Entry", colorClass: "app-icon-orange", path: "/rating-entry" },
   { icon: Package, label: "Stock Entry", colorClass: "app-icon-blue", path: "/stock-entry" },
   { icon: ShoppingBag, label: "Product Entry", colorClass: "app-icon-purple", path: "/product-entry" },
-  { icon: Truck, label: "Delivery Screen", colorClass: "app-icon-green", path: "/delivery-screen" },
+  { icon: Truck, label: "Delivery Screen", colorClass: "app-icon-green", path: "/delivery" },
   { icon: LayoutDashboard, label: "Overview", colorClass: "app-icon-cyan", path: "/overview" },
-  { icon: ClipboardList, label: "Order Management", colorClass: "app-icon-pink", path: "/order-management" },
-  { icon: Keyboard, label: "Keyboard Entry", colorClass: "app-icon-indigo", path: "/keyboard-entry" },
+  { icon: ClipboardList, label: "Order Management", colorClass: "app-icon-pink", path: "/orders" },
+  { icon: Keyboard, label: "Keyword Entry", colorClass: "app-icon-indigo", path: "/keyword-entry" },
   { icon: Building2, label: "Back Office", colorClass: "app-icon-teal", path: "/back-office" },
 ];
 

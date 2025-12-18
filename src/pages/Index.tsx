@@ -6,7 +6,7 @@ const Index = () => {
   return (
     <div className="min-h-screen gradient-bg">
       <Navbar />
-      
+
       {/* Floating decorative elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-64 h-64 bg-primary/5 rounded-full blur-3xl animate-float" />
@@ -16,7 +16,7 @@ const Index = () => {
 
       <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-6 sm:p-8 md:p-12 pt-24">
         <div className="w-full max-w-4xl">
-          <SearchBar />
+
           <div className="mt-12">
             <AppGrid />
           </div>
