@@ -44,7 +44,7 @@ const Navbar = () => {
   useEffect(() => {
     // Check local storage or system preference
     const storedTheme = localStorage.getItem('theme');
-    if (storedTheme === 'dark' || (!storedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    if (storedTheme === 'dark') {
       setIsDark(true);
       document.documentElement.classList.add('dark');
     } else {
@@ -80,7 +80,7 @@ const Navbar = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3">
             <img src="/logo.png" alt="DailyClub" className="w-9 h-9 rounded-xl object-contain" />
-            <span className="font-bold text-lg tracking-tight text-slate-500 dark:text-slate-400">DailyClub <span className="font-medium opacity-80">Admin</span></span>
+            <span className="font-bold text-lg tracking-tight text-slate-500 dark:text-slate-400">DailyClub</span>
           </Link>
 
           {/* Right side icons */}
