@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Navbar from "@/components/Navbar";
-import { Send, User, Sparkles, StopCircle, RefreshCcw, Copy, ThumbsUp, ThumbsDown, Database } from 'lucide-react';
+import { Send, User, Sparkles, StopCircle } from 'lucide-react';
 import firebase from "firebase/compat/app";
 import "firebase/compat/database";
 
-// Firebase Config (Ensure this matches your other files)
+// Firebase Config
 const firebaseConfig = {
     apiKey: "AIzaSyCSH0uuKssWvkgvMOnWV_1u3zPO-1XNWPg",
     authDomain: "dailyclub11.firebaseapp.com",
@@ -31,7 +31,7 @@ const AIChat = () => {
         {
             id: '1',
             role: 'ai',
-            content: "Hello! I'm your DailyClub AI assistant. I can answer any questions you have. How can I help you today?",
+            content: "Hello! I'm your DailyClub AI assistant. I can answer any questions you have about orders, products, or stock. How can I help you today?",
             timestamp: new Date()
         }
     ]);
@@ -107,14 +107,15 @@ const AIChat = () => {
                 .join('\n');
 
             // Pollinations.ai accepts the prompt directly in the URL
-            const systemPrompt = "System: You are an intelligent store assistant for DailyClub. You have access to real-time store data below. Use it to answer questions accurately. If asked about orders or stock, refer to this data. Be concise.";
+            const systemPrompt = "System: You are an intelligent store assistant for DailyClub. You have access to real-time store data below. Use it to answer questions accurately and professionally. Use Markdown for formatting (bold, lists, etc.) to make the response easy to read. Be concise but helpful.";
             const fullPrompt = `${systemPrompt}\n${liveContext}\n\nCONVERSATION:\n${history}\nAssistant:`;
 
             // Use Pollinations.ai (Free, No Key required)
             const response = await fetch(`https://text.pollinations.ai/${encodeURIComponent(fullPrompt)}`);
 
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                const errorText = await response.text();
+                throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
             }
 
             const text = await response.text();
@@ -132,7 +133,7 @@ const AIChat = () => {
             const errorMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'ai',
-                content: "Sorry, I'm having trouble connecting to the free AI service right now. Please try again in a moment.",
+                content: `Sorry, I encountered an error: ${error.message || 'Unknown error'}. Please try again.`,
                 timestamp: new Date()
             };
             setMessages(prev => [...prev, errorMsg]);
@@ -148,6 +149,45 @@ const AIChat = () => {
         }
     };
 
+    // Helper to format message content (basic Markdown support)
+    const renderMessageContent = (text: string) => {
+        // 1. Split by code blocks
+        // Regex captures the content inside ```...```
+        const parts = text.split(/(```[\s\S]*?```)/g);
+
+        return parts.map((part, index) => {
+            if (part.startsWith('```')) {
+                // Remove the backticks and optional language identifier
+                const content = part.replace(/^```\w*\n?/, '').replace(/```$/, '');
+                return (
+                    <pre key={index} className="bg-slate-900 text-slate-50 p-3 rounded-lg my-2 overflow-x-auto text-xs font-mono border border-slate-700">
+                        <code>{content}</code>
+                    </pre>
+                );
+            }
+
+            // 2. Handle simple markdown (Bold, Italic, Lists) within text blocks
+            // Use split to separate bold parts
+            const boldParts = part.split(/(\*\*.*?\*\*)/g);
+            return (
+                <span key={index}>
+                    {boldParts.map((subPart, subIndex) => {
+                        if (subPart.startsWith('**') && subPart.endsWith('**')) {
+                            return <strong key={subIndex} className="font-bold text-blue-600 dark:text-blue-400">{subPart.slice(2, -2)}</strong>;
+                        }
+                        // Handle newlines
+                        return subPart.split('\n').map((line, lineIdx) => (
+                            <React.Fragment key={lineIdx}>
+                                {lineIdx > 0 && <br />}
+                                {line}
+                            </React.Fragment>
+                        ));
+                    })}
+                </span>
+            );
+        });
+    };
+
     return (
         <div className="flex h-screen bg-[#F0F4F9] dark:bg-[#131314] font-sans">
             <div className="fixed top-0 left-0 right-0 z-50">
@@ -161,28 +201,32 @@ const AIChat = () => {
                     ref={scrollRef}
                     className="flex-1 overflow-y-auto px-4 py-6 scroll-smooth custom-scrollbar"
                 >
-                    <div className="space-y-8 pb-4">
+                    <div className="space-y-6 pb-4">
                         {messages.map((msg) => (
                             <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
 
                                 {/* Avatar */}
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'ai'
-                                    ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white'
+                                <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 overflow-hidden shadow-sm ring-1 ring-slate-100 dark:ring-slate-700 ${msg.role === 'ai'
+                                    ? 'bg-white dark:bg-slate-800'
                                     : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                                     }`}>
-                                    {msg.role === 'ai' ? <Sparkles size={16} /> : <User size={16} />}
+                                    {msg.role === 'ai' ? (
+                                        <img src="/bot.png" alt="AI" className="w-full h-full object-contain p-0.5" />
+                                    ) : (
+                                        <User size={18} />
+                                    )}
                                 </div>
 
                                 {/* Message Bubble */}
-                                <div className={`flex flex-col max-w-[80%]`}>
-                                    <div className={`text-sm font-medium mb-1 ${msg.role === 'user' ? 'text-right' : ''}`}>
+                                <div className={`flex flex-col max-w-[85%]`}>
+                                    <div className={`text-xs font-medium mb-1.5 opacity-70 ${msg.role === 'user' ? 'text-right' : 'ml-1'}`}>
                                         {msg.role === 'ai' ? 'DailyClub AI' : 'You'}
                                     </div>
-                                    <div className={`rounded-2xl px-5 py-3.5 text-[15px] leading-relaxed shadow-sm whitespace-pre-wrap ${msg.role === 'user'
+                                    <div className={`rounded-2xl px-5 py-3.5 text-[15px] leading-relaxed shadow-sm ${msg.role === 'user'
                                         ? 'bg-[#E7F0FE] dark:bg-[#2B3544] text-slate-900 dark:text-slate-100 rounded-tr-sm'
                                         : 'bg-white dark:bg-[#1E1F20] text-slate-800 dark:text-slate-200 rounded-tl-sm'
                                         }`}>
-                                        {msg.content}
+                                        {renderMessageContent(msg.content)}
                                     </div>
                                 </div>
                             </div>
@@ -190,56 +234,57 @@ const AIChat = () => {
 
                         {isTyping && (
                             <div className="flex gap-4">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shrink-0 text-white animate-pulse">
-                                    <Sparkles size={16} />
+                                <div className="w-9 h-9 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center shrink-0 overflow-hidden shadow-sm ring-1 ring-slate-100 dark:ring-slate-700">
+                                    <img src="/bot.png" alt="AI Typing" className="w-full h-full object-contain p-0.5 animate-pulse" />
                                 </div>
                                 <div className="bg-white dark:bg-[#1E1F20] rounded-2xl rounded-tl-sm px-5 py-4 shadow-sm flex items-center gap-2">
-                                    <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                    <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                    <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                    <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                                 </div>
                             </div>
                         )}
 
                         {/* Spacer for bottom input */}
-                        <div className="h-24" />
+                        <div className="h-28" />
                     </div>
                 </div>
 
                 {/* Input Area */}
-                <div className="p-4 bg-transparent">
-                    <div className="max-w-3xl mx-auto">
-                        <div className="relative flex items-end gap-2 bg-white dark:bg-[#1E1F20] rounded-[26px] p-2 pr-2 shadow-lg hover:shadow-xl transition-shadow duration-300 ring-1 ring-slate-100 dark:ring-slate-800">
-                            <textarea
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={handleKeyDown}
-                                placeholder="Ask me anything..."
-                                className="w-full bg-transparent border-none focus:ring-0 focus:outline-none resize-none max-h-32 min-h-[48px] py-3 px-4 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 text-[15px] leading-relaxed custom-scrollbar"
-                                rows={1}
-                                style={{
-                                    height: 'auto',
-                                    minHeight: '48px'
-                                }}
-                            />
+                <div className="p-4 bg-transparent fixed bottom-0 left-0 right-0 max-w-5xl mx-auto z-10">
+                    {/* Gradient fade above input */}
+                    <div className="absolute bottom-full left-0 right-0 h-10 bg-gradient-to-t from-[#F0F4F9] dark:from-[#131314] to-transparent pointer-events-none" />
 
-                            <button
-                                onClick={handleSend}
-                                disabled={!input.trim() && !isTyping}
-                                className={`mb-1 w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300 ${input.trim()
-                                    ? 'bg-blue-600 text-white shadow-md hover:bg-blue-700 hover:scale-105 active:scale-95'
-                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600'
-                                    }`}
-                            >
-                                {isTyping ? <StopCircle size={18} /> :
-                                    <Send size={18} className={`transition-transform duration-300 ${input.trim() ? 'translate-x-[1px] -translate-y-[1px]' : ''}`} />
-                                }
-                            </button>
-                        </div>
-                        <p className="text-center text-[10px] text-slate-400/80 mt-3 font-medium">
-                            AI may display inaccurate info, so double-check its responses.
-                        </p>
+                    <div className="relative flex items-end gap-2 bg-white dark:bg-[#1E1F20] rounded-[26px] p-2 pr-2 shadow-2xl ring-1 ring-slate-200 dark:ring-slate-800">
+                        <textarea
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            placeholder="Ask me about orders, stock, or products..."
+                            className="w-full bg-transparent border-none focus:ring-0 focus:outline-none resize-none max-h-32 min-h-[48px] py-3 px-4 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 text-[15px] leading-relaxed custom-scrollbar"
+                            rows={1}
+                            style={{
+                                height: 'auto',
+                                minHeight: '48px'
+                            }}
+                        />
+
+                        <button
+                            onClick={handleSend}
+                            disabled={!input.trim() && !isTyping}
+                            className={`mb-1 w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300 ${input.trim()
+                                ? 'bg-blue-600 text-white shadow-md hover:bg-blue-700 hover:scale-105 active:scale-95'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600'
+                                }`}
+                        >
+                            {isTyping ? <StopCircle size={18} /> :
+                                <Send size={18} className={`transition-transform duration-300 ${input.trim() ? 'translate-x-[1px] -translate-y-[1px]' : ''}`} />
+                            }
+                        </button>
                     </div>
+                    <p className="text-center text-[11px] text-slate-400/80 mt-3 font-medium">
+                        AI can make mistakes. Please verify important information.
+                    </p>
                 </div>
             </div>
         </div>
