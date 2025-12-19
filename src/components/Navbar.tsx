@@ -14,9 +14,12 @@ import {
   Bell,
   Sun,
   Moon,
-  X
+  X,
+  Check,
+  Trash2
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { useNotification } from "@/contexts/NotificationContext";
 
 const appItems = [
   { icon: Crown, label: "Premium Entry", path: "/premium-entry", color: "bg-yellow-500" },
@@ -36,8 +39,11 @@ const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications } = useNotification();
 
   const menuRef = useRef<HTMLDivElement>(null);
+  const notificationRef = useRef<HTMLDivElement>(null);
 
   const filteredApps = searchQuery ? appItems.filter(item => item.label.toLowerCase().includes(searchQuery.toLowerCase())) : [];
 
@@ -55,6 +61,9 @@ const Navbar = () => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setMenuOpen(false);
+      }
+      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+        setNotificationsOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -152,10 +161,77 @@ const Navbar = () => {
             </div>
 
             {/* Notifications */}
-            <button className="p-2.5 rounded-full hover:bg-secondary transition-colors relative">
-              <Bell className="w-5 h-5 text-muted-foreground" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full" />
-            </button>
+            <div className="relative" ref={notificationRef}>
+              <button
+                onClick={() => setNotificationsOpen(!notificationsOpen)}
+                className={`p-2.5 rounded-full transition-colors relative ${notificationsOpen ? 'bg-secondary' : 'hover:bg-secondary'}`}
+              >
+                <Bell className="w-5 h-5 text-muted-foreground" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-slate-900 rounded-full animate-pulse" />
+                )}
+              </button>
+
+              {notificationsOpen && (
+                <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-2 animate-in fade-in zoom-in-95 origin-top-right overflow-hidden z-50">
+                  <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 dark:border-slate-800">
+                    <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Notifications</h3>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={markAllAsRead}
+                        title="Mark all as read"
+                        className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
+                      >
+                        <Check size={14} />
+                      </button>
+                      <button
+                        onClick={clearNotifications}
+                        title="Clear all"
+                        className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 hover:text-red-600 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="max-h-[60vh] overflow-y-auto custom-scrollbar">
+                    {notifications.length > 0 ? (
+                      <div className="flex flex-col">
+                        {notifications.map((n) => (
+                          <div
+                            key={n.id}
+                            onClick={() => markAsRead(n.id)}
+                            className={`p-3 border-b border-slate-50 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group ${!n.read ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
+                          >
+                            <div className="flex justify-between items-start gap-3">
+                              <div className="flex-1">
+                                <h4 className={`text-sm font-medium mb-0.5 ${!n.read ? 'text-blue-700 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                                  {n.title}
+                                </h4>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 leading-snug">
+                                  {n.message}
+                                </p>
+                                <span className="text-[10px] text-slate-400 mt-1.5 block">
+                                  {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              {!n.read && (
+                                <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="py-12 px-6 text-center text-slate-400">
+                        <Bell className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                        <p className="text-xs">No new notifications</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* App Launcher */}
             <div className="relative" ref={menuRef}>

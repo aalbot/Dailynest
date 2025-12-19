@@ -14,31 +14,36 @@ import DeliveryScreen from "./pages/DeliveryScreen";
 import Overview from "./pages/Overview";
 import KeywordEntry from "./pages/KeywordEntry";
 import BackOffice from "./pages/BackOffice";
+import ScrollToTop from "./components/ScrollToTop";
+import { NotificationProvider } from "./contexts/NotificationContext";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/orders" element={<OrderManagement />} />
-          <Route path="/premium-entry" element={<PremiumEntry />} />
-          <Route path="/rating-entry" element={<RatingEntry />} />
-          <Route path="/stock-entry" element={<StockEntry />} />
-          <Route path="/product-entry" element={<ProductEntry />} />
-          <Route path="/delivery" element={<DeliveryScreen />} />
-          <Route path="/overview" element={<Overview />} />
-          <Route path="/keyword-entry" element={<KeywordEntry />} />
-          <Route path="/back-office" element={<BackOffice />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <NotificationProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <ScrollToTop />
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/orders" element={<OrderManagement />} />
+            <Route path="/premium-entry" element={<PremiumEntry />} />
+            <Route path="/rating-entry" element={<RatingEntry />} />
+            <Route path="/stock-entry" element={<StockEntry />} />
+            <Route path="/product-entry" element={<ProductEntry />} />
+            <Route path="/delivery" element={<DeliveryScreen />} />
+            <Route path="/overview" element={<Overview />} />
+            <Route path="/keyword-entry" element={<KeywordEntry />} />
+            <Route path="/back-office" element={<BackOffice />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </NotificationProvider>
   </QueryClientProvider>
 );
 
