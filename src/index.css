@@ -10,7 +10,7 @@
     --gradient-start: 220 20% 97%;
     --gradient-mid: 210 15% 98%;
     --gradient-end: 200 20% 97%;
-    
+
     /* Core colors */
     --background: 240 20% 98%;
     --foreground: 240 10% 15%;
@@ -46,7 +46,7 @@
     --glass-bg: 0 0% 100% / 0.7;
     --glass-border: 0 0% 100% / 0.5;
     --glass-blur: 20px;
-    
+
     /* Shadows */
     --shadow-sm: 0 2px 8px -2px hsl(240 10% 15% / 0.06);
     --shadow-md: 0 8px 24px -8px hsl(240 10% 15% / 0.1);
@@ -80,7 +80,7 @@
     --gradient-start: 330 30% 12%;
     --gradient-mid: 280 30% 10%;
     --gradient-end: 210 30% 12%;
-    
+
     --background: 240 15% 8%;
     --foreground: 210 40% 98%;
 
@@ -108,7 +108,7 @@
     --border: 217 20% 20%;
     --input: 217 20% 20%;
     --ring: 250 100% 70%;
-    
+
     --glass-bg: 240 15% 15% / 0.6;
     --glass-border: 0 0% 100% / 0.1;
 
@@ -136,12 +136,10 @@
 
 @layer components {
   .gradient-bg {
-    background: linear-gradient(
-      135deg,
-      hsl(var(--gradient-start)) 0%,
-      hsl(var(--gradient-mid)) 50%,
-      hsl(var(--gradient-end)) 100%
-    );
+    background: linear-gradient(135deg,
+        hsl(var(--gradient-start)) 0%,
+        hsl(var(--gradient-mid)) 50%,
+        hsl(var(--gradient-end)) 100%);
   }
 
   .glass-card {
@@ -166,17 +164,49 @@
     box-shadow: var(--shadow-sm);
   }
 
-  .app-icon-blue { background: linear-gradient(135deg, hsl(var(--icon-blue)) 0%, hsl(210 100% 70%) 100%); }
-  .app-icon-purple { background: linear-gradient(135deg, hsl(var(--icon-purple)) 0%, hsl(280 100% 75%) 100%); }
-  .app-icon-pink { background: linear-gradient(135deg, hsl(var(--icon-pink)) 0%, hsl(350 100% 75%) 100%); }
-  .app-icon-orange { background: linear-gradient(135deg, hsl(var(--icon-orange)) 0%, hsl(40 100% 65%) 100%); }
-  .app-icon-green { background: linear-gradient(135deg, hsl(var(--icon-green)) 0%, hsl(160 80% 55%) 100%); }
-  .app-icon-cyan { background: linear-gradient(135deg, hsl(var(--icon-cyan)) 0%, hsl(195 100% 55%) 100%); }
-  .app-icon-red { background: linear-gradient(135deg, hsl(var(--icon-red)) 0%, hsl(15 90% 65%) 100%); }
-  .app-icon-yellow { background: linear-gradient(135deg, hsl(var(--icon-yellow)) 0%, hsl(55 100% 60%) 100%); }
-  .app-icon-indigo { background: linear-gradient(135deg, hsl(var(--icon-indigo)) 0%, hsl(250 90% 70%) 100%); }
-  .app-icon-teal { background: linear-gradient(135deg, hsl(var(--icon-teal)) 0%, hsl(180 70% 55%) 100%); }
-  .app-icon-rose { background: linear-gradient(135deg, hsl(var(--icon-rose)) 0%, hsl(360 90% 75%) 100%); }
+  .app-icon-blue {
+    background: linear-gradient(135deg, hsl(var(--icon-blue)) 0%, hsl(210 100% 70%) 100%);
+  }
+
+  .app-icon-purple {
+    background: linear-gradient(135deg, hsl(var(--icon-purple)) 0%, hsl(280 100% 75%) 100%);
+  }
+
+  .app-icon-pink {
+    background: linear-gradient(135deg, hsl(var(--icon-pink)) 0%, hsl(350 100% 75%) 100%);
+  }
+
+  .app-icon-orange {
+    background: linear-gradient(135deg, hsl(var(--icon-orange)) 0%, hsl(40 100% 65%) 100%);
+  }
+
+  .app-icon-green {
+    background: linear-gradient(135deg, hsl(var(--icon-green)) 0%, hsl(160 80% 55%) 100%);
+  }
+
+  .app-icon-cyan {
+    background: linear-gradient(135deg, hsl(var(--icon-cyan)) 0%, hsl(195 100% 55%) 100%);
+  }
+
+  .app-icon-red {
+    background: linear-gradient(135deg, hsl(var(--icon-red)) 0%, hsl(15 90% 65%) 100%);
+  }
+
+  .app-icon-yellow {
+    background: linear-gradient(135deg, hsl(var(--icon-yellow)) 0%, hsl(55 100% 60%) 100%);
+  }
+
+  .app-icon-indigo {
+    background: linear-gradient(135deg, hsl(var(--icon-indigo)) 0%, hsl(250 90% 70%) 100%);
+  }
+
+  .app-icon-teal {
+    background: linear-gradient(135deg, hsl(var(--icon-teal)) 0%, hsl(180 70% 55%) 100%);
+  }
+
+  .app-icon-rose {
+    background: linear-gradient(135deg, hsl(var(--icon-rose)) 0%, hsl(360 90% 75%) 100%);
+  }
 }
 
 @layer utilities {

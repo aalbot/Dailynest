@@ -20,22 +20,28 @@ import {
   Settings,
   LogOut,
   User,
+  Sparkles,
   TrendingUp
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useNotification } from "@/contexts/NotificationContext";
 
-const appItems = [
-  { icon: Crown, label: "Premium Entry", path: "/premium-entry", color: "bg-yellow-500" },
-  { icon: Star, label: "Rating Entry", path: "/rating-entry", color: "bg-orange-500" },
+import firebase from "firebase/compat/app";
+import "firebase/compat/database";
+import { iconMap } from "@/utils/appIcons";
+
+const defaultAppItems = [
+  { icon: TrendingUp, label: "Dashboard", path: "/dashboard", color: "bg-rose-500" },
+  { icon: LayoutDashboard, label: "Overview", path: "/overview", color: "bg-cyan-500" },
+  { icon: Sparkles, label: "AI Chat", path: "/chat", color: "bg-blue-600" },
+  { icon: ClipboardList, label: "Order Management", path: "/orders", color: "bg-pink-500" },
+  { icon: Truck, label: "Delivery Screen", path: "/delivery", color: "bg-emerald-500" },
   { icon: Package, label: "Stock Entry", path: "/stock-entry", color: "bg-blue-500" },
   { icon: ShoppingBag, label: "Product Entry", path: "/product-entry", color: "bg-violet-500" },
-  { icon: Truck, label: "Delivery Screen", path: "/delivery", color: "bg-emerald-500" },
-  { icon: LayoutDashboard, label: "Overview", path: "/overview", color: "bg-cyan-500" },
-  { icon: ClipboardList, label: "Order Management", path: "/orders", color: "bg-pink-500" },
-  { icon: Keyboard, label: "Keyword Entry", path: "/keyword-entry", color: "bg-indigo-500" },
   { icon: Building2, label: "Back Office", path: "/back-office", color: "bg-teal-500" },
-  { icon: TrendingUp, label: "Dashboard", path: "/dashboard", color: "bg-rose-500" },
+  { icon: Crown, label: "Premium Entry", path: "/premium-entry", color: "bg-yellow-500" },
+  { icon: Star, label: "Rating Entry", path: "/rating-entry", color: "bg-orange-500" },
+  { icon: Keyboard, label: "Keyword Entry", path: "/keyword-entry", color: "bg-indigo-500" },
 ];
 
 const Navbar = () => {
@@ -49,11 +55,38 @@ const Navbar = () => {
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications } = useNotification();
   const navigate = useNavigate();
 
+  const [customApps, setCustomApps] = useState<any[]>([]);
+
+  useEffect(() => {
+    const db = firebase.database();
+    const appsRef = db.ref("root/apps");
+    const onValueChange = (snapshot: any) => {
+      const data = snapshot.val();
+      if (data) {
+        setCustomApps(Object.values(data));
+      } else {
+        setCustomApps([]);
+      }
+    };
+    appsRef.on("value", onValueChange);
+    return () => appsRef.off("value", onValueChange);
+  }, []);
+
+  const allApps = [
+    ...defaultAppItems,
+    ...customApps.map(app => ({
+      icon: iconMap[app.icon] || Package,
+      label: app.name,
+      path: app.path || "/",
+      color: app.colorClass || "bg-blue-500"
+    }))
+  ];
+
   const menuRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
-  const filteredApps = searchQuery ? appItems.filter(item => item.label.toLowerCase().includes(searchQuery.toLowerCase())) : [];
+  const filteredApps = searchQuery ? allApps.filter(item => item.label.toLowerCase().includes(searchQuery.toLowerCase())) : [];
 
   useEffect(() => {
     // Check local storage or system preference
@@ -263,7 +296,7 @@ const Navbar = () => {
               {menuOpen && (
                 <div className="absolute right-0 top-full mt-2 w-[320px] bg-white rounded-2xl shadow-xl border border-gray-200/80 p-3 animate-scale-in origin-top-right">
                   <div className="grid grid-cols-3 gap-1">
-                    {appItems.map((item) => (
+                    {allApps.map((item) => (
                       <Link
                         key={item.path}
                         to={item.path}
