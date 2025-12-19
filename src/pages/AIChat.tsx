@@ -1,10 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Navbar from "@/components/Navbar";
-import { Send, Upload, User, Sparkles, Mic, Image, StopCircle, RefreshCcw, Copy, ThumbsUp, ThumbsDown, Key, Settings2 } from 'lucide-react';
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Send, User, Sparkles, StopCircle, RefreshCcw, Copy, ThumbsUp, ThumbsDown, Database } from 'lucide-react';
+import firebase from "firebase/compat/app";
+import "firebase/compat/database";
+
+// Firebase Config (Ensure this matches your other files)
+const firebaseConfig = {
+    apiKey: "AIzaSyCSH0uuKssWvkgvMOnWV_1u3zPO-1XNWPg",
+    authDomain: "dailyclub11.firebaseapp.com",
+    databaseURL: "https://dailyclub11-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "dailyclub11",
+    storageBucket: "dailyclub11.firebasestorage.app",
+    messagingSenderId: "439424426599",
+    appId: "1:439424426599:web:5ee8965e14990c57fdaac2",
+};
+
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
 
 interface Message {
     id: string;
@@ -26,28 +39,51 @@ const AIChat = () => {
     const [isTyping, setIsTyping] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    // API Key State
-    const [apiKey, setApiKey] = useState('AIzaSyCMWnTTKmMXMeti3QSrb8gCYrN2AXz6dnk');
-    const [showKeyModal, setShowKeyModal] = useState(false);
-
-    useEffect(() => {
-        const storedKey = localStorage.getItem('gemini_api_key');
-        if (storedKey) setApiKey(storedKey);
-    }, []);
-
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages, isTyping]);
 
+    const fetchContextData = async () => {
+        try {
+            const db = firebase.database();
+
+            // 1. Fetch Orders (Limit to last 20 for brevity)
+            const ordersSnap = await db.ref('root/order').orderByKey().limitToLast(20).once('value');
+            const ordersVal = ordersSnap.val() || {};
+            const orderList = Object.entries(ordersVal).map(([id, o]: [string, any]) =>
+                `- Order #${id}: ${o.status || 'Pending'} (${o.name || 'Guest'}, ₹${o.total || 0})`
+            ).join('\n');
+
+            // 2. Fetch Products for names
+            const prodsSnap = await db.ref('root/products').limitToFirst(100).once('value');
+            const products = prodsSnap.val() || {};
+
+            // 3. Fetch Stock (Simplified)
+            const stockSnap = await db.ref('root/stock').limitToFirst(50).once('value');
+            const stockVal = stockSnap.val() || {};
+
+            const stockList: string[] = [];
+            Object.keys(stockVal).forEach(pCode => {
+                const product = products[pCode];
+                const variants = stockVal[pCode];
+                if (variants) {
+                    Object.values(variants).forEach((v: any) => {
+                        stockList.push(`- ${product?.name || pCode}: ${v.quantity} ${v.pkg}s (Price: ₹${v.offerPrice})`);
+                    });
+                }
+            });
+
+            return `\nCURRENT STORE DATA (Real-time):\n[Recent Orders]\n${orderList || 'No recent orders'}\n\n[Stock Samples]\n${stockList.slice(0, 30).join('\n') || 'No stock data'}`;
+        } catch (e) {
+            console.error("Error fetching context:", e);
+            return "";
+        }
+    };
+
     const handleSend = async () => {
         if (!input.trim()) return;
-
-        if (!apiKey) {
-            setShowKeyModal(true);
-            return;
-        }
 
         const userMsg: Message = {
             id: Date.now().toString(),
@@ -61,71 +97,48 @@ const AIChat = () => {
         setIsTyping(true);
 
         try {
-            const genAI = new GoogleGenerativeAI(apiKey);
-            let model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+            // Fetch live data context
+            const liveContext = await fetchContextData();
 
-            // Helper to clean history
-            const getHistory = () => messages.filter(m => m.id !== '1').map(m => ({
-                role: m.role === 'user' ? 'user' : 'model',
-                parts: [{ text: m.content }]
-            }));
+            // Construct conversation history
+            const recentMessages = messages.slice(-4);
+            const history = [...recentMessages, userMsg]
+                .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+                .join('\n');
 
-            try {
-                const chat = model.startChat({ history: getHistory() });
-                const result = await chat.sendMessage(userMsg.content);
-                const response = await result.response;
-                const text = response.text();
+            // Pollinations.ai accepts the prompt directly in the URL
+            const systemPrompt = "System: You are an intelligent store assistant for DailyClub. You have access to real-time store data below. Use it to answer questions accurately. If asked about orders or stock, refer to this data. Be concise.";
+            const fullPrompt = `${systemPrompt}\n${liveContext}\n\nCONVERSATION:\n${history}\nAssistant:`;
 
-                const aiMsg: Message = {
-                    id: (Date.now() + 1).toString(),
-                    role: 'ai',
-                    content: text,
-                    timestamp: new Date()
-                };
-                setMessages(prev => [...prev, aiMsg]);
-            } catch (firstError: any) {
-                console.warn("Primary model failed, attempting fallback...", firstError);
-                // Fallback to gemini-pro if flash fails (e.g. 404)
-                if (firstError.message?.includes('404') || firstError.message?.includes('not found')) {
-                    model = genAI.getGenerativeModel({ model: "gemini-pro" });
-                    const chat = model.startChat({ history: getHistory() });
-                    const result = await chat.sendMessage(userMsg.content);
-                    const response = await result.response;
-                    const text = response.text();
+            // Use Pollinations.ai (Free, No Key required)
+            const response = await fetch(`https://text.pollinations.ai/${encodeURIComponent(fullPrompt)}`);
 
-                    const aiMsg: Message = {
-                        id: (Date.now() + 1).toString(),
-                        role: 'ai',
-                        content: text,
-                        timestamp: new Date()
-                    };
-                    setMessages(prev => [...prev, aiMsg]);
-                } else {
-                    throw firstError;
-                }
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
             }
+
+            const text = await response.text();
+
+            const aiMsg: Message = {
+                id: (Date.now() + 1).toString(),
+                role: 'ai',
+                content: text,
+                timestamp: new Date()
+            };
+            setMessages(prev => [...prev, aiMsg]);
 
         } catch (error: any) {
             console.error("AI Error:", error);
             const errorMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'ai',
-                content: `Sorry, I encountered an error. Please check your API Key or try again. (${error.message || 'Unknown error'})`,
+                content: "Sorry, I'm having trouble connecting to the free AI service right now. Please try again in a moment.",
                 timestamp: new Date()
             };
             setMessages(prev => [...prev, errorMsg]);
-            if (error.message?.includes('API key') || error.toString().includes('403')) {
-                setShowKeyModal(true);
-            }
         } finally {
             setIsTyping(false);
         }
-    };
-
-    const handleSaveKey = (key: string) => {
-        localStorage.setItem('gemini_api_key', key);
-        setApiKey(key);
-        setShowKeyModal(false);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -141,38 +154,7 @@ const AIChat = () => {
                 <Navbar />
             </div>
 
-            <Dialog open={showKeyModal} onOpenChange={setShowKeyModal}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Enter Gemini API Key</DialogTitle>
-                        <DialogDescription>
-                            To use the AI features, please enter your free Google Gemini API Key.
-                            You can get one at <a href="https://makersuite.google.com/app/apikey" target="_blank" className="text-blue-600 hover:underline">makersuite.google.com</a>.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="py-2">
-                        <Input
-                            placeholder="AIzaSy..."
-                            type="password"
-                            onChange={(e) => setApiKey(e.target.value)}
-                            defaultValue={apiKey}
-                        />
-                    </div>
-                    <DialogFooter>
-                        <Button onClick={() => handleSaveKey(apiKey)}>Save Key</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
             <div className="flex-1 flex flex-col pt-16 max-w-5xl mx-auto w-full relative">
-                {/* API Key settings button */}
-                <button
-                    onClick={() => setShowKeyModal(true)}
-                    className="absolute top-20 right-4 p-2 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors z-10"
-                    title="Configure API Key"
-                >
-                    <Settings2 size={16} />
-                </button>
 
                 {/* Chat Area */}
                 <div
