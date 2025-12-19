@@ -9,6 +9,7 @@ import {
   ClipboardList,
   Keyboard,
   Building2,
+  TrendingUp,
 } from "lucide-react";
 import AppIcon from "./AppIcon";
 
@@ -22,6 +23,7 @@ const apps = [
   { icon: ClipboardList, label: "Order Management", colorClass: "app-icon-pink", path: "/orders" },
   { icon: Keyboard, label: "Keyword Entry", colorClass: "app-icon-indigo", path: "/keyword-entry" },
   { icon: Building2, label: "Back Office", colorClass: "app-icon-teal", path: "/back-office" },
+  { icon: TrendingUp, label: "Dashboard", colorClass: "app-icon-rose", path: "/dashboard" },
 ];
 
 const AppGrid = () => {

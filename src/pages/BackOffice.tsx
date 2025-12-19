@@ -306,15 +306,7 @@ const BackOffice = () => {
                     <BackButton />
                 </div>
 
-                <div className="flex items-center gap-3 px-4 mb-8">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
-                        <Database size={20} />
-                    </div>
-                    <div>
-                        <h1 className="font-bold text-slate-900 dark:text-slate-100 leading-tight">DailyClub</h1>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">BackOffice</p>
-                    </div>
-                </div>
+
 
                 <nav className="space-y-1">
                     <NavItem id="categories" icon={LayoutGrid} label="Categories" />

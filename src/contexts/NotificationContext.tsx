@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import firebase from "firebase/compat/app";
 import "firebase/compat/database";
 import { toast } from "sonner";
@@ -42,6 +43,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [orders, setOrders] = useState<Record<string, any>>({});
     const isInitialLoad = useRef(true);
+    const navigate = useNavigate();
 
     // Sound logic
     const playNotificationSound = () => {
@@ -133,7 +135,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             description: newNotification.message,
             action: {
                 label: "View",
-                onClick: () => console.log("View clicked"), // Could navigate to order
+                onClick: () => {
+                    if (newNotification.type === 'order') navigate('/orders');
+                    if (newNotification.type === 'delivery') navigate('/delivery');
+                },
             },
         });
 

@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Crown,
   Star,
@@ -16,7 +16,11 @@ import {
   Moon,
   X,
   Check,
-  Trash2
+  Trash2,
+  Settings,
+  LogOut,
+  User,
+  TrendingUp
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useNotification } from "@/contexts/NotificationContext";
@@ -31,6 +35,7 @@ const appItems = [
   { icon: ClipboardList, label: "Order Management", path: "/orders", color: "bg-pink-500" },
   { icon: Keyboard, label: "Keyword Entry", path: "/keyword-entry", color: "bg-indigo-500" },
   { icon: Building2, label: "Back Office", path: "/back-office", color: "bg-teal-500" },
+  { icon: TrendingUp, label: "Dashboard", path: "/dashboard", color: "bg-rose-500" },
 ];
 
 const Navbar = () => {
@@ -40,10 +45,13 @@ const Navbar = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications } = useNotification();
+  const navigate = useNavigate();
 
   const menuRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
 
   const filteredApps = searchQuery ? appItems.filter(item => item.label.toLowerCase().includes(searchQuery.toLowerCase())) : [];
 
@@ -64,6 +72,9 @@ const Navbar = () => {
       }
       if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
         setNotificationsOpen(false);
+      }
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setProfileOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -200,7 +211,12 @@ const Navbar = () => {
                         {notifications.map((n) => (
                           <div
                             key={n.id}
-                            onClick={() => markAsRead(n.id)}
+                            onClick={() => {
+                              markAsRead(n.id);
+                              if (n.type === 'order') navigate('/orders');
+                              if (n.type === 'delivery') navigate('/delivery');
+                              setNotificationsOpen(false);
+                            }}
                             className={`p-3 border-b border-slate-50 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group ${!n.read ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
                           >
                             <div className="flex justify-between items-start gap-3">
@@ -279,10 +295,51 @@ const Navbar = () => {
               )}
             </div>
 
-            {/* User Avatar */}
-            <button className="ml-1 w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-sm font-semibold hover:shadow-md transition-shadow">
-              JD
-            </button>
+            {/* User Profile Dropdown */}
+            <div className="relative" ref={profileRef}>
+              <button
+                onClick={() => setProfileOpen(!profileOpen)}
+                className="ml-1 w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-sm font-semibold hover:shadow-md transition-shadow"
+              >
+                JD
+              </button>
+
+              {profileOpen && (
+                <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-2 animate-in fade-in zoom-in-95 origin-top-right z-50 overflow-hidden">
+                  <div className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 mb-2">
+                    <p className="text-sm font-bold text-slate-900 dark:text-slate-100">John Doe</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">admin@dailyclub.com</p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <button
+                      onClick={toggleTheme}
+                      className="w-full flex items-center justify-between px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        {isDark ? <Moon size={16} /> : <Sun size={16} />}
+                        <span>Dark Mode</span>
+                      </div>
+                      <div className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-300 ${isDark ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+                        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-300 ${isDark ? 'translate-x-4' : 'translate-x-0'}`} />
+                      </div>
+                    </button>
+
+                    <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                      <Settings size={16} />
+                      <span>Settings</span>
+                    </button>
+
+                    <div className="h-px bg-slate-100 dark:bg-slate-800 my-1 confirm-logout"></div>
+
+                    <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors">
+                      <LogOut size={16} />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

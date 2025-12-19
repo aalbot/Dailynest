@@ -12,6 +12,7 @@ import StockEntry from "./pages/StockEntry";
 import ProductEntry from "./pages/ProductEntry";
 import DeliveryScreen from "./pages/DeliveryScreen";
 import Overview from "./pages/Overview";
+import Dashboard from "./pages/Dashboard";
 import KeywordEntry from "./pages/KeywordEntry";
 import BackOffice from "./pages/BackOffice";
 import ScrollToTop from "./components/ScrollToTop";
@@ -21,11 +22,11 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <NotificationProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <NotificationProvider>
           <ScrollToTop />
           <Routes>
             <Route path="/" element={<Index />} />
@@ -36,14 +37,15 @@ const App = () => (
             <Route path="/product-entry" element={<ProductEntry />} />
             <Route path="/delivery" element={<DeliveryScreen />} />
             <Route path="/overview" element={<Overview />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/keyword-entry" element={<KeywordEntry />} />
             <Route path="/back-office" element={<BackOffice />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </NotificationProvider>
+        </NotificationProvider>
+      </BrowserRouter>
+    </TooltipProvider>
   </QueryClientProvider>
 );
 
