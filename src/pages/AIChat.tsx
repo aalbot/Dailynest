@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Navbar from "@/components/Navbar";
-import { Send, User, Sparkles, StopCircle } from 'lucide-react';
+import { Send, User, Sparkles, StopCircle, Trash2 } from 'lucide-react';
 import firebase from "firebase/compat/app";
 import "firebase/compat/database";
 
@@ -23,27 +23,56 @@ interface Message {
     id: string;
     role: 'user' | 'ai';
     content: string;
-    timestamp: Date;
+    timestamp: string; // Store as string for easier serialization
 }
 
+const STORAGE_KEY = 'dailyclub_ai_chat_history';
+
 const AIChat = () => {
-    const [messages, setMessages] = useState<Message[]>([
-        {
-            id: '1',
-            role: 'ai',
-            content: "Hello! I'm your DailyClub AI assistant. I can answer any questions you have about orders, products, or stock. How can I help you today?",
-            timestamp: new Date()
+    // Initialize messages from localStorage or default
+    const [messages, setMessages] = useState<Message[]>(() => {
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            return saved ? JSON.parse(saved) : [{
+                id: '1',
+                role: 'ai',
+                content: "Hello! I'm your DailyClub AI assistant. I can answer any questions you have about orders, products, or stock. How can I help you today?",
+                timestamp: new Date().toISOString()
+            }];
+        } catch (e) {
+            return [{
+                id: '1',
+                role: 'ai',
+                content: "Hello! I'm your DailyClub AI assistant. I can answer any questions you have about orders, products, or stock. How can I help you today?",
+                timestamp: new Date().toISOString()
+            }];
         }
-    ]);
+    });
+
     const [input, setInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
 
+    // Save to localStorage whenever messages change
     useEffect(() => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages, isTyping]);
+
+    const handleClearChat = () => {
+        if (confirm("Are you sure you want to clear the chat history?")) {
+            const defaultMsg: Message = {
+                id: Date.now().toString(),
+                role: 'ai',
+                content: "Chat history cleared. How can I help you now?",
+                timestamp: new Date().toISOString()
+            };
+            setMessages([defaultMsg]);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify([defaultMsg]));
+        }
+    };
 
     const fetchContextData = async () => {
         try {
@@ -89,7 +118,7 @@ const AIChat = () => {
             id: Date.now().toString(),
             role: 'user',
             content: input,
-            timestamp: new Date()
+            timestamp: new Date().toISOString()
         };
 
         setMessages(prev => [...prev, userMsg]);
@@ -124,7 +153,7 @@ const AIChat = () => {
                 id: (Date.now() + 1).toString(),
                 role: 'ai',
                 content: text,
-                timestamp: new Date()
+                timestamp: new Date().toISOString()
             };
             setMessages(prev => [...prev, aiMsg]);
 
@@ -134,7 +163,7 @@ const AIChat = () => {
                 id: (Date.now() + 1).toString(),
                 role: 'ai',
                 content: `Sorry, I encountered an error: ${error.message || 'Unknown error'}. Please try again.`,
-                timestamp: new Date()
+                timestamp: new Date().toISOString()
             };
             setMessages(prev => [...prev, errorMsg]);
         } finally {
@@ -188,6 +217,11 @@ const AIChat = () => {
         });
     };
 
+    const formatTime = (isoString?: string) => {
+        if (!isoString) return '';
+        return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
     return (
         <div className="flex h-screen bg-[#F0F4F9] dark:bg-[#131314] font-sans">
             <div className="fixed top-0 left-0 right-0 z-50">
@@ -196,12 +230,23 @@ const AIChat = () => {
 
             <div className="flex-1 flex flex-col pt-16 max-w-5xl mx-auto w-full relative">
 
+                {/* Header / Actions */}
+                <div className="absolute top-20 right-4 z-20">
+                    <button
+                        onClick={handleClearChat}
+                        className="p-2 bg-white dark:bg-[#1E1F20] text-slate-400 hover:text-red-500 rounded-full shadow-sm hover:shadow transition-all border border-slate-100 dark:border-slate-800"
+                        title="Clear Chat History"
+                    >
+                        <Trash2 size={16} />
+                    </button>
+                </div>
+
                 {/* Chat Area */}
                 <div
                     ref={scrollRef}
                     className="flex-1 overflow-y-auto px-4 py-6 scroll-smooth custom-scrollbar"
                 >
-                    <div className="space-y-6 pb-4">
+                    <div className="space-y-6 pb-4 pt-8">
                         {messages.map((msg) => (
                             <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
 
@@ -219,8 +264,13 @@ const AIChat = () => {
 
                                 {/* Message Bubble */}
                                 <div className={`flex flex-col max-w-[85%]`}>
-                                    <div className={`text-xs font-medium mb-1.5 opacity-70 ${msg.role === 'user' ? 'text-right' : 'ml-1'}`}>
-                                        {msg.role === 'ai' ? 'DailyClub AI' : 'You'}
+                                    <div className={`flex items-end gap-2 mb-1.5 opacity-70 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                                        <span className="text-xs font-medium">
+                                            {msg.role === 'ai' ? 'DailyClub AI' : 'You'}
+                                        </span>
+                                        <span className="text-[10px] text-slate-400">
+                                            {formatTime(msg.timestamp)}
+                                        </span>
                                     </div>
                                     <div className={`rounded-2xl px-5 py-3.5 text-[15px] leading-relaxed shadow-sm ${msg.role === 'user'
                                         ? 'bg-[#E7F0FE] dark:bg-[#2B3544] text-slate-900 dark:text-slate-100 rounded-tr-sm'

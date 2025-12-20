@@ -138,21 +138,7 @@ const Navbar = () => {
 
           {/* Right side icons */}
           <div className="flex items-center gap-2">
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="p-2.5 rounded-full hover:bg-secondary transition-colors relative overflow-hidden group"
-              aria-label="Toggle Theme"
-            >
-              <div className="relative w-5 h-5">
-                <Sun
-                  className={`w-5 h-5 text-amber-500 absolute top-0 left-0 transition-all duration-300 transform ${isDark ? 'opacity-0 rotate-90 scale-0' : 'opacity-100 rotate-0 scale-100'}`}
-                />
-                <Moon
-                  className={`w-5 h-5 text-indigo-500 dark:text-sky-300 absolute top-0 left-0 transition-all duration-300 transform ${isDark ? 'opacity-100 rotate-0 scale-100' : 'opacity-0 -rotate-90 scale-0'}`}
-                />
-              </div>
-            </button>
+
 
             {/* Search */}
             {/* Search */}
