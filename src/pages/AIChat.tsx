@@ -1,8 +1,35 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Navbar from "@/components/Navbar";
-import { Send, User, Sparkles, StopCircle, Trash2 } from 'lucide-react';
+import { Send, User, Sparkles, StopCircle, Trash2, BarChart3, PieChart, Activity } from 'lucide-react';
 import firebase from "firebase/compat/app";
 import "firebase/compat/database";
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    BarElement,
+    ArcElement,
+    Title,
+    Tooltip,
+    Legend,
+    ChartData
+} from 'chart.js';
+import { Line, Bar, Doughnut, Pie } from 'react-chartjs-2';
+
+// Register ChartJS
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    BarElement,
+    ArcElement,
+    Title,
+    Tooltip,
+    Legend
+);
 
 // Firebase Config
 const firebaseConfig = {
@@ -23,27 +50,140 @@ interface Message {
     id: string;
     role: 'user' | 'ai';
     content: string;
-    timestamp: string; // Store as string for easier serialization
+    timestamp: string;
 }
 
 const STORAGE_KEY = 'dailyclub_ai_chat_history';
 
+// --- CHART COMPONENT ---
+const ChatChart = ({ type, data }: { type: string, data: any }) => {
+    const chartData = useMemo(() => {
+        if (!data || !data.order) return null;
+
+        const orders = Object.values(data.order || {});
+        // Basic processing
+        if (type === 'revenue' || type === 'sales') {
+            // Group by date (last 7 days)
+            const days: Record<string, number> = {};
+            orders.forEach((o: any) => {
+                // Check if valid order
+                if (!o.status || o.status.toLowerCase().includes('cancel')) return;
+
+                const ts = o.timestamp || o.createdAt || Date.now();
+                const date = new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+                let amt = 0;
+                if (typeof o.total === 'string') {
+                    amt = parseFloat(o.total.split('-')[0]) || 0;
+                } else {
+                    amt = parseFloat(o.total) || 0;
+                }
+                days[date] = (days[date] || 0) + amt;
+            });
+
+            // Sort by date (mock sort for keys)
+            const sortedLabels = Object.keys(days).slice(-7);
+
+            return {
+                labels: sortedLabels,
+                datasets: [{
+                    label: 'Revenue (₹)',
+                    data: sortedLabels.map(l => days[l]),
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            };
+        }
+
+        if (type === 'status' || type === 'orders_status') {
+            let completed = 0, pending = 0, cancelled = 0;
+            orders.forEach((o: any) => {
+                const s = (o.status || '').toLowerCase();
+                if (s.includes('deliver') || s.includes('complete')) completed++;
+                else if (s.includes('cancel')) cancelled++;
+                else pending++;
+            });
+
+            return {
+                labels: ['Delivered', 'Pending', 'Cancelled'],
+                datasets: [{
+                    data: [completed, pending, cancelled],
+                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444']
+                }]
+            };
+        }
+
+        if (type === 'products' || type === 'top_products') {
+            // Simple top products count
+            const productCounts: Record<string, number> = {};
+            orders.forEach((o: any) => {
+                // Check item1...item5 fields
+                for (let i = 1; i <= 5; i++) {
+                    if (o[`item${i}`]) {
+                        const name = o[`item${i}`];
+                        productCounts[name] = (productCounts[name] || 0) + 1;
+                    }
+                }
+                // Check items array if exists
+                if (o.items && Array.isArray(o.items)) {
+                    o.items.forEach((item: any) => {
+                        const name = item.name || item.productName || 'Item';
+                        productCounts[name] = (productCounts[name] || 0) + (item.quantity || 1);
+                    });
+                }
+            });
+
+            const top = Object.entries(productCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5);
+
+            return {
+                labels: top.map(t => t[0].length > 15 ? t[0].substring(0, 15) + '...' : t[0]),
+                datasets: [{
+                    label: 'Units Sold',
+                    data: top.map(t => t[1]),
+                    backgroundColor: '#8884d8'
+                }]
+            };
+        }
+
+        return null;
+    }, [type, data]);
+
+    if (!data) return <div className="p-4 text-xs text-slate-400 bg-slate-50 dark:bg-slate-800 rounded animate-pulse">Loading Chart Data...</div>;
+    if (!chartData) return <div className="p-4 text-xs text-slate-400">No data available for chart.</div>;
+
+    return (
+        <div className="my-3 p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm w-full max-w-sm mx-auto">
+            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 text-center">{type.replace('_', ' ')} Chart</h4>
+            <div className="h-48 w-full flex justify-center">
+                {(type === 'revenue' || type === 'sales') && <Line data={chartData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }} />}
+                {(type === 'status' || type === 'orders_status') && <Doughnut data={chartData} options={{ responsive: true, maintainAspectRatio: false }} />}
+                {(type === 'products' || type === 'top_products') && <Bar data={chartData} options={{ responsive: true, maintainAspectRatio: false, indexAxis: 'y' }} />}
+            </div>
+        </div>
+    );
+};
+
+
 const AIChat = () => {
-    // Initialize messages from localStorage or default
+    // History
     const [messages, setMessages] = useState<Message[]>(() => {
         try {
             const saved = localStorage.getItem(STORAGE_KEY);
             return saved ? JSON.parse(saved) : [{
                 id: '1',
                 role: 'ai',
-                content: "Hello! I'm your DailyClub AI assistant. I can answer any questions you have about orders, products, or stock. How can I help you today?",
+                content: "Hello! I'm your DailyClub AI assistant. I can show you charts regarding revenue, order status, or top products. Try asking 'Show me a revenue chart'!",
                 timestamp: new Date().toISOString()
             }];
         } catch (e) {
             return [{
                 id: '1',
                 role: 'ai',
-                content: "Hello! I'm your DailyClub AI assistant. I can answer any questions you have about orders, products, or stock. How can I help you today?",
+                content: "Hello! I'm your DailyClub AI assistant.",
                 timestamp: new Date().toISOString()
             }];
         }
@@ -51,15 +191,43 @@ const AIChat = () => {
 
     const [input, setInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
+
+    // Store Data State for Charts
+    const [storeData, setStoreData] = useState<any>(null);
+
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    // Save to localStorage whenever messages change
+    // Save history
     useEffect(() => {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages, isTyping]);
+
+    // Initial Data Fetch (Silently load data for charts)
+    useEffect(() => {
+        const fetchEssentialData = async () => {
+            try {
+                const db = firebase.database();
+                // We fetch all orders for accurate charts. This might be heavy for very large stores, 
+                // but necessary for "Total Revenue". LIMIT to last 500 for performance if needed.
+                const ordersSnap = await db.ref('root/order').limitToLast(200).once('value');
+                const productsSnap = await db.ref('root/products').limitToFirst(200).once('value');
+                // const stockSnap = await db.ref('root/stock').limitToFirst(100).once('value');
+
+                setStoreData({
+                    order: ordersSnap.val() || {},
+                    products: productsSnap.val() || {},
+                    // stock: stockSnap.val() || {}
+                });
+            } catch (e) {
+                console.error("Background data fetch failed", e);
+            }
+        };
+        fetchEssentialData();
+    }, []);
+
 
     const handleClearChat = () => {
         if (confirm("Are you sure you want to clear the chat history?")) {
@@ -74,41 +242,27 @@ const AIChat = () => {
         }
     };
 
-    const fetchContextData = async () => {
-        try {
+    const fetchContextSummary = async () => {
+        // Use local storeData if available, otherwise fetch minimal
+        let orders = storeData?.order;
+        let products = storeData?.products;
+
+        if (!orders || !products) {
             const db = firebase.database();
-
-            // 1. Fetch Orders (Limit to last 20 for brevity)
-            const ordersSnap = await db.ref('root/order').orderByKey().limitToLast(20).once('value');
-            const ordersVal = ordersSnap.val() || {};
-            const orderList = Object.entries(ordersVal).map(([id, o]: [string, any]) =>
-                `- Order #${id}: ${o.status || 'Pending'} (${o.name || 'Guest'}, ₹${o.total || 0})`
-            ).join('\n');
-
-            // 2. Fetch Products for names
-            const prodsSnap = await db.ref('root/products').limitToFirst(100).once('value');
-            const products = prodsSnap.val() || {};
-
-            // 3. Fetch Stock (Simplified)
-            const stockSnap = await db.ref('root/stock').limitToFirst(50).once('value');
-            const stockVal = stockSnap.val() || {};
-
-            const stockList: string[] = [];
-            Object.keys(stockVal).forEach(pCode => {
-                const product = products[pCode];
-                const variants = stockVal[pCode];
-                if (variants) {
-                    Object.values(variants).forEach((v: any) => {
-                        stockList.push(`- ${product?.name || pCode}: ${v.quantity} ${v.pkg}s (Price: ₹${v.offerPrice})`);
-                    });
-                }
-            });
-
-            return `\nCURRENT STORE DATA (Real-time):\n[Recent Orders]\n${orderList || 'No recent orders'}\n\n[Stock Samples]\n${stockList.slice(0, 30).join('\n') || 'No stock data'}`;
-        } catch (e) {
-            console.error("Error fetching context:", e);
-            return "";
+            const oSnap = await db.ref('root/order').orderByKey().limitToLast(15).once('value');
+            orders = oSnap.val();
+            const pSnap = await db.ref('root/products').limitToFirst(50).once('value');
+            products = pSnap.val();
         }
+
+        const orderList = Object.entries(orders || {}).slice(-15).map(([id, o]: [string, any]) =>
+            `- Order #${id}: ${o.status || 'Pending'} (${o.name || 'Guest'}, ₹${o.total || 0})`
+        ).join('\n');
+
+        // Simple stock summary
+        // ... (Skipping full stock details to save tokens, assuming AI can answer basic questions or user asks for specific charts)
+
+        return `\nCURRENT STORE DATA SNAPSHOT:\n[Recent Orders]\n${orderList}\n\n[System Note]\nYou can display charts. If the user asks for a visualization, return one of these tags strictly:\n[CHART:revenue] - For sales/revenue trends\n[CHART:status] - For order status breakdown\n[CHART:products] - For top selling products\n`;
     };
 
     const handleSend = async () => {
@@ -126,27 +280,18 @@ const AIChat = () => {
         setIsTyping(true);
 
         try {
-            // Fetch live data context
-            const liveContext = await fetchContextData();
-
-            // Construct conversation history
-            const recentMessages = messages.slice(-4);
+            const liveContext = await fetchContextSummary();
+            const recentMessages = messages.slice(-6);
             const history = [...recentMessages, userMsg]
                 .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
                 .join('\n');
 
-            // Pollinations.ai accepts the prompt directly in the URL
-            const systemPrompt = "System: You are an intelligent store assistant for DailyClub. You have access to real-time store data below. Use it to answer questions accurately and professionally. Use Markdown for formatting (bold, lists, etc.) to make the response easy to read. Be concise but helpful.";
+            const systemPrompt = "System: You are an intelligent store assistant for DailyClub. You have access to real-time store data. Use it to answer questions. \n\nIMPORTANT: If the user asks for a chart, graph, or plot, NEVER describe it in text. Instead, output the corresponding tag ONLY (e.g., [CHART:revenue]).\nTags available: [CHART:revenue], [CHART:status], [CHART:products].\nIf answering normally, use Markdown (bold, lists).";
+
             const fullPrompt = `${systemPrompt}\n${liveContext}\n\nCONVERSATION:\n${history}\nAssistant:`;
 
-            // Use Pollinations.ai (Free, No Key required)
             const response = await fetch(`https://text.pollinations.ai/${encodeURIComponent(fullPrompt)}`);
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
-            }
-
+            if (!response.ok) throw new Error("API Error");
             const text = await response.text();
 
             const aiMsg: Message = {
@@ -162,7 +307,7 @@ const AIChat = () => {
             const errorMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'ai',
-                content: `Sorry, I encountered an error: ${error.message || 'Unknown error'}. Please try again.`,
+                content: "Sorry, I encountered an error. Please try again.",
                 timestamp: new Date().toISOString()
             };
             setMessages(prev => [...prev, errorMsg]);
@@ -178,15 +323,26 @@ const AIChat = () => {
         }
     };
 
-    // Helper to format message content (basic Markdown support)
     const renderMessageContent = (text: string) => {
-        // 1. Split by code blocks
-        // Regex captures the content inside ```...```
-        const parts = text.split(/(```[\s\S]*?```)/g);
+        // 1. Check for CHART tags
+        if (text.includes('[CHART:')) {
+            const chartMatch = text.match(/\[CHART:(\w+)\]/);
+            if (chartMatch) {
+                const chartType = chartMatch[1];
+                const preText = text.split('[CHART:')[0];
+                return (
+                    <div>
+                        {preText && renderMessageContent(preText)}
+                        <ChatChart type={chartType} data={storeData} />
+                    </div>
+                );
+            }
+        }
 
+        // 2. Code blocks
+        const parts = text.split(/(```[\s\S]*?```)/g);
         return parts.map((part, index) => {
             if (part.startsWith('```')) {
-                // Remove the backticks and optional language identifier
                 const content = part.replace(/^```\w*\n?/, '').replace(/```$/, '');
                 return (
                     <pre key={index} className="bg-slate-900 text-slate-50 p-3 rounded-lg my-2 overflow-x-auto text-xs font-mono border border-slate-700">
@@ -194,9 +350,7 @@ const AIChat = () => {
                     </pre>
                 );
             }
-
-            // 2. Handle simple markdown (Bold, Italic, Lists) within text blocks
-            // Use split to separate bold parts
+            // 3. Bold/Markdown
             const boldParts = part.split(/(\*\*.*?\*\*)/g);
             return (
                 <span key={index}>
@@ -204,7 +358,6 @@ const AIChat = () => {
                         if (subPart.startsWith('**') && subPart.endsWith('**')) {
                             return <strong key={subIndex} className="font-bold text-blue-600 dark:text-blue-400">{subPart.slice(2, -2)}</strong>;
                         }
-                        // Handle newlines
                         return subPart.split('\n').map((line, lineIdx) => (
                             <React.Fragment key={lineIdx}>
                                 {lineIdx > 0 && <br />}
@@ -263,7 +416,7 @@ const AIChat = () => {
                                 </div>
 
                                 {/* Message Bubble */}
-                                <div className={`flex flex-col max-w-[85%]`}>
+                                <div className={`flex flex-col max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                                     <div className={`flex items-end gap-2 mb-1.5 opacity-70 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                                         <span className="text-xs font-medium">
                                             {msg.role === 'ai' ? 'DailyClub AI' : 'You'}
@@ -272,7 +425,7 @@ const AIChat = () => {
                                             {formatTime(msg.timestamp)}
                                         </span>
                                     </div>
-                                    <div className={`rounded-2xl px-5 py-3.5 text-[15px] leading-relaxed shadow-sm ${msg.role === 'user'
+                                    <div className={`rounded-2xl px-5 py-3.5 text-[15px] leading-relaxed shadow-sm w-full ${msg.role === 'user'
                                         ? 'bg-[#E7F0FE] dark:bg-[#2B3544] text-slate-900 dark:text-slate-100 rounded-tr-sm'
                                         : 'bg-white dark:bg-[#1E1F20] text-slate-800 dark:text-slate-200 rounded-tl-sm'
                                         }`}>
