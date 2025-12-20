@@ -16,6 +16,7 @@ import {
   Edit,
   Trash,
   Settings,
+  Users,
 } from "lucide-react";
 import AppIcon from "./AppIcon";
 import { AddAppModal } from "./AddAppModal";
@@ -36,6 +37,7 @@ import {
 
 const initialApps = [
   { icon: TrendingUp, label: "Dashboard", colorClass: "app-icon-rose", path: "/dashboard" },
+  { icon: Users, label: "Employee Management", colorClass: "app-icon-indigo", path: "/employee-management" },
   { icon: LayoutDashboard, label: "Overview", colorClass: "app-icon-cyan", path: "/overview" },
   { icon: Sparkles, label: "AI Chat", colorClass: "app-icon-blue", path: "/chat" },
   { icon: ClipboardList, label: "Order Management", colorClass: "app-icon-pink", path: "/orders" },

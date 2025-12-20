@@ -17,6 +17,7 @@ import AIChat from "./pages/AIChat";
 import CustomApp from "./pages/CustomApp";
 import KeywordEntry from "./pages/KeywordEntry";
 import BackOffice from "./pages/BackOffice";
+import EmployeeManagement from "./pages/EmployeeManagement";
 import ScrollToTop from "./components/ScrollToTop";
 import { NotificationProvider } from "./contexts/NotificationContext";
 
@@ -44,6 +45,7 @@ const App = () => (
             <Route path="/custom-app/:id" element={<CustomApp />} />
             <Route path="/keyword-entry" element={<KeywordEntry />} />
             <Route path="/back-office" element={<BackOffice />} />
+            <Route path="/employee-management" element={<EmployeeManagement />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

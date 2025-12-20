@@ -20,6 +20,7 @@ import {
   Settings,
   LogOut,
   User,
+  Users,
   Sparkles,
   TrendingUp
 } from "lucide-react";
@@ -32,6 +33,7 @@ import { iconMap } from "@/utils/appIcons";
 
 const defaultAppItems = [
   { icon: TrendingUp, label: "Dashboard", path: "/dashboard", color: "bg-rose-500" },
+  { icon: Users, label: "Employee Management", path: "/employee-management", color: "bg-indigo-600" },
   { icon: LayoutDashboard, label: "Overview", path: "/overview", color: "bg-cyan-500" },
   { icon: Sparkles, label: "AI Chat", path: "/chat", color: "bg-blue-600" },
   { icon: ClipboardList, label: "Order Management", path: "/orders", color: "bg-pink-500" },
