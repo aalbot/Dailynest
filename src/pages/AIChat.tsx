@@ -249,20 +249,36 @@ const AIChat = () => {
 
         if (!orders || !products) {
             const db = firebase.database();
-            const oSnap = await db.ref('root/order').orderByKey().limitToLast(15).once('value');
+            const oSnap = await db.ref('root/order').orderByKey().limitToLast(100).once('value');
             orders = oSnap.val();
             const pSnap = await db.ref('root/products').limitToFirst(50).once('value');
             products = pSnap.val();
         }
 
-        const orderList = Object.entries(orders || {}).slice(-15).map(([id, o]: [string, any]) =>
+        // Calculate Totals (Excluding Cancelled)
+        let totalRevenue = 0;
+        let validOrderCount = 0;
+        const allOrders = Object.entries(orders || {});
+
+        allOrders.forEach(([_, o]: [string, any]) => {
+            const status = (o.status || '').toLowerCase();
+            if (!status.includes('cancel')) {
+                let amt = 0;
+                if (typeof o.total === 'string') {
+                    amt = parseFloat(o.total.split('-')[0]) || 0;
+                } else {
+                    amt = parseFloat(o.total) || 0;
+                }
+                totalRevenue += amt;
+                validOrderCount++;
+            }
+        });
+
+        const orderList = allOrders.slice(-15).map(([id, o]: [string, any]) =>
             `- Order #${id}: ${o.status || 'Pending'} (${o.name || 'Guest'}, ₹${o.total || 0})`
         ).join('\n');
 
-        // Simple stock summary
-        // ... (Skipping full stock details to save tokens, assuming AI can answer basic questions or user asks for specific charts)
-
-        return `\nCURRENT STORE DATA SNAPSHOT:\n[Recent Orders]\n${orderList}\n\n[System Note]\nYou can display charts. If the user asks for a visualization, return one of these tags strictly:\n[CHART:revenue] - For sales/revenue trends\n[CHART:status] - For order status breakdown\n[CHART:products] - For top selling products\n`;
+        return `\nCURRENT STORE DATA SNAPSHOT:\n[Summary Stats (Excluding Cancelled)]\nTotal Revenue: ₹${totalRevenue.toLocaleString()}\nTotal Valid Orders: ${validOrderCount}\n\n[Recent Orders]\n${orderList}\n\n[System Note]\nYou can display charts. If the user asks for a visualization, return one of these tags strictly:\n[CHART:revenue] - For sales/revenue trends\n[CHART:status] - For order status breakdown\n[CHART:products] - For top selling products\n`;
     };
 
     const handleSend = async () => {
@@ -286,7 +302,7 @@ const AIChat = () => {
                 .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
                 .join('\n');
 
-            const systemPrompt = "System: You are an intelligent store assistant for DailyClub. You have access to real-time store data. Use it to answer questions. \n\nIMPORTANT: If the user asks for a chart, graph, or plot, NEVER describe it in text. Instead, output the corresponding tag ONLY (e.g., [CHART:revenue]).\nTags available: [CHART:revenue], [CHART:status], [CHART:products].\nIf answering normally, use Markdown (bold, lists).";
+            const systemPrompt = "System: You are an intelligent store assistant for DailyClub. You have access to real-time store data. Use it to answer questions. \n\nIMPORTANT: \n1. When asked for TOTAL REVENUE or SALES, use the pre-calculated 'Total Revenue' provided in the summary stats. Do NOT sum up recent orders yourself as they are incomplete.\n2. Ignore 'Cancelled' orders for financial or count calculations.\n3. If the user asks for a chart or visualization, output the corresponding tag ONLY (e.g., [CHART:revenue]).\nTags available: [CHART:revenue], [CHART:status], [CHART:products].\nIf answering normally, use Markdown (bold, lists).";
 
             const fullPrompt = `${systemPrompt}\n${liveContext}\n\nCONVERSATION:\n${history}\nAssistant:`;
 
