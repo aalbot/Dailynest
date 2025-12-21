@@ -17,7 +17,9 @@ import {
     User,
     MapPin,
     AlertTriangle,
-    Bell
+    Bell,
+    Menu,
+    X,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import BackButton from "@/components/BackButton";
@@ -54,6 +56,20 @@ const OrderManagement = () => {
     const [isMuted, setIsMuted] = useState(false);
     const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
     const [alertData, setAlertData] = useState<any>(null);
+
+    // Sidebar State
+    const [activeTab, setActiveTab] = useState("all_orders");
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+
+    const menuItems = [
+        { id: 'all_orders', label: 'All Orders', icon: ShoppingBag },
+        { id: 'new_orders', label: 'New Order Placed', icon: Bell },
+        { id: 'accepted', label: 'Accepted by Store', icon: CheckCircle },
+        { id: 'packing', label: 'Packing Order', icon: Package },
+        { id: 'ready', label: 'Ready for Pickup', icon: Store },
+        { id: 'delivered', label: 'Delivered', icon: CheckCircle },
+        { id: 'cancelled', label: 'Cancelled', icon: XCircle },
+    ];
 
     const audioContextRef = useRef<AudioContext | null>(null);
     const isAudioInitializedRef = useRef(false);
@@ -172,6 +188,21 @@ const OrderManagement = () => {
         if (!orders) return [];
         let list = Object.entries(orders).map(([id, data]) => ({ id, ...data }));
 
+        // Filter by Tab
+        if (activeTab === 'new_orders') {
+            list = list.filter(o => o.status === 'Order Placed');
+        } else if (activeTab === 'accepted') {
+            list = list.filter(o => o.status === 'Accepted by Store');
+        } else if (activeTab === 'packing') {
+            list = list.filter(o => o.status === 'Packing Order');
+        } else if (activeTab === 'ready') {
+            list = list.filter(o => o.status === 'Ready for Pickup');
+        } else if (activeTab === 'delivered') {
+            list = list.filter(o => o.status === 'Delivered');
+        } else if (activeTab === 'cancelled') {
+            list = list.filter(o => o.status === 'Cancelled');
+        }
+
         // Sort: Always show newest orders first by ID, regardless of status.
         // This ensures orders don't jump around or disappear when status changes.
         list.sort((a, b) => b.id.localeCompare(a.id));
@@ -186,7 +217,7 @@ const OrderManagement = () => {
             );
         }
         return list;
-    }, [orders, searchTerm]);
+    }, [orders, searchTerm, activeTab]);
 
     const handleStatusChange = async (orderId: string, newStatus: string) => {
         try {
@@ -239,197 +270,261 @@ const OrderManagement = () => {
     };
 
     return (
-        <div className="h-screen flex flex-col bg-slate-50 dark:bg-slate-950 font-sans transition-colors duration-300 overflow-hidden">
-            <div className="shrink-0">
+        <div className="flex h-screen bg-[#F8FAFC] dark:bg-slate-950 font-sans transition-colors duration-300">
+            {/* Fixed Navbar */}
+            <div className="fixed top-0 left-0 right-0 z-50">
                 <Navbar />
             </div>
 
-            <main className="flex-1 flex flex-col max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-4 overflow-hidden">
-                {/* Header */}
-                <div className="shrink-0 flex flax-col md:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 mb-6">
-                    <div className="flex items-center gap-4">
-                        <BackButton />
-                        <div>
-                            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 flex items-center gap-2">
-                                <ShoppingBag className="text-blue-600 dark:text-blue-400" />
-                                Order Management
-                            </h1>
-                            <p className="text-slate-500 dark:text-slate-400 mt-1">Track and manage store orders in real-time</p>
-                        </div>
-                    </div>
+            {/* Sidebar - Desktop */}
+            <aside className="w-64 hidden md:flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 pt-20 pb-6 fixed top-0 bottom-0 left-0 z-40 transition-all">
+                <div className="px-6 mb-6">
+                    <BackButton />
+                </div>
 
-                    <div className="flex items-center gap-3 w-full md:w-auto">
-                        <button onClick={toggleMute} className={`p-2.5 rounded-xl border transition-all ${isMuted ? 'bg-red-50 border-red-200 text-red-500 dark:bg-red-900/20 dark:border-red-800' : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 hover:bg-slate-50'}`}>
-                            {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                <div className="px-6 mb-2 flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                    <Store className="w-5 h-5" />
+                    <span className="font-bold text-sm uppercase tracking-wider">Order Manager</span>
+                </div>
+
+                <nav className="flex-1 space-y-1 px-4">
+                    {menuItems.map(item => (
+                        <button
+                            key={item.id}
+                            onClick={() => setActiveTab(item.id)}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${activeTab === item.id
+                                ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 font-semibold shadow-sm'
+                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                }`}
+                        >
+                            <item.icon size={18} /> {item.label}
                         </button>
-                        <div className="relative flex-1 md:w-80">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                            <input
-                                type="text"
-                                placeholder="Search by ID, Name or Phone..."
-                                value={searchTerm}
-                                onChange={e => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all shadow-sm"
-                            />
+                    ))}
+                </nav>
+            </aside>
+
+            {/* Main Content */}
+            <main className="flex-1 md:ml-64 pt-16 h-full overflow-hidden flex flex-col relative w-full">
+
+                {/* Mobile Header Toggle */}
+                <div className="md:hidden flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-30">
+                    <div className="flex items-center gap-3">
+                        <BackButton />
+                        <span className="font-bold text-lg text-slate-900 dark:text-slate-100">Order Manager</span>
+                    </div>
+                    <button onClick={() => setSidebarOpen(true)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-600">
+                        <Menu size={20} />
+                    </button>
+                </div>
+
+                {/* Mobile Sidebar Overlay */}
+                {sidebarOpen && (
+                    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm md:hidden" onClick={() => setSidebarOpen(false)}>
+                        <div className="absolute right-0 top-0 bottom-0 w-64 bg-white dark:bg-slate-900 p-6 flex flex-col h-full shadow-2xl" onClick={e => e.stopPropagation()}>
+                            <div className="flex justify-between items-center mb-8">
+                                <h2 className="text-xl font-bold dark:text-white">Menu</h2>
+                                <button onClick={() => setSidebarOpen(false)}><XCircle className="text-slate-500 dark:text-slate-400" /></button>
+                            </div>
+                            <nav className="space-y-2">
+                                {menuItems.map(item => (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
+                                        className={`w-full flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-colors ${activeTab === item.id ? 'bg-blue-50 text-blue-600' : 'hover:bg-slate-100 text-slate-600'}`}
+                                    >
+                                        <item.icon size={18} /> {item.label}
+                                    </button>
+                                ))}
+                            </nav>
                         </div>
                     </div>
-                </div>
+                )}
 
-                {/* Orders List Container - Flex-1 to fill remaining height */}
-                <div className="flex-1 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
-                    {/* Table Header - Sticky */}
-                    <div className="shrink-0 hidden md:grid grid-cols-12 gap-4 px-6 py-4 bg-slate-50/95 dark:bg-slate-800/95 border-b border-slate-200 dark:border-slate-800 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 backdrop-blur-sm z-10">
-                        <div className="col-span-2">Order ID</div>
-                        <div className="col-span-3">Customer</div>
-                        <div className="col-span-2">Items</div>
-                        <div className="col-span-1">Total</div>
-                        <div className="col-span-3">Status</div>
-                        <div className="col-span-1 text-center">Actions</div>
-                    </div>
+                <div className="flex-1 flex flex-col p-4 sm:p-6 lg:p-8 overflow-hidden">
+                    {/* Page Header */}
+                    <div className="shrink-0 flex flex-col md:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 mb-6">
+                        <div>
+                            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                                {menuItems.find(i => i.id === activeTab)?.label}
+                            </h1>
+                            <p className="text-slate-500 dark:text-slate-400 mt-1">
+                                {activeTab === 'all_orders' ? 'Showing all order history' : `Filtering by ${menuItems.find(i => i.id === activeTab)?.label}`}
+                            </p>
+                        </div>
 
-                    {/* Scrollable Content */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar">
-                        {filteredOrders.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-20 text-slate-400 h-full">
-                                <ShoppingBag size={48} className="mb-4 opacity-20" />
-                                <p>No orders found matching your criteria</p>
+                        <div className="flex items-center gap-3 w-full md:w-auto">
+                            <button onClick={toggleMute} className={`p-2.5 rounded-xl border transition-all ${isMuted ? 'bg-red-50 border-red-200 text-red-500 dark:bg-red-900/20 dark:border-red-800' : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 hover:bg-slate-50'}`}>
+                                {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                            </button>
+                            <div className="relative flex-1 md:w-80">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                <input
+                                    type="text"
+                                    placeholder="Search by ID, Name or Phone..."
+                                    value={searchTerm}
+                                    onChange={e => setSearchTerm(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all shadow-sm"
+                                />
                             </div>
-                        ) : (
-                            filteredOrders.map((order) => {
-                                const isExpanded = expandedOrders.has(order.id);
-                                const isCancelled = order.status === "Cancelled";
-                                const isDelivered = order.status === "Delivered";
-                                const itemString = Object.keys(order).filter(k => k.startsWith('item') && order[k]).map(k => order[k]).join(', ');
-
-                                return (
-                                    <div key={order.id} className={`group border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors ${isExpanded ? 'bg-slate-50/80 dark:bg-slate-800/40' : ''}`}>
-                                        {/* Desktop Row */}
-                                        <div onClick={() => toggleExpand(order.id)} className="hidden md:grid grid-cols-12 gap-4 px-6 py-4 items-center cursor-pointer">
-                                            <div className="col-span-2 font-mono text-sm font-medium text-slate-700 dark:text-slate-300 truncate">
-                                                #{order.id}
-                                            </div>
-                                            <div className="col-span-3">
-                                                <div className="font-semibold text-slate-900 dark:text-slate-100">{order.name || "Unknown"}</div>
-                                                <div className="text-xs text-slate-500 dark:text-slate-400 font-mono">{order.phnm}</div>
-                                            </div>
-                                            <div className="col-span-2 text-sm text-slate-600 dark:text-slate-400 truncate pr-4" title={itemString}>
-                                                {itemString || "No items"}
-                                            </div>
-                                            <div className="col-span-1 font-bold text-slate-900 dark:text-slate-100 text-sm">
-                                                ₹{order.total}
-                                            </div>
-                                            <div className="col-span-3 pr-4">
-                                                <div className={`relative ${isCancelled || isDelivered ? 'pointer-events-none' : ''}`} onClick={e => e.stopPropagation()}>
-                                                    <select
-                                                        value={order.status}
-                                                        onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                                                        disabled={isCancelled || isDelivered}
-                                                        className={`w-full appearance-none pl-9 pr-8 py-2 rounded-lg text-sm font-semibold border transition-all cursor-pointer focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-slate-900 outline-none ${getStatusColor(order.status)} disabled:opacity-80 disabled:cursor-not-allowed`}
-                                                    >
-                                                        {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                                        {/* Preserve Cancelled/Delivered if already set */}
-                                                        {(order.status === 'Cancelled' || order.status === 'Delivered' || order.status === 'On the Way') && (
-                                                            <option value={order.status}>{order.status}</option>
-                                                        )}
-                                                    </select>
-                                                    <div className={`absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${isCancelled ? 'opacity-50' : 'opacity-70'}`}>
-                                                        {getStatusIcon(order.status)}
-                                                    </div>
-                                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-50" size={14} />
-                                                </div>
-                                            </div>
-                                            <div className="col-span-1 flex justify-center">
-                                                <div className={`p-1.5 rounded-lg transition-colors ${isExpanded ? 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300' : 'text-slate-400 group-hover:bg-slate-100 dark:group-hover:bg-slate-800'}`}>
-                                                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Mobile Card Layout */}
-                                        <div onClick={() => toggleExpand(order.id)} className="md:hidden p-4 flex flex-col gap-3 cursor-pointer">
-                                            <div className="flex justify-between items-start">
-                                                <div>
-                                                    <span className="font-mono text-xs font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">#{order.id}</span>
-                                                    <h3 className="font-bold text-slate-900 dark:text-slate-100 mt-1">{order.name || "Guest"}</h3>
-                                                </div>
-                                                <div className="font-bold text-slate-900 dark:text-slate-100">₹{order.total}</div>
-                                            </div>
-                                            <div className="text-sm text-slate-600 dark:text-slate-400 line-clamp-1">{itemString}</div>
-                                            <div className={`text-xs font-semibold px-2 py-1 rounded inline-flex items-center gap-1 w-fit ${getStatusColor(order.status)}`}>
-                                                {getStatusIcon(order.status)}
-                                                {order.status}
-                                            </div>
-                                        </div>
-
-                                        {/* Expanded Details */}
-                                        {isExpanded && (
-                                            <div className="px-6 pb-6 pt-2 bg-slate-50/50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800 animate-in slide-in-from-top-2">
-                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                                    <div className="space-y-2">
-                                                        <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider">Customer Details</h4>
-                                                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm space-y-2">
-                                                            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300"><User size={14} /> {order.name}</div>
-                                                            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-mono"><AlertTriangle size={14} className="rotate-180" /> {order.phnm}</div>
-                                                            <div className="flex items-start gap-2 text-slate-700 dark:text-slate-300"><MapPin size={14} className="mt-0.5 shrink-0" /> {order.adrs || "No address provided"}</div>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="space-y-2 md:col-span-2">
-                                                        <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider">Order Items</h4>
-                                                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm">
-                                                            <ul className="space-y-1">
-                                                                {Object.keys(order).filter(k => k.startsWith('item') && order[k]).map((key) => (
-                                                                    <li key={key} className="flex items-center gap-2 text-slate-700 dark:text-slate-300 border-b border-slate-50 dark:border-slate-800 last:border-0 pb-1 last:pb-0">
-                                                                        <div className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600"></div>
-                                                                        {order[key]}
-                                                                    </li>
-                                                                ))}
-                                                            </ul>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Mobile Status Changer */}
-                                                    <div className="md:hidden space-y-2">
-                                                        <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider">Update Status</h4>
-                                                        <div className={`relative ${isCancelled || isDelivered ? 'pointer-events-none opacity-80' : ''}`} onClick={e => e.stopPropagation()}>
-                                                            <select
-                                                                value={order.status}
-                                                                onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                                                                disabled={isCancelled || isDelivered}
-                                                                className={`w-full appearance-none pl-9 pr-8 py-3 rounded-xl text-sm font-semibold border transition-all ${getStatusColor(order.status)}`}
-                                                            >
-                                                                {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                                            </select>
-                                                            <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-70">
-                                                                {getStatusIcon(order.status)}
-                                                            </div>
-                                                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-50" size={14} />
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="mt-4 flex justify-end">
-                                                    {!isCancelled && !isDelivered && (
-                                                        <button
-                                                            onClick={async (e) => {
-                                                                e.stopPropagation();
-                                                                if (confirm('Cancel this order?')) handleStatusChange(order.id, "Cancelled");
-                                                            }}
-                                                            className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-transparent hover:border-red-200 dark:hover:border-red-800"
-                                                        >
-                                                            Cancel Order
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })
-                        )}
+                        </div>
                     </div>
-                </div>
 
+                    {/* Orders List Container */}
+                    <div className="flex-1 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
+                        {/* Table Header - Sticky */}
+                        <div className="shrink-0 hidden md:grid grid-cols-12 gap-4 px-6 py-4 bg-slate-50/95 dark:bg-slate-800/95 border-b border-slate-200 dark:border-slate-800 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 backdrop-blur-sm z-10">
+                            <div className="col-span-2">Order ID</div>
+                            <div className="col-span-3">Customer</div>
+                            <div className="col-span-2">Items</div>
+                            <div className="col-span-1">Total</div>
+                            <div className="col-span-3">Status</div>
+                            <div className="col-span-1 text-center">Actions</div>
+                        </div>
+
+                        {/* Scrollable Content */}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar">
+                            {filteredOrders.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-20 text-slate-400 h-full">
+                                    <ShoppingBag size={48} className="mb-4 opacity-20" />
+                                    <p>No orders found matching your criteria</p>
+                                </div>
+                            ) : (
+                                filteredOrders.map((order) => {
+                                    const isExpanded = expandedOrders.has(order.id);
+                                    const isCancelled = order.status === "Cancelled";
+                                    const isDelivered = order.status === "Delivered";
+                                    const itemString = Object.keys(order).filter(k => k.startsWith('item') && order[k]).map(k => order[k]).join(', ');
+
+                                    return (
+                                        <div key={order.id} className={`group border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors ${isExpanded ? 'bg-slate-50/80 dark:bg-slate-800/40' : ''}`}>
+                                            {/* Desktop Row */}
+                                            <div onClick={() => toggleExpand(order.id)} className="hidden md:grid grid-cols-12 gap-4 px-6 py-4 items-center cursor-pointer">
+                                                <div className="col-span-2 font-mono text-sm font-medium text-slate-700 dark:text-slate-300 truncate">
+                                                    #{order.id}
+                                                </div>
+                                                <div className="col-span-3">
+                                                    <div className="font-semibold text-slate-900 dark:text-slate-100">{order.name || "Unknown"}</div>
+                                                    <div className="text-xs text-slate-500 dark:text-slate-400 font-mono">{order.phnm}</div>
+                                                </div>
+                                                <div className="col-span-2 text-sm text-slate-600 dark:text-slate-400 truncate pr-4" title={itemString}>
+                                                    {itemString || "No items"}
+                                                </div>
+                                                <div className="col-span-1 font-bold text-slate-900 dark:text-slate-100 text-sm">
+                                                    ₹{order.total}
+                                                </div>
+                                                <div className="col-span-3 pr-4">
+                                                    <div className={`relative ${isCancelled || isDelivered ? 'pointer-events-none' : ''}`} onClick={e => e.stopPropagation()}>
+                                                        <select
+                                                            value={order.status}
+                                                            onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                                                            disabled={isCancelled || isDelivered}
+                                                            className={`w-full appearance-none pl-9 pr-8 py-2 rounded-lg text-sm font-semibold border transition-all cursor-pointer focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-slate-900 outline-none ${getStatusColor(order.status)} disabled:opacity-80 disabled:cursor-not-allowed`}
+                                                        >
+                                                            {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                            {/* Preserve Cancelled/Delivered if already set */}
+                                                            {(order.status === 'Cancelled' || order.status === 'Delivered' || order.status === 'On the Way') && (
+                                                                <option value={order.status}>{order.status}</option>
+                                                            )}
+                                                        </select>
+                                                        <div className={`absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${isCancelled ? 'opacity-50' : 'opacity-70'}`}>
+                                                            {getStatusIcon(order.status)}
+                                                        </div>
+                                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-50" size={14} />
+                                                    </div>
+                                                </div>
+                                                <div className="col-span-1 flex justify-center">
+                                                    <div className={`p-1.5 rounded-lg transition-colors ${isExpanded ? 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300' : 'text-slate-400 group-hover:bg-slate-100 dark:group-hover:bg-slate-800'}`}>
+                                                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Mobile Card Layout */}
+                                            <div onClick={() => toggleExpand(order.id)} className="md:hidden p-4 flex flex-col gap-3 cursor-pointer">
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <span className="font-mono text-xs font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">#{order.id}</span>
+                                                        <h3 className="font-bold text-slate-900 dark:text-slate-100 mt-1">{order.name || "Guest"}</h3>
+                                                    </div>
+                                                    <div className="font-bold text-slate-900 dark:text-slate-100">₹{order.total}</div>
+                                                </div>
+                                                <div className="text-sm text-slate-600 dark:text-slate-400 line-clamp-1">{itemString}</div>
+                                                <div className={`text-xs font-semibold px-2 py-1 rounded inline-flex items-center gap-1 w-fit ${getStatusColor(order.status)}`}>
+                                                    {getStatusIcon(order.status)}
+                                                    {order.status}
+                                                </div>
+                                            </div>
+
+                                            {/* Expanded Details */}
+                                            {isExpanded && (
+                                                <div className="px-6 pb-6 pt-2 bg-slate-50/50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800 animate-in slide-in-from-top-2">
+                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                        <div className="space-y-2">
+                                                            <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider">Customer Details</h4>
+                                                            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm space-y-2">
+                                                                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300"><User size={14} /> {order.name}</div>
+                                                                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-mono"><AlertTriangle size={14} className="rotate-180" /> {order.phnm}</div>
+                                                                <div className="flex items-start gap-2 text-slate-700 dark:text-slate-300"><MapPin size={14} className="mt-0.5 shrink-0" /> {order.adrs || "No address provided"}</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="space-y-2 md:col-span-2">
+                                                            <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider">Order Items</h4>
+                                                            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm">
+                                                                <ul className="space-y-1">
+                                                                    {Object.keys(order).filter(k => k.startsWith('item') && order[k]).map((key) => (
+                                                                        <li key={key} className="flex items-center gap-2 text-slate-700 dark:text-slate-300 border-b border-slate-50 dark:border-slate-800 last:border-0 pb-1 last:pb-0">
+                                                                            <div className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600"></div>
+                                                                            {order[key]}
+                                                                        </li>
+                                                                    ))}
+                                                                </ul>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Mobile Status Changer */}
+                                                        <div className="md:hidden space-y-2">
+                                                            <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider">Update Status</h4>
+                                                            <div className={`relative ${isCancelled || isDelivered ? 'pointer-events-none opacity-80' : ''}`} onClick={e => e.stopPropagation()}>
+                                                                <select
+                                                                    value={order.status}
+                                                                    onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                                                                    disabled={isCancelled || isDelivered}
+                                                                    className={`w-full appearance-none pl-9 pr-8 py-3 rounded-xl text-sm font-semibold border transition-all ${getStatusColor(order.status)}`}
+                                                                >
+                                                                    {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                                </select>
+                                                                <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-70">
+                                                                    {getStatusIcon(order.status)}
+                                                                </div>
+                                                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-50" size={14} />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="mt-4 flex justify-end">
+                                                        {!isCancelled && !isDelivered && (
+                                                            <button
+                                                                onClick={async (e) => {
+                                                                    e.stopPropagation();
+                                                                    if (confirm('Cancel this order?')) handleStatusChange(order.id, "Cancelled");
+                                                                }}
+                                                                className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-transparent hover:border-red-200 dark:hover:border-red-800"
+                                                            >
+                                                                Cancel Order
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </div>
+
+                </div>
             </main>
 
             {/* Alert Modal */}

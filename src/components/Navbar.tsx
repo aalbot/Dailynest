@@ -44,6 +44,7 @@ const defaultAppItems = [
   { icon: Crown, label: "Premium Entry", path: "/premium-entry", color: "bg-yellow-500" },
   { icon: Star, label: "Rating Entry", path: "/rating-entry", color: "bg-orange-500" },
   { icon: Keyboard, label: "Keyword Entry", path: "/keyword-entry", color: "bg-indigo-500" },
+  { icon: Grid3X3, label: "Task Manager", path: "/tasks", color: "bg-violet-600" },
 ];
 
 const Navbar = () => {

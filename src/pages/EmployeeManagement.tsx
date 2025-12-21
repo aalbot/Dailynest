@@ -270,19 +270,30 @@ const EmployeeManagement = () => {
             });
     };
 
+
+
     const handleIssueAdvance = (e: React.FormEvent) => {
         e.preventDefault();
         const form = e.target as HTMLFormElement;
         const data = new FormData(form);
         const empId = data.get('employeeId') as string;
         const amount = Number(data.get('amount'));
+        const emiMonths = Number(data.get('emiMonths'));
         const updates: any = {};
         const emp = employees.find(e => e.id === empId);
+
         if (emp) {
             updates[`root/nexus_hr/employees/${empId}/advanceBalance`] = (emp.advanceBalance || 0) + amount;
+            // Store EMI info (optional: for more complex tracking later)
+            updates[`root/nexus_hr/employees/${empId}/lastAdvance`] = {
+                amount: amount,
+                emiMonths: emiMonths,
+                date: new Date().toISOString()
+            };
+
             firebase.database().ref().update(updates).then(() => {
                 setIsAdvanceOpen(false);
-                toast({ title: "Advance Issued", description: `$${amount} credited.` });
+                toast({ title: "Advance Issued", description: `$${amount} credited for ${emiMonths} month(s) EMI.` });
             });
         }
     };
@@ -1015,6 +1026,7 @@ const EmployeeManagement = () => {
                             </Select>
                         </div>
                         <div className="space-y-2"><Label>Amount ($)</Label><Input name="amount" type="number" required min="1" /></div>
+                        <div className="space-y-2"><Label>EMI Duration (Months)</Label><Input name="emiMonths" type="number" required min="1" defaultValue="1" placeholder="e.g. 3 for 3 installments" /></div>
                         <DialogFooter className="pt-4">
                             <Button variant="outline" type="button" onClick={() => setIsAdvanceOpen(false)}>Cancel</Button>
                             <Button type="submit" className="bg-amber-500 hover:bg-amber-600 text-white">Issue Advance</Button>

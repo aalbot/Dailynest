@@ -17,6 +17,7 @@ import {
   Trash,
   Settings,
   Users,
+  Grid3X3,
 } from "lucide-react";
 import AppIcon from "./AppIcon";
 import { AddAppModal } from "./AddAppModal";
@@ -48,6 +49,7 @@ const initialApps = [
   { icon: Crown, label: "Premium Entry", colorClass: "app-icon-yellow", path: "/premium-entry" },
   { icon: Star, label: "Rating Entry", colorClass: "app-icon-orange", path: "/rating-entry" },
   { icon: Keyboard, label: "Keyword Entry", colorClass: "app-icon-indigo", path: "/keyword-entry" },
+  { icon: Grid3X3, label: "Task Manager", colorClass: "app-icon-violet", path: "/tasks" },
 ];
 
 const AppGrid = () => {
