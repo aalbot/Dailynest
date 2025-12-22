@@ -425,7 +425,7 @@ const DeliveryScreen = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-100 dark:from-slate-950 dark:to-slate-900 font-sans transition-colors duration-300 flex flex-col items-center">
-            <Navbar />
+
 
             <div className="w-full max-w-lg mt-16 px-4 py-6 flex-1 flex flex-col min-h-[calc(100vh-64px)] safe-pb">
 
