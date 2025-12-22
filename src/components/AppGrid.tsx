@@ -52,6 +52,7 @@ const initialApps = [
   { icon: Keyboard, label: "Keyword Entry", colorClass: "app-icon-indigo", path: "/keyword-entry" },
   { icon: Grid3X3, label: "Task Manager", colorClass: "app-icon-violet", path: "/tasks" },
   { icon: Bell, label: "Notification", colorClass: "app-icon-red", path: "/notifications" },
+  { icon: Users, label: "Staffes", colorClass: "app-icon-cyan", path: "/staffes" },
 ];
 
 const AppGrid = () => {
@@ -61,7 +62,17 @@ const AppGrid = () => {
   const [isManaging, setIsManaging] = useState(false);
   const [appToDelete, setAppToDelete] = useState<string | null>(null);
 
+  // RBAC State
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [allowedApps, setAllowedApps] = useState<string[]>([]);
+
   useEffect(() => {
+    // Check RBAC
+    const role = localStorage.getItem("user_role");
+    const allowed = JSON.parse(localStorage.getItem("allowed_apps") || "[]");
+    setUserRole(role);
+    setAllowedApps(allowed);
+
     const db = firebase.database();
     const appsRef = db.ref("root/apps");
 
@@ -89,31 +100,40 @@ const AppGrid = () => {
     }
   };
 
-  const allApps = [...initialApps, ...customApps.map(app => ({
-    ...app,
-    icon: iconMap[app.icon] || Package,
-    colorClass: app.colorGradient || app.colorClass || "bg-blue-500", // Fallback
-    path: app.path || "/"
-  }))];
+  // Helper to check if an app should be visible
+  const isAppVisible = (path: string) => {
+    if (userRole === "admin") return true;
+    if (userRole === "staff") return allowedApps.includes(path);
+    return false; // For guests or undefined roles, hide all? 
+    // Actually, maybe keep some defaults? For now, following user's rule: "only that apps should appear"
+  };
+
+  const filteredInitialApps = initialApps.filter(app => isAppVisible(app.path));
+  const filteredCustomApps = customApps.filter(app => {
+    const path = app.path || "/";
+    return isAppVisible(path);
+  });
 
   return (
     <div className="flex justify-center flex-col items-center relative">
-      {/* Manage Apps Toggle */}
-      <div className="absolute top-[-4rem] right-2 sm:right-4 flex gap-2">
-        <button
-          onClick={() => setIsManaging(!isManaging)}
-          className={`flex items-center gap-2.5 px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 shadow-sm border ${isManaging
-            ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:border-slate-100 shadow-lg scale-105'
-            : 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 hover:shadow-md'
-            }`}
-        >
-          <Settings size={16} className={isManaging ? "animate-spin-slow" : ""} />
-          {isManaging ? 'Done Editing' : 'Manage Apps'}
-        </button>
-      </div>
+      {/* Manage Apps Toggle - Only for Admin */}
+      {userRole === "admin" && (
+        <div className="absolute top-[-4rem] right-2 sm:right-4 flex gap-2">
+          <button
+            onClick={() => setIsManaging(!isManaging)}
+            className={`flex items-center gap-2.5 px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 shadow-sm border ${isManaging
+              ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:border-slate-100 shadow-lg scale-105'
+              : 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 hover:shadow-md'
+              }`}
+          >
+            <Settings size={16} className={isManaging ? "animate-spin-slow" : ""} />
+            {isManaging ? 'Done Editing' : 'Manage Apps'}
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-6 sm:gap-8 md:gap-10">
-        {initialApps.map((app, index) => (
+        {filteredInitialApps.map((app, index) => (
           <div key={app.label} className={isManaging ? "opacity-50 pointer-events-none grayscale" : ""}>
             <Link
               to={app.path}
@@ -130,7 +150,7 @@ const AppGrid = () => {
           </div>
         ))}
 
-        {customApps.map((app, index) => {
+        {filteredCustomApps.map((app, index) => {
           const Icon = iconMap[app.icon] || Package;
           const colorClass = app.colorGradient || app.colorClass || "bg-blue-500";
           const path = app.path || "/";
@@ -147,7 +167,7 @@ const AppGrid = () => {
               </Link>
 
               {/* Edit/Delete Overlay */}
-              {isManaging ? (
+              {isManaging && userRole === "admin" && (
                 <div className="absolute -top-2 -right-2 flex gap-1 z-20 animate-in zoom-in-50 duration-200">
                   <button
                     onClick={() => {
@@ -167,34 +187,29 @@ const AppGrid = () => {
                     <Trash size={14} />
                   </button>
                 </div>
-              ) : (
-                /* Hover Edit Button (Quick Edit) - Optional, user asked for top button but keeping quick edit is nice? 
-                   User said "there should be a manage appes button ... TO DO edit delet". 
-                   Maybe better to ONLY show when managing to avoid clutter? 
-                   I will hide the hover effect if not managing, to be cleaner.
-                */
-                null
               )}
             </div>
           );
         })}
 
-        {/* Add App Button - Always visible or only when managing? Usually always visible is better for discovery. */}
-        <button
-          onClick={() => {
-            setCurrentAppToEdit(null);
-            setIsModalOpen(true);
-          }}
-          className={`group flex flex-col items-center gap-3 cursor-pointer opacity-0 animate-fade-in ${isManaging ? 'opacity-50' : ''}`}
-          style={{ animationDelay: `${allApps.length * 50 + 150}ms` }}
-        >
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:border-blue-400 dark:group-hover:border-blue-500 group-hover:scale-110 group-active:scale-95 transition-all duration-300 shadow-sm hover:shadow-md">
-            <Plus className="w-8 h-8 sm:w-10 sm:h-10" strokeWidth={1.5} />
-          </div>
-          <span className="text-sm font-medium text-foreground/60 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors text-center leading-tight">
-            Add App
-          </span>
-        </button>
+        {/* Add App Button - Only for Admin */}
+        {userRole === "admin" && (
+          <button
+            onClick={() => {
+              setCurrentAppToEdit(null);
+              setIsModalOpen(true);
+            }}
+            className={`group flex flex-col items-center gap-3 cursor-pointer opacity-0 animate-fade-in ${isManaging ? 'opacity-50' : ''}`}
+            style={{ animationDelay: `${initialApps.length * 50 + 150}ms` }}
+          >
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:border-blue-400 dark:group-hover:border-blue-500 group-hover:scale-110 group-active:scale-95 transition-all duration-300 shadow-sm hover:shadow-md">
+              <Plus className="w-8 h-8 sm:w-10 sm:h-10" strokeWidth={1.5} />
+            </div>
+            <span className="text-sm font-medium text-foreground/60 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors text-center leading-tight">
+              Add App
+            </span>
+          </button>
+        )}
       </div>
 
       <AddAppModal

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/database';
 import {
@@ -83,6 +84,16 @@ const Dashboard = () => {
     const [userFilter, setUserFilter] = useState('all');
     const [userSortConfig, setUserSortConfig] = useState({ key: 'orderCompletedAt', direction: 'desc' });
     const [stockSearchTerm, setStockSearchTerm] = useState('');
+    const location = useLocation();
+
+    // Handle incoming tab state
+    useEffect(() => {
+        if (location.state && (location.state as any).tab) {
+            setActiveTab((location.state as any).tab);
+            // Clear state to avoid persistent redirection on refresh
+            window.history.replaceState({}, document.title);
+        }
+    }, [location]);
 
     // Load Data
     useEffect(() => {
@@ -786,111 +797,135 @@ const Dashboard = () => {
                                 </div>
                             </div>
 
-                            {/* Low Stock Detailed Alerts */}
-                            {lowStockProducts.length > 0 && (
-                                <div className="space-y-4">
-                                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                                        <AlertTriangle className="text-red-500" size={20} /> Urgent Action Required (Low Stock)
-                                    </h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {lowStockProducts.map((p: any, i: number) => (
-                                            <div key={i} className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-xl p-4 flex items-center justify-between">
-                                                <div className="flex flex-col">
-                                                    <span className="text-sm font-bold text-slate-900 dark:text-slate-100">{p.name}</span>
-                                                    <span className="text-xs text-slate-500">{p.category}</span>
+                            {/* Split View: Low Stock (Left) & Full Inventory (Right) */}
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                                {/* Left Side: Low Stock Table */}
+                                <div className="lg:col-span-1 space-y-4 h-full flex flex-col">
+                                    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[600px]">
+                                        <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-red-50/50 dark:bg-red-900/10">
+                                            <h3 className="text-sm font-bold text-red-600 dark:text-red-400 flex items-center gap-2">
+                                                <AlertTriangle size={16} /> Urgent: Low Stock
+                                            </h3>
+                                        </div>
+                                        <div className="overflow-y-auto flex-1 custom-scrollbar">
+                                            {lowStockProducts.length > 0 ? (
+                                                <table className="w-full text-left text-xs">
+                                                    <thead className="bg-slate-50 dark:bg-slate-800 sticky top-0 z-10 border-b border-slate-200 dark:border-slate-800">
+                                                        <tr>
+                                                            <th className="p-3 font-bold">Product</th>
+                                                            <th className="p-3 font-bold text-right">Qty</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                        {lowStockProducts.map((p: any, i: number) => (
+                                                            <tr key={i} className="hover:bg-red-50/30 dark:hover:bg-red-900/5 transition-colors">
+                                                                <td className="p-3">
+                                                                    <div className="font-semibold text-slate-900 dark:text-slate-100">{p.name}</div>
+                                                                    <div className="text-[10px] text-slate-500">{p.category}</div>
+                                                                </td>
+                                                                <td className="p-3 text-right">
+                                                                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-black">
+                                                                        {p.quantity}
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            ) : (
+                                                <div className="p-8 text-center text-slate-400 italic text-sm">
+                                                    All stock levels are healthy!
                                                 </div>
-                                                <div className="text-right">
-                                                    <span className="text-lg font-black text-red-600 dark:text-red-400">{p.quantity}</span>
-                                                    <p className="text-[10px] uppercase font-bold text-red-400 dark:text-red-700">Left</p>
-                                                </div>
-                                            </div>
-                                        ))}
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            )}
 
-                            {/* Comprehensive Inventory Table */}
-                            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
-                                <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                    <div>
-                                        <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Full Inventory List</h2>
-                                        <p className="text-sm text-slate-500">Detailed list of all products and their current stock status.</p>
-                                    </div>
-                                    <div className="relative w-full md:w-64">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                                        <input
-                                            type="text"
-                                            placeholder="Search products..."
-                                            value={stockSearchTerm}
-                                            onChange={(e) => setStockSearchTerm(e.target.value)}
-                                            className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left text-sm">
-                                        <thead className="bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold border-b border-slate-200 dark:border-slate-800">
-                                            <tr>
-                                                <th className="p-4">Product Name</th>
-                                                <th className="p-4">Category</th>
-                                                <th className="p-4">Price</th>
-                                                <th className="p-4">Current Stock</th>
-                                                <th className="p-4 text-right">Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                            {allStockItems
-                                                .filter((item: any) =>
-                                                    item.name.toLowerCase().includes(stockSearchTerm.toLowerCase()) ||
-                                                    item.id.toLowerCase().includes(stockSearchTerm.toLowerCase()) ||
-                                                    item.category.toLowerCase().includes(stockSearchTerm.toLowerCase())
-                                                )
-                                                .sort((a: any, b: any) => a.quantity - b.quantity)
-                                                .map((item: any) => (
-                                                    <tr key={`${item.id}-${item.variantId}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                                        <td className="p-4">
-                                                            <div className="flex items-center gap-3">
-                                                                {item.pic ? (
-                                                                    <img src={item.pic} alt="" className="w-8 h-8 rounded shadow-sm object-cover" />
-                                                                ) : (
-                                                                    <div className="w-8 h-8 rounded bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
-                                                                        <Package size={14} />
-                                                                    </div>
-                                                                )}
-                                                                <div className="flex flex-col">
-                                                                    <span className="font-semibold text-slate-900 dark:text-slate-100">{item.name}</span>
-                                                                    <span className="text-[10px] text-slate-400 font-mono">ID: {item.id}</span>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td className="p-4 text-slate-600 dark:text-slate-400">{item.category}</td>
-                                                        <td className="p-4 font-medium text-slate-900 dark:text-slate-100">{fmtMoney(item.price)}</td>
-                                                        <td className="p-4">
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="flex-1 bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden min-w-[60px]">
-                                                                    <div
-                                                                        className={`h-full rounded-full ${item.quantity <= 5 ? 'bg-red-500' : 'bg-emerald-500'}`}
-                                                                        style={{ width: `${Math.min((item.quantity / 50) * 100, 100)}%` }}
-                                                                    />
-                                                                </div>
-                                                                <span className={`font-bold ${item.quantity <= 5 ? 'text-red-600 dark:text-red-400' : 'text-slate-700 dark:text-slate-300'}`}>
-                                                                    {item.quantity}
-                                                                </span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="p-4 text-right">
-                                                            {item.quantity <= 0 ? (
-                                                                <span className="px-2 py-1 rounded text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Out of Stock</span>
-                                                            ) : item.quantity <= 5 ? (
-                                                                <span className="px-2 py-1 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Low Stock</span>
-                                                            ) : (
-                                                                <span className="px-2 py-1 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">In Stock</span>
-                                                            )}
-                                                        </td>
+                                {/* Right Side: Full Inventory Table */}
+                                <div className="lg:col-span-2 space-y-4">
+                                    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+                                        <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                            <div>
+                                                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Full Inventory List</h2>
+                                                <p className="text-sm text-slate-500">Detailed list of all products and status.</p>
+                                            </div>
+                                            <div className="relative w-full md:w-64">
+                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Search products..."
+                                                    value={stockSearchTerm}
+                                                    onChange={(e) => setStockSearchTerm(e.target.value)}
+                                                    className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="overflow-x-auto max-h-[600px] overflow-y-auto custom-scrollbar">
+                                            <table className="w-full text-left text-sm">
+                                                <thead className="bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold border-b border-slate-200 dark:border-slate-800 sticky top-0 z-10">
+                                                    <tr>
+                                                        <th className="p-4">Product Name</th>
+                                                        <th className="p-4">Category</th>
+                                                        <th className="p-4">Price</th>
+                                                        <th className="p-4">Current Stock</th>
+                                                        <th className="p-4 text-right">Status</th>
                                                     </tr>
-                                                ))}
-                                        </tbody>
-                                    </table>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                    {allStockItems
+                                                        .filter((item: any) =>
+                                                            item.name.toLowerCase().includes(stockSearchTerm.toLowerCase()) ||
+                                                            item.id.toLowerCase().includes(stockSearchTerm.toLowerCase()) ||
+                                                            item.category.toLowerCase().includes(stockSearchTerm.toLowerCase())
+                                                        )
+                                                        .sort((a: any, b: any) => a.quantity - b.quantity)
+                                                        .map((item: any) => (
+                                                            <tr key={`${item.id}-${item.variantId}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                                                <td className="p-4">
+                                                                    <div className="flex items-center gap-3">
+                                                                        {item.pic ? (
+                                                                            <img src={item.pic} alt="" className="w-8 h-8 rounded shadow-sm object-cover" />
+                                                                        ) : (
+                                                                            <div className="w-8 h-8 rounded bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                                                                                <Package size={14} />
+                                                                            </div>
+                                                                        )}
+                                                                        <div className="flex flex-col">
+                                                                            <span className="font-semibold text-slate-900 dark:text-slate-100">{item.name}</span>
+                                                                            <span className="text-[10px] text-slate-400 font-mono">ID: {item.id}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                                <td className="p-4 text-slate-600 dark:text-slate-400">{item.category}</td>
+                                                                <td className="p-4 font-medium text-slate-900 dark:text-slate-100">{fmtMoney(item.price)}</td>
+                                                                <td className="p-4">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="flex-1 bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden min-w-[60px]">
+                                                                            <div
+                                                                                className={`h-full rounded-full ${item.quantity <= 5 ? 'bg-red-500' : 'bg-emerald-500'}`}
+                                                                                style={{ width: `${Math.min((item.quantity / 50) * 100, 100)}%` }}
+                                                                            />
+                                                                        </div>
+                                                                        <span className={`font-bold ${item.quantity <= 5 ? 'text-red-600 dark:text-red-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                                                                            {item.quantity}
+                                                                        </span>
+                                                                    </div>
+                                                                </td>
+                                                                <td className="p-4 text-right">
+                                                                    {item.quantity <= 0 ? (
+                                                                        <span className="px-2 py-1 rounded text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Out of Stock</span>
+                                                                    ) : item.quantity <= 5 ? (
+                                                                        <span className="px-2 py-1 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Low Stock</span>
+                                                                    ) : (
+                                                                        <span className="px-2 py-1 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">In Stock</span>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

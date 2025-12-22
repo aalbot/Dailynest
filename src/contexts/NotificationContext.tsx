@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import firebase from "firebase/compat/app";
 import "firebase/compat/database";
 import { toast } from "sonner";
+import { adjustStockForOrder } from "@/utils/stockManagement";
 
 // Re-using the firebase config from existing files
 const firebaseConfig = {
@@ -25,7 +26,7 @@ export interface Notification {
     message: string;
     timestamp: number;
     read: boolean;
-    type: 'order' | 'delivery' | 'info';
+    type: 'order' | 'delivery' | 'info' | 'stock';
     orderId?: string;
 }
 
@@ -42,8 +43,12 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [orders, setOrders] = useState<Record<string, any>>({});
+    const [stockLevels, setStockLevels] = useState<Record<string, number>>({});
     const isInitialLoad = useRef(true);
+    const productData = useRef<any>(null);
+    const processingOrders = useRef<Set<string>>(new Set());
     const navigate = useNavigate();
+    const location = useLocation();
 
     // Sound logic
     const playNotificationSound = () => {
@@ -80,6 +85,27 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                             });
                         }
 
+                        // --- Stock Management Side Effects ---
+                        // 1. Reduce Stock for New/Unprocessed Orders
+                        if (!newOrder.stock_reduced && newOrder.status !== "Cancelled" && !processingOrders.current.has(key)) {
+                            console.log(`[Stock] Reducing stock for order #${key}`);
+                            processingOrders.current.add(key);
+                            adjustStockForOrder(newOrder, 'reduce')
+                                .then(() => db.ref(`root/order/${key}`).update({ stock_reduced: true }))
+                                .catch(err => console.error(`Failed to reduce stock for ${key}`, err))
+                                .finally(() => processingOrders.current.delete(key));
+                        }
+
+                        // 2. Increase Stock for Cancelled Orders
+                        if (newOrder.status === "Cancelled" && newOrder.stock_reduced && !processingOrders.current.has(key)) {
+                            console.log(`[Stock] Restoring stock for cancelled order #${key}`);
+                            processingOrders.current.add(key);
+                            adjustStockForOrder(newOrder, 'increase')
+                                .then(() => db.ref(`root/order/${key}`).update({ stock_reduced: false }))
+                                .catch(err => console.error(`Failed to restore stock for ${key}`, err))
+                                .finally(() => processingOrders.current.delete(key));
+                        }
+
                         // Case 2: Status Change to "Ready for Pickup" (Delivery Alert)
                         if (oldOrder && oldOrder.status !== "Ready for Pickup" && newOrder.status === "Ready for Pickup") {
                             addNotification({
@@ -97,7 +123,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                             /*
                             addNotification({
                                 title: "Order Updated",
-                                message: `Order #${key} is now ${newOrder.status}`,
+                                message: `Order #${ key } is now ${ newOrder.status } `,
                                 type: 'info',
                                 orderId: key
                             });
@@ -119,6 +145,54 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             ordersRef.off("value", onValueChange);
         };
     }, []);
+
+    // Listen for Stock Changes
+    useEffect(() => {
+        const db = firebase.database();
+        const stockRef = db.ref("root/stock");
+        const prodRef = db.ref("root/products");
+
+        // First, get product names once
+        prodRef.once("value", (snap) => {
+            productData.current = snap.val() || {};
+        });
+
+        const onStockChange = (snapshot: any) => {
+            const data = snapshot.val() || {};
+
+            if (!isInitialLoad.current) {
+                Object.entries(data).forEach(([prodId, variants]: [string, any]) => {
+                    Object.entries(variants).forEach(([varId, variant]: [string, any]) => {
+                        const qty = parseInt(variant.quantity) || 0;
+                        const stockKey = `${prodId}_${varId} `;
+                        const prevQty = stockLevels[stockKey] ?? 100; // Assume healthy if first time seeing
+
+                        // Notify only if it JUST crossed below or at 5
+                        if (prevQty > 5 && qty <= 5) {
+                            const pName = productData.current?.[prodId]?.name || "Unknown Product";
+                            addNotification({
+                                title: "Low Stock Alert",
+                                message: `${pName} is running low(Current Qty: ${qty})`,
+                                type: 'stock'
+                            });
+                        }
+                    });
+                });
+            }
+
+            // Update local tracking
+            const newLevels: Record<string, number> = {};
+            Object.entries(data).forEach(([prodId, variants]: [string, any]) => {
+                Object.entries(variants).forEach(([varId, variant]: [string, any]) => {
+                    newLevels[`${prodId}_${varId} `] = parseInt(variant.quantity) || 0;
+                });
+            });
+            setStockLevels(newLevels);
+        };
+
+        stockRef.on("value", onStockChange);
+        return () => stockRef.off("value", onStockChange);
+    }, [stockLevels]);
 
     // Listen for Broadcasts (New Notifications)
     useEffect(() => {
@@ -153,6 +227,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
         setNotifications(prev => [newNotification, ...prev]);
 
+        // Don't show visual/audio alerts on the Gateway page
+        if (location.pathname === '/') return;
+
         // Trigger Toast (The "Slide from side" alert)
         toast(newNotification.title, {
             description: newNotification.message,
@@ -161,6 +238,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                 onClick: () => {
                     if (newNotification.type === 'order') navigate('/orders');
                     if (newNotification.type === 'delivery') navigate('/delivery');
+                    if (newNotification.type === 'stock') navigate('/dashboard', { state: { tab: 'stocks' } });
                 },
             },
         });

@@ -6,7 +6,7 @@ const BackButton = () => {
 
     return (
         <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/apps")}
             className="p-2 mr-2 rounded-full hover:bg-gray-100 transition-colors text-gray-600"
             aria-label="Go Back to Home"
         >

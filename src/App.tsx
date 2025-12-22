@@ -3,7 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
+import Gateway from "./pages/Gateway";
+import AppGallery from "./pages/AppGallery";
 import NotFound from "./pages/NotFound";
 import OrderManagement from "./pages/OrderManagement";
 import PremiumEntry from "./pages/PremiumEntry";
@@ -20,6 +21,7 @@ import BackOffice from "./pages/BackOffice";
 import EmployeeManagement from "./pages/EmployeeManagement";
 import TaskManager from "./pages/TaskManager";
 import NotificationManager from "./pages/NotificationManager";
+import Staffes from "./pages/Staffes";
 import ScrollToTop from "./components/ScrollToTop";
 import { NotificationProvider } from "./contexts/NotificationContext";
 
@@ -34,7 +36,8 @@ const App = () => (
         <NotificationProvider>
           <ScrollToTop />
           <Routes>
-            <Route path="/" element={<Index />} />
+            <Route path="/" element={<Gateway />} />
+            <Route path="/apps" element={<AppGallery />} />
             <Route path="/orders" element={<OrderManagement />} />
             <Route path="/premium-entry" element={<PremiumEntry />} />
             <Route path="/rating-entry" element={<RatingEntry />} />
@@ -51,6 +54,7 @@ const App = () => (
             <Route path="/employee-management" element={<EmployeeManagement />} />
             <Route path="/tasks" element={<TaskManager />} />
             <Route path="/notifications" element={<NotificationManager />} />
+            <Route path="/staffes" element={<Staffes />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Crown,
@@ -46,6 +47,7 @@ const defaultAppItems = [
   { icon: Keyboard, label: "Keyword Entry", path: "/keyword-entry", color: "bg-indigo-500" },
   { icon: Grid3X3, label: "Task Manager", path: "/tasks", color: "bg-violet-600" },
   { icon: Bell, label: "Notification", path: "/notifications", color: "bg-red-500" },
+  { icon: Users, label: "Staffes", path: "/staffes", color: "bg-cyan-600" },
 ];
 
 const Navbar = () => {
@@ -76,7 +78,7 @@ const Navbar = () => {
     return () => appsRef.off("value", onValueChange);
   }, []);
 
-  const allApps = [
+  const allAppsRaw = [
     ...defaultAppItems,
     ...customApps.map(app => ({
       icon: iconMap[app.icon] || Package,
@@ -85,6 +87,20 @@ const Navbar = () => {
       color: app.colorClass || "bg-blue-500"
     }))
   ];
+
+  const userRole = localStorage.getItem("user_role");
+  const allowedApps = JSON.parse(localStorage.getItem("allowed_apps") || "[]");
+  const staffName = localStorage.getItem("staff_name");
+
+  const displayName = userRole === "admin" ? "Administrator" : (staffName || "Staff Member");
+  const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  const userEmail = userRole === "admin" ? "admin@dailyclub.com" : `${staffName?.toLowerCase().replace(/\s/g, '') || 'staff'}@dailyclub.staff`;
+
+  const allApps = allAppsRaw.filter(app => {
+    if (userRole === "admin") return true;
+    if (userRole === "staff") return allowedApps.includes(app.path);
+    return false;
+  });
 
   const menuRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
@@ -135,7 +151,7 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3">
+          <Link to="/apps" className="flex items-center gap-3">
             <img src="/logo.png" alt="DailyClub" className="w-9 h-9 rounded-xl object-contain" />
             <span className="font-bold text-lg tracking-tight text-slate-500 dark:text-slate-400">DailyClub</span>
           </Link>
@@ -309,7 +325,7 @@ const Navbar = () => {
                   {/* Divider */}
                   <div className="mt-3 pt-3 border-t border-gray-100">
                     <Link
-                      to="/"
+                      to="/apps"
                       onClick={() => setMenuOpen(false)}
                       className="flex items-center justify-center gap-2 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
                     >
@@ -324,16 +340,16 @@ const Navbar = () => {
             <div className="relative" ref={profileRef}>
               <button
                 onClick={() => setProfileOpen(!profileOpen)}
-                className="ml-1 w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-sm font-semibold hover:shadow-md transition-shadow"
+                className="ml-1 w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold hover:shadow-md transition-shadow uppercase tracking-tighter"
               >
-                JD
+                {initials}
               </button>
 
               {profileOpen && (
                 <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-2 animate-in fade-in zoom-in-95 origin-top-right z-50 overflow-hidden">
                   <div className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 mb-2">
-                    <p className="text-sm font-bold text-slate-900 dark:text-slate-100">John Doe</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">admin@dailyclub.com</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{displayName}</p>
+                    <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-widest">{userEmail}</p>
                   </div>
 
                   <div className="space-y-1">
@@ -357,7 +373,18 @@ const Navbar = () => {
 
                     <div className="h-px bg-slate-100 dark:bg-slate-800 my-1 confirm-logout"></div>
 
-                    <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors">
+                    <button
+                      onClick={() => {
+                        localStorage.removeItem("admin_auth");
+                        localStorage.removeItem("staff_auth");
+                        localStorage.removeItem("user_role");
+                        localStorage.removeItem("allowed_apps");
+                        localStorage.removeItem("staff_name");
+                        toast.success("Signed out successfully");
+                        navigate("/");
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors"
+                    >
                       <LogOut size={16} />
                       <span>Sign Out</span>
                     </button>
