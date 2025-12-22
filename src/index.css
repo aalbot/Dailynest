@@ -337,3 +337,52 @@
     animation: spin-slow 12s linear infinite;
   }
 }
+@layer utilities {
+  @keyframes float {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-20px) scale(1.05); }
+  }
+
+  @keyframes float-reverse {
+    0%, 100% { transform: translateY(0) scale(1.05); }
+    50% { transform: translateY(20px) scale(1); }
+  }
+
+  @keyframes bounce-horizontal {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(5px); }
+  }
+
+  @keyframes swing {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(10deg); }
+    75% { transform: rotate(-10deg); }
+  }
+
+  @keyframes shimmer-text {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .animate-float {
+    animation: float 10s ease-in-out infinite;
+  }
+
+  .animate-float-reverse {
+    animation: float-reverse 12s ease-in-out infinite;
+  }
+
+  .animate-bounce-horizontal {
+    animation: bounce-horizontal 1.5s ease-in-out infinite;
+  }
+
+  .animate-swing {
+    animation: swing 2s ease-in-out infinite;
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(90deg, transparent, currentColor, transparent);
+    background-size: 200% 100%;
+    animation: shimmer-text 3s linear infinite;
+  }
+}

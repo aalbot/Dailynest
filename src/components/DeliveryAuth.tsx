@@ -96,69 +96,103 @@ export const DeliveryAuth = ({ onLogin }: AuthProps) => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
-            <Card className="w-full max-w-md border-slate-200 dark:border-slate-800 shadow-xl">
-                <CardHeader className="text-center pb-2">
-                    <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Truck className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-6 relative overflow-hidden font-sans">
+
+            {/* Background Blobs */}
+            <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-blue-500/10 dark:bg-blue-600/20 rounded-full blur-[120px] animate-float" />
+            <div className="absolute bottom-[-10%] right-[-20%] w-[60%] h-[60%] bg-indigo-500/10 dark:bg-indigo-600/20 rounded-full blur-[120px] animate-float-reverse" />
+
+            <div className="w-full max-w-md relative z-10 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                <div className="text-center mb-10 space-y-3">
+                    <div className="w-24 h-24 bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl flex items-center justify-center mx-auto mb-6 border border-slate-100 dark:border-slate-800 rotate-12 hover:rotate-0 transition-transform duration-500">
+                        <Truck size={48} className="text-indigo-600 animate-pulse" />
                     </div>
-                    <CardTitle className="text-2xl font-bold">{isLogin ? "Partner Login" : "Join Delivery Fleet"}</CardTitle>
-                    <CardDescription>{isLogin ? "Access your delivery dashboard" : "Register to start delivering orders"}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4 pt-4">
-                    {!isLogin && (
-                        <>
-                            <div className="space-y-2">
-                                <Label>Full Name</Label>
-                                <Input
-                                    placeholder="John Doe"
-                                    value={formData.name}
-                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Phone Number</Label>
-                                <Input
-                                    placeholder="+91 98765 43210"
-                                    value={formData.phone}
-                                    onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                                />
-                            </div>
-                        </>
-                    )}
-                    <div className="space-y-2">
-                        <Label>Email Address</Label>
-                        <Input
-                            type="email"
-                            placeholder="partner@dailyclub.in"
-                            value={formData.email}
-                            onChange={e => setFormData({ ...formData, email: e.target.value })}
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Password</Label>
-                        <Input
-                            type="password"
-                            placeholder="••••••••"
-                            value={formData.password}
-                            onChange={e => setFormData({ ...formData, password: e.target.value })}
-                        />
+                    <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">
+                        DailyClub<span className="text-indigo-600">Hub</span>
+                    </h1>
+                    <p className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-xs">
+                        Delivery Partner Portal
+                    </p>
+                </div>
+
+                <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-3xl rounded-[3rem] p-8 shadow-2xl shadow-indigo-500/10 border border-white/50 dark:border-slate-800/50 space-y-6">
+                    <div className="text-center mb-4">
+                        <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                            {isLogin ? "Welcome Back" : "Join the Fleet"}
+                        </h2>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+                            {isLogin ? "Enter your credentials to access dashboard" : "Register and start earning today"}
+                        </p>
                     </div>
 
-                    <Button onClick={handleSubmit} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-11 mt-2">
-                        {isLogin ? "Login" : "Register"}
-                    </Button>
+                    <div className="space-y-4">
+                        {!isLogin && (
+                            <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Full Name</Label>
+                                    <Input
+                                        className="h-14 rounded-2xl bg-slate-50/50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700/50 font-bold focus:ring-2 focus:ring-indigo-500 transition-all px-5"
+                                        placeholder="John Doe"
+                                        value={formData.name}
+                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Phone</Label>
+                                    <Input
+                                        className="h-14 rounded-2xl bg-slate-50/50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700/50 font-bold focus:ring-2 focus:ring-indigo-500 transition-all px-5"
+                                        placeholder="+91..."
+                                        value={formData.phone}
+                                        onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                        )}
 
-                    <div className="text-center pt-2">
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Email Address</Label>
+                            <Input
+                                className="h-14 rounded-2xl bg-slate-50/50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700/50 font-bold focus:ring-2 focus:ring-indigo-500 transition-all px-5"
+                                type="email"
+                                placeholder="name@dailyclub.in"
+                                value={formData.email}
+                                onChange={e => setFormData({ ...formData, email: e.target.value })}
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Security Key</Label>
+                            <Input
+                                className="h-14 rounded-2xl bg-slate-50/50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700/50 font-bold focus:ring-2 focus:ring-indigo-500 transition-all px-5"
+                                type="password"
+                                placeholder="••••••••"
+                                value={formData.password}
+                                onChange={e => setFormData({ ...formData, password: e.target.value })}
+                            />
+                        </div>
+
+                        <Button
+                            onClick={handleSubmit}
+                            className="w-full h-16 bg-indigo-600 hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400 text-white font-black text-lg rounded-2xl shadow-xl shadow-indigo-600/20 active:scale-95 transition-all mt-4"
+                        >
+                            {isLogin ? "Launch Dashboard" : "Register Account"}
+                        </Button>
+                    </div>
+
+                    <div className="text-center">
                         <button
                             onClick={() => setIsLogin(!isLogin)}
-                            className="text-sm text-slate-500 hover:text-blue-600 font-medium transition-colors"
+                            className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 hover:text-indigo-600 transition-colors py-2"
                         >
-                            {isLogin ? "New here? Create an account" : "Already have an account? Login"}
+                            {isLogin ? "Need an entry? Join us →" : "← Back to Login"}
                         </button>
                     </div>
-                </CardContent>
-            </Card>
+                </div>
+
+                <p className="mt-8 text-center text-[10px] font-black uppercase tracking-[0.3em] text-slate-400/50">
+                    Secure & Encrypted Environment
+                </p>
+            </div>
         </div>
     );
 };
