@@ -67,6 +67,19 @@ const OrderManagement = () => {
     const [selectedOrderIdForAssign, setSelectedOrderIdForAssign] = useState<string | null>(null);
     const [selectedDriverId, setSelectedDriverId] = useState("");
 
+    // Compute busy driver IDs from current orders (assigned and not completed)
+    const busyDriverIds = useMemo(() => {
+        if (!orders) return [];
+        return Object.values(orders)
+            .filter((o: any) => o.delivery_partner_id && o.status !== 'Delivered' && o.status !== 'Cancelled')
+            .map((o: any) => o.delivery_partner_id);
+    }, [orders]);
+
+    // Filter delivery boys to only those not currently busy
+    const availableDeliveryBoys = useMemo(() => {
+        return deliveryBoys.filter((boy: any) => !busyDriverIds.includes(boy.deliveryUserId));
+    }, [deliveryBoys, busyDriverIds]);
+
     // Fetch Delivery Boys
     // Fetch Delivery Boys
     useEffect(() => {
@@ -626,7 +639,7 @@ const OrderManagement = () => {
                             <p className="text-sm text-slate-500 mb-4">Select a delivery partner for Order <strong>#{selectedOrderIdForAssign}</strong></p>
 
                             <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
-                                {deliveryBoys.map(boy => (
+                                {availableDeliveryBoys.map(boy => (
                                     <label
                                         key={boy.id}
                                         className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${selectedDriverId === boy.id
