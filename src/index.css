@@ -133,6 +133,11 @@
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
+
+  /* Force smaller titles on mobile */
+  h1 {
+    @apply text-xl md:text-3xl lg:text-4xl;
+  }
 }
 
 @layer components {

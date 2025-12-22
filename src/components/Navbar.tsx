@@ -45,6 +45,7 @@ const defaultAppItems = [
   { icon: Star, label: "Rating Entry", path: "/rating-entry", color: "bg-orange-500" },
   { icon: Keyboard, label: "Keyword Entry", path: "/keyword-entry", color: "bg-indigo-500" },
   { icon: Grid3X3, label: "Task Manager", path: "/tasks", color: "bg-violet-600" },
+  { icon: Bell, label: "Notification", path: "/notifications", color: "bg-red-500" },
 ];
 
 const Navbar = () => {
@@ -289,6 +290,8 @@ const Navbar = () => {
                       <Link
                         key={item.path}
                         to={item.path}
+                        target={item.path === '/delivery' ? "_blank" : undefined}
+                        rel={item.path === '/delivery' ? "noopener noreferrer" : undefined}
                         onClick={() => setMenuOpen(false)}
                         className={`flex flex-col items-center gap-2 p-3 rounded-xl transition-all duration-200 group hover:bg-gray-50 ${location.pathname === item.path ? "bg-gray-50" : ""
                           }`}

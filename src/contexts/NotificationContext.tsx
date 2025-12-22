@@ -12,7 +12,7 @@ const firebaseConfig = {
     projectId: "dailyclub11",
     storageBucket: "dailyclub11.firebasestorage.app",
     messagingSenderId: "439424426599",
-    appId: "1:439424426599:web:5ee8965e14990c57fdaac2",
+    appId: "1:439424426599:web:c2e064f640bf5927fdaac2"
 };
 
 if (!firebase.apps.length) {
@@ -118,6 +118,29 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return () => {
             ordersRef.off("value", onValueChange);
         };
+    }, []);
+
+    // Listen for Broadcasts (New Notifications)
+    useEffect(() => {
+        const db = firebase.database();
+        const now = Date.now();
+        const broadcastRef = db.ref("root/notifications").orderByChild("timestamp").startAt(now);
+
+        const onBroadcast = (snapshot: any) => {
+            const data = snapshot.val();
+            if (data) {
+                // Ensure we don't show the same notification multiple times if multiple come in at once
+                // snapshot.val() for child_added is the item itself
+                addNotification({
+                    title: data.title,
+                    message: data.message,
+                    type: data.type || 'info'
+                });
+            }
+        };
+
+        broadcastRef.on("child_added", onBroadcast);
+        return () => broadcastRef.off("child_added", onBroadcast);
     }, []);
 
     const addNotification = (n: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {

@@ -18,6 +18,7 @@ import {
   Settings,
   Users,
   Grid3X3,
+  Bell,
 } from "lucide-react";
 import AppIcon from "./AppIcon";
 import { AddAppModal } from "./AddAppModal";
@@ -50,6 +51,7 @@ const initialApps = [
   { icon: Star, label: "Rating Entry", colorClass: "app-icon-orange", path: "/rating-entry" },
   { icon: Keyboard, label: "Keyword Entry", colorClass: "app-icon-indigo", path: "/keyword-entry" },
   { icon: Grid3X3, label: "Task Manager", colorClass: "app-icon-violet", path: "/tasks" },
+  { icon: Bell, label: "Notification", colorClass: "app-icon-red", path: "/notifications" },
 ];
 
 const AppGrid = () => {
@@ -113,7 +115,11 @@ const AppGrid = () => {
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-6 sm:gap-8 md:gap-10">
         {initialApps.map((app, index) => (
           <div key={app.label} className={isManaging ? "opacity-50 pointer-events-none grayscale" : ""}>
-            <Link to={app.path}>
+            <Link
+              to={app.path}
+              target={app.path === '/delivery' ? "_blank" : undefined}
+              rel={app.path === '/delivery' ? "noopener noreferrer" : undefined}
+            >
               <AppIcon
                 icon={app.icon}
                 label={app.label}

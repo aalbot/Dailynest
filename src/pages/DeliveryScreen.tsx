@@ -14,7 +14,9 @@ import {
     CheckCircle,
     Package,
     Clock,
-    DollarSign
+    DollarSign,
+    LogOut,
+    Coffee
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import BackButton from "@/components/BackButton";
@@ -27,7 +29,7 @@ const firebaseConfig = {
     projectId: "dailyclub11",
     storageBucket: "dailyclub11.firebasestorage.app",
     messagingSenderId: "439424426599",
-    appId: "1:439424426599:web:5ee8965e14990c57fdaac2",
+    appId: "1:439424426599:web:366ea0de36341a00fdaac2",
 };
 
 if (!firebase.apps.length) {
@@ -96,12 +98,51 @@ const STATUS_FLOW: Record<string, FlowStatus & { theme: string }> = {
     },
 };
 
+import { DeliveryAuth } from "@/components/DeliveryAuth";
+
 const SLIDE_THRESHOLD = 0.8;
 
 const DeliveryScreen = () => {
+    const [user, setUser] = useState<any>(null);
     const [activeOrder, setActiveOrder] = useState<any>(null);
     const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
     const [alertData, setAlertData] = useState<{ id: string } | null>(null);
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+    // Status State
+    const [isOnline, setIsOnline] = useState(false);
+    const [employeeKey, setEmployeeKey] = useState<string | null>(null);
+
+    // Sync Online Status
+    useEffect(() => {
+        if (!user) return;
+        const db = firebase.database();
+        const empRef = db.ref("root/nexus_hr/employees");
+
+        // Find employee record by deliveryUserId
+        empRef.orderByChild("deliveryUserId").equalTo(user.id).on("value", snapshot => {
+            if (snapshot.exists()) {
+                const key = Object.keys(snapshot.val())[0];
+                const val = snapshot.val()[key];
+                setEmployeeKey(key);
+                setIsOnline(val.status === 'Active');
+            }
+        });
+
+        return () => empRef.off();
+    }, [user]);
+
+    const handleGoOnline = () => {
+        if (employeeKey) {
+            firebase.database().ref(`root/nexus_hr/employees/${employeeKey}`).update({ status: 'Active' });
+        }
+    };
+
+    const handleGoOffline = () => {
+        if (employeeKey) {
+            firebase.database().ref(`root/nexus_hr/employees/${employeeKey}`).update({ status: 'Offline' });
+        }
+    };
 
     // Slider State
     const trackRef = useRef<HTMLDivElement>(null);
@@ -110,11 +151,24 @@ const DeliveryScreen = () => {
     const [startX, setStartX] = useState(0);
     const [translateX, setTranslateX] = useState(0);
 
+    // Check Login
+    useEffect(() => {
+        const stored = localStorage.getItem("delivery_user");
+        if (stored) {
+            setUser(JSON.parse(stored));
+        }
+    }, []);
+
+    // MOVED AUTH CHECK TO RENDER to avoid Hook Rules violation
+    // if (!user) ...
+
     // Audio Context
     const audioCtxRef = useRef<AudioContext | null>(null);
     const alertShownRef = useRef<Record<string, boolean>>({});
 
     useEffect(() => {
+        if (!user) return; // Wait for user login
+
         const db = firebase.database();
         const ordersRef = db.ref("root/order");
 
@@ -138,11 +192,13 @@ const DeliveryScreen = () => {
                 }
             }
 
-            // 2. If no active, find FIRST 'Ready for Pickup'
+            // 2. If no active, find FIRST 'Ready for Pickup' assigned to ME
             if (!foundOrder) {
                 for (const id in orders) {
-                    if (orders[id].status === "Ready for Pickup") {
-                        foundOrder = orders[id];
+                    const o = orders[id];
+                    // STRICT filtering: Status is Ready AND Assigned to this user
+                    if (o.status === "Ready for Pickup" && o.delivery_partner_id === user.id) {
+                        foundOrder = o;
                         foundId = id;
                         break;
                     }
@@ -162,7 +218,7 @@ const DeliveryScreen = () => {
         });
 
         return () => ordersRef.off("value", onValue);
-    }, [activeOrderId]);
+    }, [activeOrderId, user]);
 
     // --- Audio ---
     const initAudio = () => {
@@ -339,6 +395,34 @@ const DeliveryScreen = () => {
     // Icon for current step slider
     const SliderIcon = nextFlow?.icon || CheckCircle;
 
+    if (!user) {
+        return <DeliveryAuth onLogin={setUser} />;
+    }
+
+    if (!isOnline) {
+        return (
+            <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500">
+                <div className="w-24 h-24 bg-slate-100 dark:bg-slate-900 rounded-full flex items-center justify-center mb-6 shadow-inner">
+                    <Truck className="w-12 h-12 text-slate-300 dark:text-slate-600" />
+                </div>
+                <h1 className="text-2xl font-bold mb-2 text-slate-900 dark:text-slate-100">Ready to Start?</h1>
+                <p className="text-slate-500 dark:text-slate-400 mb-8 max-w-xs mx-auto">You are currently offline. Go online to start receiving delivery requests.</p>
+                <button
+                    onClick={handleGoOnline}
+                    className="w-full max-w-xs py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl shadow-xl shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                    <CheckCircle className="w-6 h-6" /> Ready for Pickup
+                </button>
+                <button
+                    onClick={() => { localStorage.removeItem("delivery_user"); setUser(null); }}
+                    className="mt-6 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-sm font-medium"
+                >
+                    Logout
+                </button>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-100 dark:from-slate-950 dark:to-slate-900 font-sans transition-colors duration-300 flex flex-col items-center">
             <Navbar />
@@ -346,8 +430,8 @@ const DeliveryScreen = () => {
             <div className="w-full max-w-lg mt-16 px-4 py-6 flex-1 flex flex-col min-h-[calc(100vh-64px)] safe-pb">
 
                 {/* Header */}
-                <div className="flex flax-col md:flex-row items-center justify-between gap-4 mb-6">
-                    <div className="flex items-center gap-4 w-full">
+                <div className="flex flex-row items-center justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-4">
                         <BackButton />
                         <div className="flex flex-col">
                             <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-700 dark:from-blue-400 dark:to-indigo-400 flex items-center gap-2">
@@ -355,9 +439,55 @@ const DeliveryScreen = () => {
                             </h1>
                             <p className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                Live Feed
+                                {user?.name || "Live Feed"}
                             </p>
                         </div>
+                    </div>
+
+                    <div className="relative">
+                        <button
+                            onClick={() => setIsProfileOpen(!isProfileOpen)}
+                            className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 shadow-sm transition-all"
+                        >
+                            <User size={20} />
+                        </button>
+
+                        {isProfileOpen && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setIsProfileOpen(false)}></div>
+                                <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-2 z-50 animate-in fade-in zoom-in-95 origin-top-right">
+                                    <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 mb-1">
+                                        <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{user?.name || "Delivery Partner"}</p>
+                                        <p className="text-xs text-emerald-500 font-medium flex items-center gap-1">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Online
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        onClick={() => {
+                                            handleGoOffline();
+                                            setIsProfileOpen(false);
+                                        }}
+                                        className="w-full flex items-center gap-2 p-3 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors mb-1"
+                                    >
+                                        <Coffee size={16} /> Take a break
+                                    </button>
+
+                                    <button
+                                        onClick={() => {
+                                            if (confirm("Stop getting orders and Logout?")) {
+                                                handleGoOffline();
+                                                localStorage.removeItem("delivery_user");
+                                                setUser(null);
+                                            }
+                                        }}
+                                        className="w-full flex items-center gap-2 p-3 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
+                                    >
+                                        <LogOut size={16} /> Logout
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -472,17 +602,17 @@ const DeliveryScreen = () => {
                         <div className="sticky bottom-6 z-10">
                             <div
                                 className={`relative h-16 rounded-full overflow-hidden select-none border-4 transition-colors ${isDisabled ? "bg-slate-200 dark:bg-slate-800 border-slate-100 dark:border-slate-700 cursor-not-allowed" :
-                                        nextFlow.theme === 'blue' ? 'bg-blue-100 dark:bg-blue-900/30 border-blue-50 dark:border-blue-900/50' :
-                                            nextFlow.theme === 'orange' ? 'bg-orange-100 dark:bg-orange-900/30 border-orange-50 dark:border-orange-900/50' :
-                                                'bg-emerald-100 dark:bg-emerald-900/30 border-emerald-50 dark:border-emerald-900/50'
+                                    nextFlow.theme === 'blue' ? 'bg-blue-100 dark:bg-blue-900/30 border-blue-50 dark:border-blue-900/50' :
+                                        nextFlow.theme === 'orange' ? 'bg-orange-100 dark:bg-orange-900/30 border-orange-50 dark:border-orange-900/50' :
+                                            'bg-emerald-100 dark:bg-emerald-900/30 border-emerald-50 dark:border-emerald-900/50'
                                     }`}
                                 ref={trackRef}
                             >
                                 {/* Text Label */}
                                 <div className={`absolute inset-0 flex items-center justify-center font-bold text-sm tracking-widest uppercase transition-opacity duration-300 ${isDisabled ? "text-slate-400" :
-                                        nextFlow.theme === 'blue' ? 'text-blue-600 dark:text-blue-400' :
-                                            nextFlow.theme === 'orange' ? 'text-orange-600 dark:text-orange-400' :
-                                                'text-emerald-600 dark:text-emerald-400'
+                                    nextFlow.theme === 'blue' ? 'text-blue-600 dark:text-blue-400' :
+                                        nextFlow.theme === 'orange' ? 'text-orange-600 dark:text-orange-400' :
+                                            'text-emerald-600 dark:text-emerald-400'
                                     }`} style={{ opacity: isSliding ? 0 : 1 }}>
                                     {isDisabled ? flow.text : nextFlow.text}
                                     {!isDisabled && <div className="ml-2 animate-bounce-horizontal"><ArrowRight size={14} /></div>}
@@ -492,8 +622,8 @@ const DeliveryScreen = () => {
                                 {!isDisabled && (
                                     <div
                                         className={`absolute top-1 left-1 bottom-1 w-14 rounded-full shadow-lg flex items-center justify-center cursor-grab active:cursor-grabbing z-20 ${nextFlow.theme === 'blue' ? 'bg-blue-600 text-white' :
-                                                nextFlow.theme === 'orange' ? 'bg-orange-600 text-white' :
-                                                    'bg-emerald-600 text-white'
+                                            nextFlow.theme === 'orange' ? 'bg-orange-600 text-white' :
+                                                'bg-emerald-600 text-white'
                                             }`}
                                         ref={handleRef}
                                         style={{ transform: `translateX(${translateX}px)`, transition: isSliding ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)' }}

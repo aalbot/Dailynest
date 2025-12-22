@@ -19,6 +19,7 @@ import KeywordEntry from "./pages/KeywordEntry";
 import BackOffice from "./pages/BackOffice";
 import EmployeeManagement from "./pages/EmployeeManagement";
 import TaskManager from "./pages/TaskManager";
+import NotificationManager from "./pages/NotificationManager";
 import ScrollToTop from "./components/ScrollToTop";
 import { NotificationProvider } from "./contexts/NotificationContext";
 
@@ -49,6 +50,7 @@ const App = () => (
 
             <Route path="/employee-management" element={<EmployeeManagement />} />
             <Route path="/tasks" element={<TaskManager />} />
+            <Route path="/notifications" element={<NotificationManager />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

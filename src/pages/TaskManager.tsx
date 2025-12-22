@@ -21,6 +21,8 @@ import {
     Plus,
     Menu,
     ChevronDown,
+    PanelLeftClose,
+    X,
     MoreHorizontal
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -122,7 +124,21 @@ const TaskManager = () => {
     const [selectedTask, setSelectedTask] = useState<any | null>(null);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
-    const [sidebarOpen, setSidebarOpen] = useState(true); // Default open on desktop
+    // Default open on desktop (md = 768px), closed on mobile
+    const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
+
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth >= 768) {
+                setSidebarOpen(true);
+            } else {
+                setSidebarOpen(false);
+            }
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     // Form State
     const [newTask, setNewTask] = useState({
@@ -220,13 +236,21 @@ const TaskManager = () => {
 
             <div className="flex flex-1 overflow-hidden pt-16">
                 {/* SIDEBAR */}
-                <div className={`${sidebarOpen ? 'w-64' : 'w-0'} bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-shrink-0 transition-all duration-300 ease-in-out flex flex-col md:relative fixed inset-y-0 z-40 top-16`}>
+                <div className={`${sidebarOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full md:w-0 md:translate-x-0'} bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-shrink-0 transition-all duration-300 ease-in-out flex flex-col fixed md:relative inset-y-0 left-0 z-40 top-16 md:top-0 h-[calc(100vh-4rem)] md:h-auto overflow-hidden`}>
                     <div className="p-4 border-b border-slate-100 dark:border-slate-800">
                         <div className="flex items-center justify-between">
                             <h1 className="font-bold text-slate-900 dark:text-slate-100 tracking-tight truncate pl-1">Workspace</h1>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg" onClick={() => setIsCreateOpen(true)}>
-                                <Plus className="w-5 h-5" />
-                            </Button>
+                            <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg" onClick={() => setIsCreateOpen(true)}>
+                                    <Plus className="w-5 h-5" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg md:flex hidden" onClick={() => setSidebarOpen(false)}>
+                                    <PanelLeftClose className="w-5 h-5" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg md:hidden flex" onClick={() => setSidebarOpen(false)}>
+                                    <X className="w-5 h-5" />
+                                </Button>
+                            </div>
                         </div>
                     </div>
 
@@ -281,8 +305,11 @@ const TaskManager = () => {
                     {/* Header */}
                     <header className="h-14 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between px-4 flex-shrink-0">
                         <div className="flex items-center gap-3">
-                            {/* Toggle Sidebar (Mobile) */}
-                            <button className="md:hidden" onClick={() => setSidebarOpen(!sidebarOpen)}>
+                            {/* Toggle Sidebar - Only visible when sidebar is closed on desktop, or always on mobile if we want (but logically, if sidebar covers screen on mobile, we don't need this when open) */}
+                            <button
+                                onClick={() => setSidebarOpen(true)}
+                                className={`${sidebarOpen ? 'md:hidden' : 'block'}`}
+                            >
                                 <Menu className="w-5 h-5 text-slate-600" />
                             </button>
 

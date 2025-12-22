@@ -34,7 +34,7 @@ const firebaseConfig = {
     projectId: "dailyclub11",
     storageBucket: "dailyclub11.firebasestorage.app",
     messagingSenderId: "439424426599",
-    appId: "1:439424426599:web:5ee8965e14990c57fdaac2",
+    appId: "1:439424426599:web:366ea0de36341a00fdaac2",
 };
 
 // Initialize Firebase only once
@@ -60,6 +60,30 @@ const OrderManagement = () => {
     // Sidebar State
     const [activeTab, setActiveTab] = useState("all_orders");
     const [sidebarOpen, setSidebarOpen] = useState(false);
+
+    // Delivery Assignment State
+    const [deliveryBoys, setDeliveryBoys] = useState<any[]>([]);
+    const [showAssignModal, setShowAssignModal] = useState(false);
+    const [selectedOrderIdForAssign, setSelectedOrderIdForAssign] = useState<string | null>(null);
+    const [selectedDriverId, setSelectedDriverId] = useState("");
+
+    // Fetch Delivery Boys
+    // Fetch Delivery Boys
+    useEffect(() => {
+        const db = firebase.database();
+        const empRef = db.ref("root/nexus_hr/employees");
+        empRef.on("value", (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                // Map keys as 'id' to ensure uniqueness and proper selection
+                const list = Object.entries(data)
+                    .map(([key, value]: [string, any]) => ({ id: key, ...value }))
+                    .filter((e: any) => (e.role === 'Ride' || e.department === 'Logistics') && e.status === 'Active');
+                setDeliveryBoys(list);
+            }
+        });
+        return () => empRef.off();
+    }, []);
 
     const menuItems = [
         { id: 'all_orders', label: 'All Orders', icon: ShoppingBag },
@@ -220,16 +244,53 @@ const OrderManagement = () => {
     }, [orders, searchTerm, activeTab]);
 
     const handleStatusChange = async (orderId: string, newStatus: string) => {
+        if (newStatus === "Ready for Pickup") {
+            setSelectedOrderIdForAssign(orderId);
+            setShowAssignModal(true);
+            return;
+        }
+        updateOrderStatus(orderId, newStatus);
+    };
+
+    const updateOrderStatus = async (orderId: string, status: string, additionalData: any = {}) => {
         try {
             await firebase.database().ref(`root/order/${orderId}`).update({
-                status: newStatus,
-                last_updated: new Date().toISOString()
+                status: status,
+                last_updated: new Date().toISOString(),
+                ...additionalData
             });
-            toast.success(`Order #${orderId} updated to ${newStatus}`);
+            toast.success(`Order #${orderId} updated to ${status}`);
         } catch (error) {
             console.error(error);
             toast.error("Failed to update status");
         }
+    };
+
+    const handleAssignDriver = () => {
+        if (!selectedOrderIdForAssign || !selectedDriverId) {
+            toast.error("Please select a delivery partner");
+            return;
+        }
+
+        const driver = deliveryBoys.find(d => d.id === selectedDriverId);
+
+        // Use deliveryUserId because this is what the App tracks for login
+        const targetAuthId = driver?.deliveryUserId;
+
+        if (!targetAuthId) {
+            toast.error("This partner does not have an App Account linked. Cannot assign.");
+            return;
+        }
+
+        updateOrderStatus(selectedOrderIdForAssign, "Ready for Pickup", {
+            delivery_partner_id: targetAuthId,
+            delivery_partner_name: driver ? `${driver.firstName} ${driver.lastName}` : "Unknown",
+            delivery_partner_phone: driver?.contactNumber || ""
+        });
+
+        setShowAssignModal(false);
+        setSelectedOrderIdForAssign(null);
+        setSelectedDriverId("");
     };
 
     const toggleExpand = (id: string) => {
@@ -545,6 +606,66 @@ const OrderManagement = () => {
                             className="w-full py-4 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 font-bold text-lg rounded-2xl shadow-xl active:scale-95 transition-all"
                         >
                             Acknowledge
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Delivery Assignment Modal */}
+            {showAssignModal && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-800">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-bold flex items-center gap-2">
+                                <Truck className="text-blue-600" /> Assign Driver
+                            </h3>
+                            <button onClick={() => setShowAssignModal(false)} className="text-slate-400 hover:text-slate-600"><XCircle size={24} /></button>
+                        </div>
+
+                        <div className="mb-6">
+                            <p className="text-sm text-slate-500 mb-4">Select a delivery partner for Order <strong>#{selectedOrderIdForAssign}</strong></p>
+
+                            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                                {deliveryBoys.map(boy => (
+                                    <label
+                                        key={boy.id}
+                                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${selectedDriverId === boy.id
+                                            ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500 dark:bg-blue-900/20'
+                                            : 'bg-slate-50 border-slate-200 hover:border-blue-300 dark:bg-slate-800 dark:border-slate-700'
+                                            }`}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="driver"
+                                            value={boy.id}
+                                            checked={selectedDriverId === boy.id}
+                                            onChange={() => setSelectedDriverId(boy.id)}
+                                            className="hidden"
+                                        />
+                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedDriverId === boy.id ? 'border-blue-600' : 'border-slate-300'}`}>
+                                            {selectedDriverId === boy.id && <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />}
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="font-semibold text-slate-900 dark:text-slate-100">{boy.firstName} {boy.lastName}</div>
+                                            <div className="text-xs text-slate-500">{boy.contactNumber} • <span className="text-emerald-600">Active</span></div>
+                                        </div>
+                                    </label>
+                                ))}
+
+                                {deliveryBoys.length === 0 && (
+                                    <div className="text-center py-8 text-slate-500 border-2 border-dashed border-slate-200 rounded-xl">
+                                        No delivery partners found online.
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={handleAssignDriver}
+                            disabled={!selectedDriverId}
+                            className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-colors shadow-lg shadow-blue-500/30"
+                        >
+                            Confirm Assignment
                         </button>
                     </div>
                 </div>

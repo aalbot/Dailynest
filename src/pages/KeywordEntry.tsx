@@ -26,7 +26,7 @@ const firebaseConfig = {
     projectId: "dailyclub11",
     storageBucket: "dailyclub11.firebasestorage.app",
     messagingSenderId: "439424426599",
-    appId: "1:439424426599:web:5ee8965e14990c57fdaac2",
+    appId: "1:439424426599:web:366ea0de36341a00fdaac2",
 };
 
 if (!firebase.apps.length) {

@@ -22,7 +22,8 @@ import {
     X,
     Building2, // Added for Sidebar logo area
     Calendar,
-    CheckCircle
+    CheckCircle,
+    Truck
 } from 'lucide-react';
 import firebase from "firebase/compat/app";
 import "firebase/compat/database";
@@ -350,6 +351,7 @@ const EmployeeManagement = () => {
         { id: 'attendance', label: 'Attendance', icon: Clock },
         { id: 'payroll', label: 'Payroll', icon: DollarSign },
         { id: 'manage', label: 'Manage', icon: Settings },
+        { id: 'delivery_boys', label: 'Delivery Boys', icon: Truck },
     ];
 
     return (
@@ -835,6 +837,73 @@ const EmployeeManagement = () => {
                                     </CardContent>
                                 </Card>
                             </div>
+                        </TabsContent>
+
+                        {/* DELIVERY BOYS */}
+                        <TabsContent value="delivery_boys" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            {/* Stats */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <StatCard label="Total Partners" value={employees.filter(e => e.role === 'Ride' || e.department === 'Logistics').length} icon={Truck} color="blue" subtext="Registered Fleet" />
+                                <StatCard label="Active Now" value={employees.filter(e => (e.role === 'Ride' || e.department === 'Logistics') && e.status === 'Active').length} icon={CheckCircle} color="emerald" subtext="Online & Ready" />
+                                <StatCard label="Pending Approval" value="0" icon={Clock} color="orange" subtext="Document Verification" />
+                            </div>
+
+                            <Card className="border-slate-200 dark:border-slate-800 shadow-sm">
+                                <CardHeader>
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <CardTitle>Delivery Partners</CardTitle>
+                                            <CardDescription>Manage your delivery fleet and track their status.</CardDescription>
+                                        </div>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Driver Profile</TableHead>
+                                                <TableHead>Role</TableHead>
+                                                <TableHead>Contact</TableHead>
+                                                <TableHead className="text-right">Status</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {employees.filter(e => e.role === 'Ride' || e.department === 'Logistics').map(driver => (
+                                                <TableRow key={driver.id} className="group hover:bg-slate-50 dark:hover:bg-slate-900/50">
+                                                    <TableCell className="font-medium">
+                                                        <div className="flex items-center gap-3">
+                                                            <Avatar className="h-9 w-9 border border-indigo-100 dark:border-indigo-900/30">
+                                                                <AvatarImage src={driver.photoUrl} />
+                                                                <AvatarFallback className="bg-indigo-50 text-indigo-700">{driver.firstName?.[0]}</AvatarFallback>
+                                                            </Avatar>
+                                                            <div className="flex flex-col">
+                                                                <span className="font-semibold text-slate-900 dark:text-slate-100">{driver.firstName} {driver.lastName}</span>
+                                                                <span className="text-xs text-slate-500">{driver.deliveryUserId ? 'App User' : 'Manual Entry'}</span>
+                                                            </div>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell><Badge variant="outline">{driver.role}</Badge></TableCell>
+                                                    <TableCell className="font-mono text-xs text-slate-600 dark:text-slate-400">{driver.contactNumber || driver.email}</TableCell>
+                                                    <TableCell className="text-right">
+                                                        <Badge variant="default" className="bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100 shadow-none">Active</Badge>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                            {employees.filter(e => e.role === 'Ride' || e.department === 'Logistics').length === 0 && (
+                                                <TableRow>
+                                                    <TableCell colSpan={4} className="text-center py-12 text-slate-500">
+                                                        <div className="flex flex-col items-center gap-2">
+                                                            <Truck className="w-8 h-8 opacity-20" />
+                                                            <p>No delivery partners found.</p>
+                                                            <p className="text-xs">Partners registered via the Delivery App will appear here automatically.</p>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
                         </TabsContent>
                     </Tabs>
                 </div>
