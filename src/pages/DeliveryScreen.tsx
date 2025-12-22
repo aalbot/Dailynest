@@ -18,7 +18,9 @@ import {
     LogOut,
     Coffee,
     Radar,
-    ChevronDown
+    ChevronDown,
+    X,
+    Map as MapIcon
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import BackButton from "@/components/BackButton";
@@ -114,6 +116,7 @@ const DeliveryScreen = () => {
     const [showConsignment, setShowConsignment] = useState(false);
     const [isNavigating, setIsNavigating] = useState(false);
     const [directionsRenderer, setDirectionsRenderer] = useState<any>(null);
+    const [navigationInfo, setNavigationInfo] = useState<{ distance: string, duration: string } | null>(null);
     const profileRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<HTMLDivElement>(null);
 
@@ -503,6 +506,12 @@ const DeliveryScreen = () => {
                     }, (response: any, status: any) => {
                         if (status === "OK") {
                             renderer.setDirections(response);
+                            if (response.routes[0] && response.routes[0].legs[0]) {
+                                setNavigationInfo({
+                                    distance: response.routes[0].legs[0].distance.text,
+                                    duration: response.routes[0].legs[0].duration.text
+                                });
+                            }
                         } else {
                             console.error("Directions request failed due to " + status);
                         }
@@ -517,6 +526,36 @@ const DeliveryScreen = () => {
 
         loadMap();
     }, [isNavigating, activeOrder]);
+
+    const openMaps = () => {
+        if (!activeOrder) return;
+        let dest = "";
+        if (activeOrder.adrs && typeof activeOrder.adrs === 'string' && activeOrder.adrs.includes(',')) {
+            dest = activeOrder.adrs.trim().replace(/\s/g, '');
+        } else {
+            if (activeOrder.adrs?.latitude && activeOrder.adrs?.longitude) {
+                dest = `${activeOrder.adrs.latitude},${activeOrder.adrs.longitude}`;
+            } else {
+                dest = activeOrder.adrs;
+            }
+        }
+
+        if (!dest) {
+            alert("Address invalid");
+            return;
+        }
+
+        if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition((pos) => {
+                const url = `https://www.google.com/maps/dir/${pos.coords.latitude},${pos.coords.longitude}/${dest}`;
+                window.open(url, '_blank');
+            }, () => {
+                window.open(`https://www.google.com/maps/search/?api=1&query=${dest}`, '_blank');
+            });
+        } else {
+            window.open(`https://www.google.com/maps/search/?api=1&query=${dest}`, '_blank');
+        }
+    };
 
     // Helper
     const getFlow = (status: string) => {
@@ -702,18 +741,34 @@ const DeliveryScreen = () => {
                                 <div className="absolute inset-0 rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800">
                                     <div ref={mapRef} className="w-full h-full bg-slate-100 dark:bg-slate-800" />
                                     {/* Overlay Info */}
-                                    <div className="absolute top-4 left-4 right-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-3xl shadow-lg border border-slate-200/50 dark:border-slate-700/50">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shrink-0">
-                                                <Navigation size={18} />
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Navigating To</p>
-                                                <p className="text-sm font-bold text-slate-900 dark:text-white truncate max-w-[200px]">
-                                                    {fetchedAddress || activeOrder.adrsName || "Customer Location"}
-                                                </p>
+                                    <div className="absolute top-4 left-4 right-4 z-10 flex gap-2">
+                                        <div className="flex-1 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-3xl shadow-lg border border-slate-200/50 dark:border-slate-700/50">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shrink-0">
+                                                    <Navigation size={18} />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Navigating To</p>
+                                                    <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                                                        {fetchedAddress || activeOrder.adrsName || "Customer Location"}
+                                                    </p>
+                                                    {navigationInfo && (
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{navigationInfo.distance} </span>
+                                                            <span className="text-[10px] font-bold text-slate-400">•</span>
+                                                            <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{navigationInfo.duration}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
+
+                                        <button
+                                            onClick={() => setIsNavigating(false)}
+                                            className="w-14 h-auto rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-lg border border-slate-200/50 dark:border-slate-700/50 flex items-center justify-center text-slate-900 dark:text-white active:scale-95 transition-transform"
+                                        >
+                                            <X size={24} strokeWidth={2.5} />
+                                        </button>
                                     </div>
                                 </div>
                             ) : (
@@ -832,13 +887,21 @@ const DeliveryScreen = () => {
 
                         {!isDisabled && (
                             <div className="pt-6 pb-2 space-y-4 bg-slate-50/50 dark:bg-slate-950/50 backdrop-blur-sm -mx-5 px-5 z-20">
-                                <button
-                                    onClick={toggleNavigation}
-                                    className="w-full py-5 bg-emerald-600/10 dark:bg-emerald-400/10 text-emerald-600 dark:text-emerald-400 font-black text-xs rounded-[2rem] border border-emerald-600/20 flex items-center justify-center gap-3 hover:bg-emerald-600/20 transition-all active:scale-95 uppercase tracking-widest"
-                                >
-                                    <Navigation size={16} strokeWidth={2.5} />
-                                    {isNavigating ? "Exit Navigation" : "Get Navigation"}
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={toggleNavigation}
+                                        className="flex-1 py-5 bg-emerald-600/10 dark:bg-emerald-400/10 text-emerald-600 dark:text-emerald-400 font-black text-xs rounded-[2rem] border border-emerald-600/20 flex items-center justify-center gap-2 hover:bg-emerald-600/20 transition-all active:scale-95 uppercase tracking-widest"
+                                    >
+                                        <Navigation size={16} strokeWidth={2.5} />
+                                        {isNavigating ? "Close Map" : "Get Nav"}
+                                    </button>
+                                    <button
+                                        onClick={openMaps}
+                                        className="w-16 py-5 bg-blue-600/10 dark:bg-blue-400/10 text-blue-600 dark:text-blue-400 rounded-[2rem] border border-blue-600/20 flex items-center justify-center hover:bg-blue-600/20 transition-all active:scale-95"
+                                    >
+                                        <MapIcon size={24} strokeWidth={2.5} />
+                                    </button>
+                                </div>
 
                                 <div
                                     className={`relative h-20 rounded-[2rem] overflow-hidden select-none border-4 backdrop-blur-xl transition-all duration-500 shadow-2xl ${nextFlow.theme === 'blue' ? 'bg-blue-600/10 border-blue-600/20 shadow-blue-500/10' :

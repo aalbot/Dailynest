@@ -227,8 +227,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
         setNotifications(prev => [newNotification, ...prev]);
 
-        // Don't show visual/audio alerts on the Gateway page
-        if (location.pathname === '/') return;
+        // Don't show visual/audio alerts on the Gateway page or Delivery Screen
+        if (location.pathname === '/' || location.pathname.startsWith('/delivery')) return;
 
         // Trigger Toast (The "Slide from side" alert)
         toast(newNotification.title, {
