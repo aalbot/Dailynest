@@ -4,8 +4,8 @@ import 'firebase/compat/database';
 import {
     TrendingUp, Menu, LayoutDashboard, DollarSign,
     ShoppingBasket, Users, Loader2, Globe, DatabaseBackup,
-    Layers, Package, CheckCircle, XCircle, Activity,
-    Briefcase, Clock, Smartphone, ChevronDown, X
+    Layers, Package, CheckCircle, XCircle, Activity, Briefcase, Clock, Smartphone,
+    ChevronDown, X, AlertTriangle, Search
 } from 'lucide-react';
 import {
     Chart as ChartJS,
@@ -64,7 +64,7 @@ const FALLBACK_DATA = {
     "products": { "PBBCGBR009": { "categoryCode": "CBB0013", "name": "Colgate Soft Toothbrush" } }
 };
 
-type Tab = 'dashboard' | 'business' | 'users';
+type Tab = 'dashboard' | 'business' | 'users' | 'stocks';
 type TimeData = { date: string; count: number; revenue: number };
 
 const Dashboard = () => {
@@ -82,6 +82,7 @@ const Dashboard = () => {
     // Users Filter/Sort
     const [userFilter, setUserFilter] = useState('all');
     const [userSortConfig, setUserSortConfig] = useState({ key: 'orderCompletedAt', direction: 'desc' });
+    const [stockSearchTerm, setStockSearchTerm] = useState('');
 
     // Load Data
     useEffect(() => {
@@ -274,6 +275,7 @@ const Dashboard = () => {
         let totalVariants = 0;
         let catalogValue = 0;
         let inventoryByCategory: Record<string, number> = {};
+        let lowStockProducts: any[] = [];
 
         if (data.stock && data.products) {
             Object.entries(data.stock).forEach(([prodId, variants]: [string, any]) => {
@@ -283,7 +285,7 @@ const Dashboard = () => {
                     catName = data.category[productInfo.categoryCode].name;
                 }
 
-                Object.values(variants).forEach((variant: any) => {
+                Object.entries(variants).forEach(([variantId, variant]: [string, any]) => {
                     const qty = parseInt(variant.quantity) || 0;
                     const price = parseFloat(variant.offerPrice) || parseFloat(variant.mrp) || 0;
                     const val = qty * price;
@@ -294,6 +296,16 @@ const Dashboard = () => {
                     catalogValue += price;
 
                     inventoryByCategory[catName] = (inventoryByCategory[catName] || 0) + val;
+
+                    if (qty <= 5) {
+                        lowStockProducts.push({
+                            id: prodId,
+                            variantId,
+                            name: productInfo?.name || "Unknown Product",
+                            quantity: qty,
+                            category: catName
+                        });
+                    }
                 });
             });
         }
@@ -351,9 +363,26 @@ const Dashboard = () => {
             financialStats,
             topProducts,
             orderStatusData,
-            inventoryChartData: { labels: invLabels, values: invValues },
             revenueChartData: { labels: revLabels, values: revValues },
-            detailedRevenue
+            detailedRevenue,
+            lowStockProducts,
+            allStockItems: Object.entries(data.stock || {}).flatMap(([prodId, variants]: [string, any]) => {
+                const productInfo = data.products[prodId];
+                let catName = 'Uncategorized';
+                if (productInfo && productInfo.categoryCode && data.category && data.category[productInfo.categoryCode]) {
+                    catName = data.category[productInfo.categoryCode].name;
+                }
+                return Object.entries(variants).map(([variantId, variant]: [string, any]) => ({
+                    id: prodId,
+                    variantId,
+                    name: productInfo?.name || "Unknown Product",
+                    category: catName,
+                    quantity: parseInt(variant.quantity) || 0,
+                    price: parseFloat(variant.offerPrice) || parseFloat(variant.mrp) || 0,
+                    mrp: parseFloat(variant.mrp) || 0,
+                    pic: productInfo?.pic || ""
+                }));
+            })
         });
     };
 
@@ -388,7 +417,7 @@ const Dashboard = () => {
         );
     }
 
-    const { stats, chartData, platformData, engagementData, orderStatusData, financialStats, topProducts, inventoryChartData, revenueChartData, detailedRevenue } = processed;
+    const { stats, chartData, platformData, engagementData, orderStatusData, financialStats, topProducts, inventoryChartData, revenueChartData, detailedRevenue, lowStockProducts, allStockItems } = processed;
 
     return (
         <div className="flex h-screen bg-slate-50 dark:bg-slate-950 font-sans transition-colors duration-300">
@@ -414,7 +443,8 @@ const Dashboard = () => {
                     {[
                         { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
                         { id: 'business', label: 'Business & Finance', icon: DollarSign },
-                        { id: 'users', label: 'Users & Orders', icon: Users }
+                        { id: 'users', label: 'Users & Orders', icon: Users },
+                        { id: 'stocks', label: 'Inventory & Stocks', icon: Package }
                     ].map(item => (
                         <button
                             key={item.id}
@@ -465,6 +495,7 @@ const Dashboard = () => {
                                 <button onClick={() => { setActiveTab('dashboard'); setSidebarOpen(false); }} className="w-full text-left p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-white">Overview</button>
                                 <button onClick={() => { setActiveTab('business'); setSidebarOpen(false); }} className="w-full text-left p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-white">Business</button>
                                 <button onClick={() => { setActiveTab('users'); setSidebarOpen(false); }} className="w-full text-left p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-white">Users</button>
+                                <button onClick={() => { setActiveTab('stocks'); setSidebarOpen(false); }} className="w-full text-left p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-white">Stocks</button>
                             </nav>
                         </div>
                     </div>
@@ -475,10 +506,38 @@ const Dashboard = () => {
                     {/* DASHBOARD VIEW */}
                     {activeTab === 'dashboard' && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                            {lowStockProducts.length > 0 && (
+                                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex flex-col md:flex-row items-md-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-500">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-amber-100 dark:bg-amber-800 rounded-lg text-amber-600 dark:text-amber-400">
+                                            <AlertTriangle size={20} />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-amber-900 dark:text-amber-200 font-bold">Low Stock Warning</h4>
+                                            <p className="text-amber-700 dark:text-amber-400 text-sm">{lowStockProducts.length} items are running low (5 or below in stock).</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 max-w-full">
+                                        {lowStockProducts.slice(0, 3).map((p: any, i: number) => (
+                                            <div key={i} className="flex-shrink-0 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-lg border border-amber-100 dark:border-amber-800 text-xs shadow-sm">
+                                                <span className="font-semibold text-slate-800 dark:text-slate-200">{p.name}</span>
+                                                <span className="ml-2 px-1.5 py-0.5 bg-red-50 text-red-600 rounded">Qty: {p.quantity}</span>
+                                            </div>
+                                        ))}
+                                        {lowStockProducts.length > 3 && (
+                                            <div className="flex-shrink-0 flex items-center px-3 py-1.5 text-xs text-amber-600 font-medium">
+                                                +{lowStockProducts.length - 3} more
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
                                 {[
                                     { label: 'Total Categories', value: stats.totalCategories, icon: ShoppingBasket, color: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' },
                                     { label: 'Total Products', value: stats.totalVariants, sub: 'Incl. Variants', icon: Layers, color: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400' },
+                                    { label: 'Inventory Qty', value: financialStats.totalStockQuantity, sub: 'Total Units', icon: Activity, color: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' },
                                     { label: 'Total Users', value: stats.totalUsers, icon: Users, color: 'bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400' },
                                     { label: 'Total Orders', value: stats.totalOrders, icon: Package, color: 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' },
                                     { label: 'Delivered', value: stats.completedOrders, icon: CheckCircle, color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400' },
@@ -700,10 +759,147 @@ const Dashboard = () => {
                             </div>
                         </div>
                     )}
+                    {/* STOCKS VIEW */}
+                    {activeTab === 'stocks' && (
+                        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            {/* Stock Overview Cards */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                                    <p className="text-slate-500 text-sm font-medium">Total Inventory</p>
+                                    <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-1">{financialStats.totalStockQuantity} units</h3>
+                                    <p className="text-xs text-slate-400 mt-1">Across all variants</p>
+                                </div>
+                                <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 border-l-4 border-l-red-500">
+                                    <p className="text-slate-500 text-sm font-medium">Low Stock Items</p>
+                                    <h3 className="text-2xl font-bold text-red-600 dark:text-red-400 mt-1">{lowStockProducts.length} items</h3>
+                                    <p className="text-xs text-slate-400 mt-1">Quantity ≤ 5</p>
+                                </div>
+                                <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                                    <p className="text-slate-500 text-sm font-medium">Unique Variants</p>
+                                    <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-1">{financialStats.totalVariants}</h3>
+                                    <p className="text-xs text-slate-400 mt-1">SKU Count</p>
+                                </div>
+                                <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                                    <p className="text-slate-500 text-sm font-medium">Inventory Val.</p>
+                                    <h3 className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">{fmtMoney(financialStats.stockValue)}</h3>
+                                    <p className="text-xs text-slate-400 mt-1">Est. Asset Value</p>
+                                </div>
+                            </div>
+
+                            {/* Low Stock Detailed Alerts */}
+                            {lowStockProducts.length > 0 && (
+                                <div className="space-y-4">
+                                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                                        <AlertTriangle className="text-red-500" size={20} /> Urgent Action Required (Low Stock)
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {lowStockProducts.map((p: any, i: number) => (
+                                            <div key={i} className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-xl p-4 flex items-center justify-between">
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-bold text-slate-900 dark:text-slate-100">{p.name}</span>
+                                                    <span className="text-xs text-slate-500">{p.category}</span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className="text-lg font-black text-red-600 dark:text-red-400">{p.quantity}</span>
+                                                    <p className="text-[10px] uppercase font-bold text-red-400 dark:text-red-700">Left</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Comprehensive Inventory Table */}
+                            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+                                <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <div>
+                                        <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Full Inventory List</h2>
+                                        <p className="text-sm text-slate-500">Detailed list of all products and their current stock status.</p>
+                                    </div>
+                                    <div className="relative w-full md:w-64">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                        <input
+                                            type="text"
+                                            placeholder="Search products..."
+                                            value={stockSearchTerm}
+                                            onChange={(e) => setStockSearchTerm(e.target.value)}
+                                            className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-sm">
+                                        <thead className="bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold border-b border-slate-200 dark:border-slate-800">
+                                            <tr>
+                                                <th className="p-4">Product Name</th>
+                                                <th className="p-4">Category</th>
+                                                <th className="p-4">Price</th>
+                                                <th className="p-4">Current Stock</th>
+                                                <th className="p-4 text-right">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                            {allStockItems
+                                                .filter((item: any) =>
+                                                    item.name.toLowerCase().includes(stockSearchTerm.toLowerCase()) ||
+                                                    item.id.toLowerCase().includes(stockSearchTerm.toLowerCase()) ||
+                                                    item.category.toLowerCase().includes(stockSearchTerm.toLowerCase())
+                                                )
+                                                .sort((a: any, b: any) => a.quantity - b.quantity)
+                                                .map((item: any) => (
+                                                    <tr key={`${item.id}-${item.variantId}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                                        <td className="p-4">
+                                                            <div className="flex items-center gap-3">
+                                                                {item.pic ? (
+                                                                    <img src={item.pic} alt="" className="w-8 h-8 rounded shadow-sm object-cover" />
+                                                                ) : (
+                                                                    <div className="w-8 h-8 rounded bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                                                                        <Package size={14} />
+                                                                    </div>
+                                                                )}
+                                                                <div className="flex flex-col">
+                                                                    <span className="font-semibold text-slate-900 dark:text-slate-100">{item.name}</span>
+                                                                    <span className="text-[10px] text-slate-400 font-mono">ID: {item.id}</span>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-4 text-slate-600 dark:text-slate-400">{item.category}</td>
+                                                        <td className="p-4 font-medium text-slate-900 dark:text-slate-100">{fmtMoney(item.price)}</td>
+                                                        <td className="p-4">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="flex-1 bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden min-w-[60px]">
+                                                                    <div
+                                                                        className={`h-full rounded-full ${item.quantity <= 5 ? 'bg-red-500' : 'bg-emerald-500'}`}
+                                                                        style={{ width: `${Math.min((item.quantity / 50) * 100, 100)}%` }}
+                                                                    />
+                                                                </div>
+                                                                <span className={`font-bold ${item.quantity <= 5 ? 'text-red-600 dark:text-red-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                                                                    {item.quantity}
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-4 text-right">
+                                                            {item.quantity <= 0 ? (
+                                                                <span className="px-2 py-1 rounded text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Out of Stock</span>
+                                                            ) : item.quantity <= 5 ? (
+                                                                <span className="px-2 py-1 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Low Stock</span>
+                                                            ) : (
+                                                                <span className="px-2 py-1 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">In Stock</span>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </main>
         </div>
     );
 };
+
 
 export default Dashboard;

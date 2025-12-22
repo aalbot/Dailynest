@@ -20,6 +20,8 @@ import {
     Bell,
     Menu,
     X,
+    Phone,
+    Clock,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import BackButton from "@/components/BackButton";
@@ -47,6 +49,7 @@ const STATUS_OPTIONS = [
     "Accepted by Store",
     "Packing Order",
     "Ready for Pickup",
+    "Cancelled",
 ];
 
 const OrderManagement = () => {
@@ -66,6 +69,8 @@ const OrderManagement = () => {
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [selectedOrderIdForAssign, setSelectedOrderIdForAssign] = useState<string | null>(null);
     const [selectedDriverId, setSelectedDriverId] = useState("");
+    const [showDeliveryBoysModal, setShowDeliveryBoysModal] = useState(false);
+    const [driverCategoryFilter, setDriverCategoryFilter] = useState<string>("all");
 
     // Compute busy driver IDs from current orders (assigned and not completed)
     const busyDriverIds = useMemo(() => {
@@ -79,6 +84,44 @@ const OrderManagement = () => {
     const availableDeliveryBoys = useMemo(() => {
         return deliveryBoys.filter((boy: any) => !busyDriverIds.includes(boy.deliveryUserId));
     }, [deliveryBoys, busyDriverIds]);
+
+    const groupedDrivers = useMemo(() => {
+        const categories = {
+            online: [] as any[],
+            offline: [] as any[],
+            outForDelivery: [] as any[]
+        };
+        const today = new Date().toLocaleDateString('en-CA');
+
+        deliveryBoys.forEach(boy => {
+            let deliveredToday = 0;
+            let isOutForDelivery = false;
+
+            Object.values(orders).forEach((o: any) => {
+                if (o.delivery_partner_id === boy.deliveryUserId) {
+                    const orderDate = new Date(o.last_updated || o.status_updated_at || "").toLocaleDateString('en-CA');
+                    if (o.status === 'Delivered' && orderDate === today) {
+                        deliveredToday++;
+                    }
+                    if (['On the Way', 'Arrival'].includes(o.status)) {
+                        isOutForDelivery = true;
+                    }
+                }
+            });
+
+            const boyData = { ...boy, deliveredToday };
+
+            if (boy.status === 'Offline') {
+                categories.offline.push(boyData);
+            } else if (isOutForDelivery) {
+                categories.outForDelivery.push(boyData);
+            } else {
+                categories.online.push(boyData);
+            }
+        });
+
+        return categories;
+    }, [deliveryBoys, orders]);
 
     // Fetch Delivery Boys
     // Fetch Delivery Boys
@@ -430,6 +473,10 @@ const OrderManagement = () => {
                             <button onClick={toggleMute} className={`p-2.5 rounded-xl border transition-all ${isMuted ? 'bg-red-50 border-red-200 text-red-500 dark:bg-red-900/20 dark:border-red-800' : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 hover:bg-slate-50'}`}>
                                 {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
                             </button>
+                            <button onClick={() => setShowDeliveryBoysModal(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all bg-white border-slate-200 text-slate-600 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 hover:bg-slate-50 shadow-sm whitespace-nowrap">
+                                <User size={18} />
+                                <span className="font-semibold text-sm">Manage Drivers</span>
+                            </button>
                             <div className="relative flex-1 md:w-80">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                 <input
@@ -540,6 +587,29 @@ const OrderManagement = () => {
                                                                 <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-mono"><AlertTriangle size={14} className="rotate-180" /> {order.phnm}</div>
                                                                 <div className="flex items-start gap-2 text-slate-700 dark:text-slate-300"><MapPin size={14} className="mt-0.5 shrink-0" /> {order.adrs || "No address provided"}</div>
                                                             </div>
+
+                                                            {order.delivery_partner_id && (
+                                                                <div className="pt-2">
+                                                                    <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider mb-2">Delivery Partner</h4>
+                                                                    <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl p-3 text-sm space-y-2">
+                                                                        <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-semibold">
+                                                                            <Truck size={14} /> {order.delivery_partner_name || "Assigned Partner"}
+                                                                        </div>
+                                                                        {order.delivery_partner_phone && (
+                                                                            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 font-mono">
+                                                                                <Phone size={14} /> {order.delivery_partner_phone}
+                                                                            </div>
+                                                                        )}
+                                                                        {(order.status === 'Delivered' || order.status_updated_at) && (
+                                                                            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-500 text-[10px] pt-1 border-t border-blue-100/50 dark:border-blue-900/20">
+                                                                                <Clock size={12} />
+                                                                                {order.status === 'Delivered' ? 'Delivered at: ' : 'Updated at: '}
+                                                                                {new Date(order.status_updated_at || order.last_updated).toLocaleString()}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
 
                                                         <div className="space-y-2 md:col-span-2">
@@ -679,6 +749,93 @@ const OrderManagement = () => {
                             className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-colors shadow-lg shadow-blue-500/30"
                         >
                             Confirm Assignment
+                        </button>
+                    </div>
+                </div>
+            )}
+            {/* Delivery Boys Management Modal */}
+            {showDeliveryBoysModal && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh]">
+                        <div className="flex justify-between items-center mb-6 shrink-0">
+                            <h3 className="text-xl font-bold flex items-center gap-2">
+                                <User className="text-blue-600" /> Manage Delivery Partners
+                            </h3>
+                            <button onClick={() => setShowDeliveryBoysModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-400 transition-colors">
+                                <XCircle size={24} />
+                            </button>
+                        </div>
+
+                        {/* Driver Filters */}
+                        <div className="flex gap-2 mb-6 p-1 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 shrink-0">
+                            {[
+                                { id: 'all', label: 'All' },
+                                { id: 'outForDelivery', label: 'Active', icon: Truck },
+                                { id: 'online', label: 'Idle', icon: User },
+                                { id: 'offline', label: 'Offline', icon: XCircle }
+                            ].map((btn) => (
+                                <button
+                                    key={btn.id}
+                                    onClick={() => setDriverCategoryFilter(btn.id)}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-xs font-bold transition-all ${driverCategoryFilter === btn.id
+                                        ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400 ring-1 ring-slate-200 dark:ring-slate-600'
+                                        : 'text-slate-500 hover:bg-white/50 dark:hover:bg-slate-800'}`}
+                                >
+                                    {btn.id === driverCategoryFilter && btn.icon && <btn.icon size={12} />}
+                                    {btn.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto pr-2 space-y-6 custom-scrollbar text-left">
+                            {/* Categories */}
+                            {[
+                                { id: 'outForDelivery', label: 'Out for Delivery', drivers: groupedDrivers.outForDelivery, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20', icon: Truck },
+                                { id: 'online', label: 'Online & Idle', drivers: groupedDrivers.online, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20', icon: User },
+                                { id: 'offline', label: 'Offline', drivers: groupedDrivers.offline, color: 'text-slate-400', bg: 'bg-slate-100 dark:bg-slate-800/50', icon: XCircle }
+                            ].filter(section => driverCategoryFilter === 'all' || driverCategoryFilter === section.id).map((section) => (
+                                <div key={section.label}>
+                                    <div className="flex items-center justify-between mb-3 px-1">
+                                        <h4 className={`text-xs font-bold uppercase tracking-wider ${section.color} flex items-center gap-2`}>
+                                            <section.icon size={14} />
+                                            {section.label}
+                                        </h4>
+                                        <span className="text-xs font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full text-slate-500">
+                                            {section.drivers.length}
+                                        </span>
+                                    </div>
+                                    <div className="space-y-2">
+                                        {section.drivers.map(boy => (
+                                            <div key={boy.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:shadow-md transition-shadow">
+                                                <div className={`p-2 rounded-lg ${section.bg} ${section.color}`}>
+                                                    <section.icon size={20} />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="font-semibold text-slate-900 dark:text-slate-100 truncate">
+                                                        {boy.firstName} {boy.lastName}
+                                                    </div>
+                                                    <div className="text-xs text-slate-500 font-mono">
+                                                        {boy.contactNumber}
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-[10px] font-bold uppercase text-slate-400 mb-0.5">Delivered Today</div>
+                                                    <div className="text-lg font-bold text-slate-900 dark:text-slate-100">{boy.deliveredToday}</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {section.drivers.length === 0 && (
+                                            <div className="text-center py-4 text-xs text-slate-400 italic border border-dashed border-slate-100 dark:border-slate-800 rounded-xl">
+                                                No drivers currently {section.label.toLowerCase()}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <button onClick={() => setShowDeliveryBoysModal(false)} className="w-full mt-6 py-4 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 font-bold rounded-xl transition-all shadow-lg active:scale-[0.98]">
+                            Done
                         </button>
                     </div>
                 </div>
