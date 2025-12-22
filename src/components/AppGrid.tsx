@@ -68,8 +68,8 @@ const AppGrid = () => {
 
   useEffect(() => {
     // Check RBAC
-    const role = localStorage.getItem("user_role");
-    const allowed = JSON.parse(localStorage.getItem("allowed_apps") || "[]");
+    const role = sessionStorage.getItem("user_role");
+    const allowed = JSON.parse(sessionStorage.getItem("allowed_apps") || "[]");
     setUserRole(role);
     setAllowedApps(allowed);
 
@@ -104,8 +104,8 @@ const AppGrid = () => {
   const isAppVisible = (path: string) => {
     if (userRole === "admin") return true;
     if (userRole === "staff") return allowedApps.includes(path);
-    return false; // For guests or undefined roles, hide all? 
-    // Actually, maybe keep some defaults? For now, following user's rule: "only that apps should appear"
+    if (userRole === "delivery") return path === "/delivery";
+    return false;
   };
 
   const filteredInitialApps = initialApps.filter(app => isAppVisible(app.path));

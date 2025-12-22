@@ -40,7 +40,8 @@ export const DeliveryAuth = ({ onLogin }: AuthProps) => {
                     const userData = Object.values(snapshot.val())[0] as any;
                     if (userData.password === formData.password) {
                         toast({ title: "Welcome back!", description: `Logged in as ${userData.name}` });
-                        localStorage.setItem("delivery_user", JSON.stringify(userData));
+                        sessionStorage.setItem("delivery_user", JSON.stringify(userData));
+                        sessionStorage.setItem("user_role", "delivery");
                         onLogin(userData);
                     } else {
                         toast({ title: "Error", description: "Invalid password", variant: "destructive" });
@@ -85,7 +86,8 @@ export const DeliveryAuth = ({ onLogin }: AuthProps) => {
                             deliveryUserId: newUserRef.key // Link back
                         });
 
-                        localStorage.setItem("delivery_user", JSON.stringify(newUser));
+                        sessionStorage.setItem("delivery_user", JSON.stringify(newUser));
+                        sessionStorage.setItem("user_role", "delivery");
                         onLogin(newUser);
                     });
                 }

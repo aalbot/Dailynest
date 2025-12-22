@@ -494,8 +494,9 @@ const OrderManagement = () => {
                     <div className="flex-1 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
                         {/* Table Header - Sticky */}
                         <div className="shrink-0 hidden md:grid grid-cols-12 gap-4 px-6 py-4 bg-slate-50/95 dark:bg-slate-800/95 border-b border-slate-200 dark:border-slate-800 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 backdrop-blur-sm z-10">
-                            <div className="col-span-2">Order ID</div>
-                            <div className="col-span-3">Customer</div>
+                            <div className="col-span-1">ID</div>
+                            <div className="col-span-2">Time</div>
+                            <div className="col-span-2">Customer</div>
                             <div className="col-span-2">Items</div>
                             <div className="col-span-1">Total</div>
                             <div className="col-span-3">Status</div>
@@ -520,14 +521,26 @@ const OrderManagement = () => {
                                         <div key={order.id} className={`group border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors ${isExpanded ? 'bg-slate-50/80 dark:bg-slate-800/40' : ''}`}>
                                             {/* Desktop Row */}
                                             <div onClick={() => toggleExpand(order.id)} className="hidden md:grid grid-cols-12 gap-4 px-6 py-4 items-center cursor-pointer">
-                                                <div className="col-span-2 font-mono text-sm font-medium text-slate-700 dark:text-slate-300 truncate">
-                                                    #{order.id}
+                                                <div className="col-span-1 font-mono text-xs font-medium text-slate-500 dark:text-slate-400 truncate">
+                                                    #{order.id.slice(-4)}
                                                 </div>
-                                                <div className="col-span-3">
-                                                    <div className="font-semibold text-slate-900 dark:text-slate-100">{order.name || "Unknown"}</div>
-                                                    <div className="text-xs text-slate-500 dark:text-slate-400 font-mono">{order.phnm}</div>
+                                                <div className="col-span-2">
+                                                    <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                                                        <Clock size={12} className="text-indigo-500" />
+                                                        {new Date(order.last_updated || order.status_updated_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                                    </div>
+                                                    <div className="text-[10px] text-slate-400 mt-0.5 ml-4.5 pl-0.5">
+                                                        {new Date(order.last_updated || order.status_updated_at || Date.now()).toLocaleDateString([], { day: '2-digit', month: 'short' })}
+                                                    </div>
                                                 </div>
-                                                <div className="col-span-2 text-sm text-slate-600 dark:text-slate-400 truncate pr-4" title={itemString}>
+                                                <div className="col-span-2">
+                                                    <div className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate">{order.name || "Unknown"}</div>
+                                                    <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono flex items-center gap-1 mt-0.5">
+                                                        <Phone size={10} className="opacity-50" />
+                                                        {order.phnm}
+                                                    </div>
+                                                </div>
+                                                <div className="col-span-2 text-xs text-slate-600 dark:text-slate-400 truncate pr-4" title={itemString}>
                                                     {itemString || "No items"}
                                                 </div>
                                                 <div className="col-span-1 font-bold text-slate-900 dark:text-slate-100 text-sm">
@@ -564,7 +577,13 @@ const OrderManagement = () => {
                                             <div onClick={() => toggleExpand(order.id)} className="md:hidden p-4 flex flex-col gap-3 cursor-pointer">
                                                 <div className="flex justify-between items-start">
                                                     <div>
-                                                        <span className="font-mono text-xs font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">#{order.id}</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-mono text-[10px] font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">#{order.id}</span>
+                                                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium flex items-center gap-1">
+                                                                <Clock size={10} />
+                                                                {new Date(order.last_updated || order.status_updated_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                                            </span>
+                                                        </div>
                                                         <h3 className="font-bold text-slate-900 dark:text-slate-100 mt-1">{order.name || "Guest"}</h3>
                                                     </div>
                                                     <div className="font-bold text-slate-900 dark:text-slate-100">₹{order.total}</div>

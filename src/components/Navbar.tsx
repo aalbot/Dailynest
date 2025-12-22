@@ -88,9 +88,9 @@ const Navbar = () => {
     }))
   ];
 
-  const userRole = localStorage.getItem("user_role");
-  const allowedApps = JSON.parse(localStorage.getItem("allowed_apps") || "[]");
-  const staffName = localStorage.getItem("staff_name");
+  const userRole = sessionStorage.getItem("user_role");
+  const allowedApps = JSON.parse(sessionStorage.getItem("allowed_apps") || "[]");
+  const staffName = sessionStorage.getItem("staff_name");
 
   const displayName = userRole === "admin" ? "Administrator" : (staffName || "Staff Member");
   const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -99,6 +99,7 @@ const Navbar = () => {
   const allApps = allAppsRaw.filter(app => {
     if (userRole === "admin") return true;
     if (userRole === "staff") return allowedApps.includes(app.path);
+    if (userRole === "delivery") return app.path === "/delivery";
     return false;
   });
 
@@ -375,11 +376,7 @@ const Navbar = () => {
 
                     <button
                       onClick={() => {
-                        localStorage.removeItem("admin_auth");
-                        localStorage.removeItem("staff_auth");
-                        localStorage.removeItem("user_role");
-                        localStorage.removeItem("allowed_apps");
-                        localStorage.removeItem("staff_name");
+                        sessionStorage.clear();
                         toast.success("Signed out successfully");
                         navigate("/");
                       }}

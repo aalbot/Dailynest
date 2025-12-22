@@ -153,7 +153,7 @@ const DeliveryScreen = () => {
 
     // Check Login
     useEffect(() => {
-        const stored = localStorage.getItem("delivery_user");
+        const stored = sessionStorage.getItem("delivery_user");
         if (stored) {
             setUser(JSON.parse(stored));
         }
@@ -414,7 +414,7 @@ const DeliveryScreen = () => {
                     <CheckCircle className="w-6 h-6" /> Ready for Pickup
                 </button>
                 <button
-                    onClick={() => { localStorage.removeItem("delivery_user"); setUser(null); }}
+                    onClick={() => { sessionStorage.removeItem("delivery_user"); setUser(null); }}
                     className="mt-6 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-sm font-medium"
                 >
                     Logout
@@ -477,7 +477,7 @@ const DeliveryScreen = () => {
                                         onClick={() => {
                                             if (confirm("Stop getting orders and Logout?")) {
                                                 handleGoOffline();
-                                                localStorage.removeItem("delivery_user");
+                                                sessionStorage.removeItem("delivery_user");
                                                 setUser(null);
                                             }
                                         }}

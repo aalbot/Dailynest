@@ -29,7 +29,18 @@ const Gateway = () => {
         } else {
             document.documentElement.classList.remove('dark');
         }
-    }, []);
+
+        // Redirect if already logged in (session-based)
+        const userRole = sessionStorage.getItem("user_role");
+        const adminAuth = sessionStorage.getItem("admin_auth");
+        const staffAuth = sessionStorage.getItem("staff_auth");
+
+        if (userRole && (adminAuth || staffAuth)) {
+            navigate("/apps");
+        } else if (sessionStorage.getItem("delivery_user")) {
+            navigate("/delivery");
+        }
+    }, [navigate]);
 
     const toggleTheme = () => {
         const newTheme = !isDark;
@@ -47,9 +58,9 @@ const Gateway = () => {
         e.preventDefault();
         if (adminData.username === 'admin' && adminData.password === 'admin') {
             toast.success("Welcome back, Commander!");
-            localStorage.clear(); // Clear any existing staff/previous data
-            localStorage.setItem("admin_auth", "true");
-            localStorage.setItem("user_role", "admin");
+            sessionStorage.clear();
+            sessionStorage.setItem("admin_auth", "true");
+            sessionStorage.setItem("user_role", "admin");
             navigate("/apps");
         } else {
             toast.error("Invalid Admin Credentials");
@@ -78,11 +89,11 @@ const Gateway = () => {
 
                 if (matchedStaff) {
                     toast.success(`Welcome, ${matchedStaff.name}!`);
-                    localStorage.clear();
-                    localStorage.setItem("staff_auth", "true");
-                    localStorage.setItem("user_role", "staff");
-                    localStorage.setItem("staff_name", matchedStaff.name);
-                    localStorage.setItem("allowed_apps", JSON.stringify(matchedStaff.allowedApps || []));
+                    sessionStorage.clear();
+                    sessionStorage.setItem("staff_auth", "true");
+                    sessionStorage.setItem("user_role", "staff");
+                    sessionStorage.setItem("staff_name", matchedStaff.name);
+                    sessionStorage.setItem("allowed_apps", JSON.stringify(matchedStaff.allowedApps || []));
                     navigate("/apps");
                 } else {
                     toast.error("Invalid Username or Password");
