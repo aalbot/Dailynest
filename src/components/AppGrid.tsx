@@ -116,9 +116,17 @@ const AppGrid = () => {
 
   return (
     <div className="flex justify-center flex-col items-center relative">
-      {/* Manage Apps Toggle - Only for Admin */}
+      {/* Admin Action Buttons */}
       {userRole === "admin" && (
-        <div className="absolute top-[-4rem] right-2 sm:right-4 flex gap-2">
+        <div className="absolute top-[-4rem] right-2 sm:right-4 flex gap-3">
+          <Link
+            to="/staffes"
+            className="flex items-center gap-2.5 px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 shadow-sm border bg-white/80 dark:bg-slate-900/80 backdrop-blur-md text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:shadow-md"
+          >
+            <Users size={16} />
+            Manage Staffs
+          </Link>
+
           <button
             onClick={() => setIsManaging(!isManaging)}
             className={`flex items-center gap-2.5 px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 shadow-sm border ${isManaging
