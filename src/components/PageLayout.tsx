@@ -32,7 +32,7 @@ const PageLayout = ({ children, title, subtitle, accentColor }: PageLayoutProps)
             className="mb-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            <span className="text-sm font-medium">Back</span>
+            <span className="text-sm font-medium">Backn</span>
           </button>
 
           <div className="mb-8 opacity-0 animate-fade-in flex items-center gap-3">
