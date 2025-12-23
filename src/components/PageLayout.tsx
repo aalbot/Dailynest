@@ -16,7 +16,7 @@ const PageLayout = ({ children, title, subtitle, accentColor }: PageLayoutProps)
   return (
     <div className="min-h-screen gradient-bg">
       <Navbar />
-      
+
       {/* Floating decorative elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-64 h-64 bg-primary/5 rounded-full blur-3xl animate-float" />
