@@ -55,11 +55,10 @@ const initialApps = [
   { icon: Users, label: "Staffes", colorClass: "app-icon-cyan", path: "/staffes" },
 ];
 
-const AppGrid = () => {
+const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolean; searchQuery?: string }) => {
   const [customApps, setCustomApps] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentAppToEdit, setCurrentAppToEdit] = useState<any>(null);
-  const [isManaging, setIsManaging] = useState(false);
   const [appToDelete, setAppToDelete] = useState<string | null>(null);
 
   // RBAC State
@@ -108,116 +107,101 @@ const AppGrid = () => {
     return false;
   };
 
-  const filteredInitialApps = initialApps.filter(app => isAppVisible(app.path));
+  const filteredInitialApps = initialApps.filter(app =>
+    isAppVisible(app.path) && app.label.toLowerCase().includes(searchQuery.toLowerCase())
+  );
   const filteredCustomApps = customApps.filter(app => {
     const path = app.path || "/";
-    return isAppVisible(path);
+    return isAppVisible(path) && app.name.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   return (
-    <div className="flex justify-center flex-col items-center relative">
+    <div className="flex flex-col items-center relative h-full w-full">
       {/* Admin Action Buttons */}
-      {userRole === "admin" && (
-        <div className="absolute top-[-4rem] right-2 sm:right-4 flex gap-3">
-          <Link
-            to="/staffes"
-            className="flex items-center gap-2.5 px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 shadow-sm border bg-white/80 dark:bg-slate-900/80 backdrop-blur-md text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:shadow-md"
-          >
-            <Users size={16} />
-            Manage Staffs
-          </Link>
 
-          <button
-            onClick={() => setIsManaging(!isManaging)}
-            className={`flex items-center gap-2.5 px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 shadow-sm border ${isManaging
-              ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:border-slate-100 shadow-lg scale-105'
-              : 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 hover:shadow-md'
-              }`}
-          >
-            <Settings size={16} className={isManaging ? "animate-spin-slow" : ""} />
-            {isManaging ? 'Done Editing' : 'Manage Apps'}
-          </button>
-        </div>
-      )}
 
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-6 sm:gap-8 md:gap-10">
-        {filteredInitialApps.map((app, index) => (
-          <div key={app.label} className={isManaging ? "opacity-50 pointer-events-none grayscale" : ""}>
-            <Link
-              to={app.path}
-              target={app.path === '/delivery' ? "_blank" : undefined}
-              rel={app.path === '/delivery' ? "noopener noreferrer" : undefined}
-            >
-              <AppIcon
-                icon={app.icon}
-                label={app.label}
-                colorClass={app.colorClass}
-                delay={150 + index * 50}
-              />
-            </Link>
-          </div>
-        ))}
+      <div className="flex flex-col h-full w-full rounded-3xl bg-white/10 dark:bg-black/40 backdrop-blur-2xl border border-white/20 dark:border-white/10 shadow-2xl transition-all duration-300 hover:shadow-3xl hover:bg-white/15 dark:hover:bg-black/50 overflow-hidden">
+        <div className="flex-1 overflow-y-auto p-5 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 sm:gap-6">
+            {filteredInitialApps.map((app, index) => (
+              <div key={app.label} className={isManaging ? "opacity-50 pointer-events-none grayscale" : ""}>
+                <Link
+                  to={app.path}
+                  target={app.path === '/delivery' ? "_blank" : undefined}
+                  rel={app.path === '/delivery' ? "noopener noreferrer" : undefined}
+                >
+                  <AppIcon
+                    icon={app.icon}
+                    label={app.label}
+                    colorClass={app.colorClass}
+                    delay={150 + index * 50}
+                  />
+                </Link>
+              </div>
+            ))}
 
-        {filteredCustomApps.map((app, index) => {
-          const Icon = iconMap[app.icon] || Package;
-          const colorClass = app.colorGradient || app.colorClass || "bg-blue-500";
-          const path = app.path || "/";
+            {filteredCustomApps.map((app, index) => {
+              const Icon = iconMap[app.icon] || Package;
+              const colorClass = app.colorGradient || app.colorClass || "bg-blue-500";
+              const path = app.path || "/";
 
-          return (
-            <div className="relative group/item" key={app.id}>
-              <Link to={isManaging ? "#" : path} onClick={(e) => isManaging && e.preventDefault()} className={isManaging ? "cursor-default" : ""}>
-                <AppIcon
-                  icon={Icon}
-                  label={app.name}
-                  colorClass={colorClass}
-                  delay={150 + (initialApps.length + index) * 50}
-                />
-              </Link>
+              return (
+                <div className="relative group/item" key={app.id}>
+                  <Link to={isManaging ? "#" : path} onClick={(e) => isManaging && e.preventDefault()} className={isManaging ? "cursor-default" : ""}>
+                    <AppIcon
+                      icon={Icon}
+                      label={app.name}
+                      colorClass={colorClass}
+                      delay={150 + (initialApps.length + index) * 50}
+                    />
+                  </Link>
 
-              {/* Edit/Delete Overlay */}
-              {isManaging && userRole === "admin" && (
-                <div className="absolute -top-2 -right-2 flex gap-1 z-20 animate-in zoom-in-50 duration-200">
-                  <button
-                    onClick={() => {
-                      setCurrentAppToEdit(app);
-                      setIsModalOpen(true);
-                    }}
-                    className="p-1.5 bg-white dark:bg-slate-800 rounded-full shadow-md text-blue-500 hover:bg-blue-50 border border-slate-200 dark:border-slate-700"
-                    title="Edit App"
-                  >
-                    <Edit size={14} />
-                  </button>
-                  <button
-                    onClick={() => setAppToDelete(app.id)}
-                    className="p-1.5 bg-white dark:bg-slate-800 rounded-full shadow-md text-red-500 hover:bg-red-50 border border-slate-200 dark:border-slate-700"
-                    title="Delete App"
-                  >
-                    <Trash size={14} />
-                  </button>
+                  {/* Edit/Delete Overlay */}
+                  {isManaging && userRole === "admin" && (
+                    <div className="absolute -top-2 -right-2 flex gap-1 z-20 animate-in zoom-in-50 duration-200">
+                      <button
+                        onClick={() => {
+                          setCurrentAppToEdit(app);
+                          setIsModalOpen(true);
+                        }}
+                        className="p-1.5 bg-white dark:bg-slate-800 rounded-full shadow-md text-blue-500 hover:bg-blue-50 border border-slate-200 dark:border-slate-700"
+                        title="Edit App"
+                      >
+                        <Edit size={14} />
+                      </button>
+                      <button
+                        onClick={() => setAppToDelete(app.id)}
+                        className="p-1.5 bg-white dark:bg-slate-800 rounded-full shadow-md text-red-500 hover:bg-red-50 border border-slate-200 dark:border-slate-700"
+                        title="Delete App"
+                      >
+                        <Trash size={14} />
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          );
-        })}
+              );
+            })}
 
-        {/* Add App Button - Only for Admin */}
-        {userRole === "admin" && (
-          <button
-            onClick={() => {
-              setCurrentAppToEdit(null);
-              setIsModalOpen(true);
-            }}
-            className={`group flex flex-col items-center gap-3 cursor-pointer opacity-0 animate-fade-in ${isManaging ? 'opacity-50' : ''}`}
-            style={{ animationDelay: `${initialApps.length * 50 + 150}ms` }}
-          >
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:border-blue-400 dark:group-hover:border-blue-500 group-hover:scale-110 group-active:scale-95 transition-all duration-300 shadow-sm hover:shadow-md">
-              <Plus className="w-8 h-8 sm:w-10 sm:h-10" strokeWidth={1.5} />
-            </div>
-            <span className="text-sm font-medium text-foreground/60 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors text-center leading-tight">
-              Add App
-            </span>
-          </button>
-        )}
+            {/* Add App Button - Only for Admin */}
+            {userRole === "admin" && (
+              <button
+                onClick={() => {
+                  setCurrentAppToEdit(null);
+                  setIsModalOpen(true);
+                }}
+                className={`group flex flex-col items-center gap-2 cursor-pointer opacity-0 animate-fade-in ${isManaging ? 'opacity-50' : ''}`}
+                style={{ animationDelay: `${initialApps.length * 50 + 150}ms` }}
+              >
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:border-blue-400 dark:group-hover:border-blue-500 group-hover:scale-110 group-active:scale-95 transition-all duration-300 shadow-sm hover:shadow-md">
+                  <Plus className="w-7 h-7 sm:w-8 sm:h-8" strokeWidth={1.5} />
+                </div>
+                <span className="text-sm font-medium text-foreground/60 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors text-center leading-tight">
+                  Add App
+                </span>
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       <AddAppModal

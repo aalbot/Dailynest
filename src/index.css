@@ -337,31 +337,68 @@
     animation: spin-slow 12s linear infinite;
   }
 }
+
 @layer utilities {
   @keyframes float {
-    0%, 100% { transform: translateY(0) scale(1); }
-    50% { transform: translateY(-20px) scale(1.05); }
+
+    0%,
+    100% {
+      transform: translateY(0) scale(1);
+    }
+
+    50% {
+      transform: translateY(-20px) scale(1.05);
+    }
   }
 
   @keyframes float-reverse {
-    0%, 100% { transform: translateY(0) scale(1.05); }
-    50% { transform: translateY(20px) scale(1); }
+
+    0%,
+    100% {
+      transform: translateY(0) scale(1.05);
+    }
+
+    50% {
+      transform: translateY(20px) scale(1);
+    }
   }
 
   @keyframes bounce-horizontal {
-    0%, 100% { transform: translateX(0); }
-    50% { transform: translateX(5px); }
+
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+
+    50% {
+      transform: translateX(5px);
+    }
   }
 
   @keyframes swing {
-    0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(10deg); }
-    75% { transform: rotate(-10deg); }
+
+    0%,
+    100% {
+      transform: rotate(0deg);
+    }
+
+    25% {
+      transform: rotate(10deg);
+    }
+
+    75% {
+      transform: rotate(-10deg);
+    }
   }
 
   @keyframes shimmer-text {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
+    0% {
+      background-position: -200% 0;
+    }
+
+    100% {
+      background-position: 200% 0;
+    }
   }
 
   .animate-float {
@@ -385,4 +422,68 @@
     background-size: 200% 100%;
     animation: shimmer-text 3s linear infinite;
   }
+}
+
+@layer utilities {
+  .animate-float {
+    animation: float 20s ease-in-out infinite;
+  }
+
+  .animate-glow-pulse {
+    animation: glow-pulse 4s ease-in-out infinite alternate;
+  }
+
+  .bg-noise {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+  }
+}
+
+@keyframes float {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+
+  33% {
+    transform: translate(30px, -50px) rotate(10deg);
+  }
+
+  66% {
+    transform: translate(-20px, 20px) rotate(-5deg);
+  }
+
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+}
+
+@keyframes glow-pulse {
+  0% {
+    opacity: 0.3;
+    transform: scale(1);
+    filter: blur(40px);
+  }
+
+  100% {
+    opacity: 0.6;
+    transform: scale(1.1);
+    filter: blur(60px);
+  }
+}
+
+.gradient-bg {
+  background:
+    radial-gradient(circle at 15% 50%, hsl(var(--icon-purple) / 0.15), transparent 40%),
+    radial-gradient(circle at 85% 30%, hsl(var(--icon-blue) / 0.15), transparent 40%),
+    radial-gradient(circle at 50% 80%, hsl(var(--icon-pink) / 0.1), transparent 40%),
+    linear-gradient(to bottom right, hsl(var(--gradient-start)), hsl(var(--gradient-mid)), hsl(var(--gradient-end)));
+  background-attachment: fixed;
+}
+
+.dark .gradient-bg {
+  background:
+    radial-gradient(circle at 15% 50%, hsl(var(--icon-purple) / 0.08), transparent 40%),
+    radial-gradient(circle at 85% 30%, hsl(var(--icon-blue) / 0.08), transparent 40%),
+    radial-gradient(circle at 50% 80%, hsl(var(--icon-pink) / 0.05), transparent 40%),
+    linear-gradient(to bottom right, hsl(var(--gradient-start)), hsl(var(--gradient-mid)), hsl(var(--gradient-end)));
+  background-attachment: fixed;
 }
