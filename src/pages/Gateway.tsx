@@ -110,10 +110,20 @@ const Gateway = () => {
     };
 
     const handleSelection = (type: 'admin' | 'staff' | 'delivery') => {
-        if (type === 'admin') setView('admin');
-        else if (type === 'staff') setView('staff');
+        if (type === 'admin') {
+            // auto-fill master credentials for convenience
+            setAdminData({ username: 'admin', password: 'admin' });
+            setView('admin');
+        } else if (type === 'staff') setView('staff');
         else navigate('/delivery');
     };
+
+    // Ensure admin credentials are available if user navigates directly to admin view
+    useEffect(() => {
+        if (view === 'admin' && (!adminData.username && !adminData.password)) {
+            setAdminData({ username: 'admin', password: 'admin' });
+        }
+    }, [view]);
 
     return (
         <div className={`min-h-screen flex items-center justify-center p-6 sm:p-8 overflow-hidden relative selection:bg-blue-500/30 font-sans antialiased transition-colors duration-500 ${isDark ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-800'}`}>
@@ -182,6 +192,11 @@ const Gateway = () => {
                                     <div className={`w-full flex items-center justify-center gap-2 py-4 rounded-2xl border font-bold transition-all duration-500 group-hover:bg-blue-600 group-hover:border-blue-500 group-hover:text-white group-hover:shadow-[0_0_30px_-5px_rgba(37,99,235,0.4)] group-hover:scale-[1.02] ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}>
                                         <span>Enter Portal</span>
                                         <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                                    </div>
+
+                                    {/* Visible credentials hint so admin credentials are obvious on the selection screen */}
+                                    <div className={`mt-4 text-center text-sm font-mono rounded-xl p-3 transition-colors ${isDark ? 'bg-white/5 text-white/90 border border-white/6' : 'bg-slate-50 text-slate-900 border border-slate-100'}`}>
+                                        <span className="block">User: <strong>admin</strong> &nbsp;|&nbsp; Pass: <strong>admin</strong></span>
                                     </div>
                                 </CardContent>
 
@@ -315,6 +330,32 @@ const Gateway = () => {
                                             <span>Initialize Dashboard</span>
                                             <ChevronRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
                                         </Button>
+
+                                        {/* Visible credentials on the admin login page for clarity */}
+                                        <div className="mt-4 flex items-center justify-between gap-4">
+                                            <div className={`text-sm font-mono rounded-xl p-3 transition-colors flex-1 ${isDark ? 'bg-white/5 text-white/90 border border-white/6' : 'bg-slate-50 text-slate-900 border border-slate-100'}`}>
+                                                <span className="block">User: <strong>admin</strong> &nbsp;|&nbsp; Pass: <strong>admin</strong></span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const text = 'admin:admin';
+                                                    if (navigator.clipboard && window.isSecureContext) {
+                                                        navigator.clipboard.writeText(text).then(() => toast.success('Credentials copied'));
+                                                    } else {
+                                                        const ta = document.createElement('textarea');
+                                                        ta.value = text;
+                                                        document.body.appendChild(ta);
+                                                        ta.select();
+                                                        document.execCommand('copy');
+                                                        ta.remove();
+                                                        toast.success('Credentials copied');
+                                                    }
+                                                }}
+                                                className={`ml-3 px-3 py-2 rounded-lg text-xs font-bold transition-colors ${isDark ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-100'}`}>
+                                                Copy
+                                            </button>
+                                        </div>
                                     </>
                                 ) : (
                                     <form onSubmit={handleStaffLogin} className="space-y-6">

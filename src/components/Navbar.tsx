@@ -35,19 +35,19 @@ import { iconMap } from "@/utils/appIcons";
 const defaultAppItems = [
   { icon: TrendingUp, label: "Dashboard", path: "/dashboard", color: "bg-rose-500" },
   { icon: Users, label: "Employee Management", path: "/employee-management", color: "bg-indigo-600" },
-  { icon: LayoutDashboard, label: "Overview", path: "/overview", color: "bg-cyan-500" },
+  { icon: LayoutDashboard, label: "Report", path: "/overview", color: "bg-cyan-500" },
   { icon: Sparkles, label: "AI Chat", path: "/chat", color: "bg-blue-600" },
-  { icon: ClipboardList, label: "Order Management", path: "/orders", color: "bg-pink-500" },
-  { icon: Truck, label: "Delivery Screen", path: "/delivery", color: "bg-emerald-500" },
-  { icon: Package, label: "Stock Entry", path: "/stock-entry", color: "bg-blue-500" },
-  { icon: ShoppingBag, label: "Product Entry", path: "/product-entry", color: "bg-violet-500" },
-  { icon: Building2, label: "Back Office", path: "/back-office", color: "bg-teal-500" },
-  { icon: Crown, label: "Premium Entry", path: "/premium-entry", color: "bg-yellow-500" },
-  { icon: Star, label: "Rating Entry", path: "/rating-entry", color: "bg-orange-500" },
-  { icon: Keyboard, label: "Keyword Entry", path: "/keyword-entry", color: "bg-indigo-500" },
+  { icon: ClipboardList, label: "Orders", path: "/orders", color: "bg-pink-500" },
+  { icon: Truck, label: "Delivery", path: "/delivery", color: "bg-emerald-500" },
+  { icon: Package, label: "Stocks", path: "/stock-entry", color: "bg-blue-500" },
+  { icon: ShoppingBag, label: "Products", path: "/product-entry", color: "bg-violet-500" },
+  { icon: Building2, label: "Purchase", path: "/back-office", color: "bg-teal-500" },
+  { icon: Crown, label: "Wallet", path: "/premium-entry", color: "bg-yellow-500" },
+  { icon: Star, label: "Promotions", path: "/rating-entry", color: "bg-orange-500" },
+  { icon: Keyboard, label: "SEO", path: "/keyword-entry", color: "bg-indigo-500" },
   { icon: Grid3X3, label: "Task Manager", path: "/tasks", color: "bg-violet-600" },
   { icon: Bell, label: "Notification", path: "/notifications", color: "bg-red-500" },
-  { icon: Users, label: "Staffes", path: "/staffes", color: "bg-cyan-600" },
+  { icon: Users, label: "Staff", path: "/staffes", color: "bg-cyan-600" },
 ];
 
 const Navbar = () => {
@@ -290,48 +290,80 @@ const Navbar = () => {
             </div>
 
             {/* App Launcher */}
-            <div className="relative" ref={menuRef}>
+            <div className="relative">
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
-                className={`p-2.5 rounded-full transition-colors ${menuOpen ? "bg-secondary" : "hover:bg-secondary"
+                className={`p-2.5 rounded-full transition-colors ${menuOpen ? "bg-secondary text-primary" : "text-muted-foreground hover:bg-secondary hover:text-primary"
                   }`}
               >
-                <Grid3X3 className="w-5 h-5 text-muted-foreground" />
+                <Grid3X3 className="w-5 h-5" />
               </button>
 
-              {/* App Menu Dropdown */}
+              {/* App Menu Overlay/Modal */}
               {menuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-[320px] bg-white rounded-2xl shadow-xl border border-gray-200/80 p-3 animate-scale-in origin-top-right">
-                  <div className="grid grid-cols-3 gap-1">
-                    {allApps.map((item) => (
-                      <Link
-                        key={item.path}
-                        to={item.path}
-                        target={item.path === '/delivery' ? "_blank" : undefined}
-                        rel={item.path === '/delivery' ? "noopener noreferrer" : undefined}
-                        onClick={() => setMenuOpen(false)}
-                        className={`flex flex-col items-center gap-2 p-3 rounded-xl transition-all duration-200 group hover:bg-gray-50 ${location.pathname === item.path ? "bg-gray-50" : ""
-                          }`}
-                      >
-                        <div className={`w-11 h-11 rounded-full ${item.color} flex items-center justify-center shadow-sm group-hover:scale-110 group-hover:shadow-md transition-all duration-200`}>
-                          <item.icon className="w-5 h-5 text-white" />
-                        </div>
-                        <span className="text-xs font-medium text-gray-700 text-center leading-tight">
-                          {item.label}
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
+                <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 sm:p-6 pt-20">
+                  {/* Backdrop with fade-in */}
+                  <div
+                    className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-300"
+                    onClick={() => setMenuOpen(false)}
+                  />
 
-                  {/* Divider */}
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <Link
-                      to="/apps"
-                      onClick={() => setMenuOpen(false)}
-                      className="flex items-center justify-center gap-2 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-                    >
-                      View all apps
-                    </Link>
+                  {/* Card starting from Navbar with 'Pop' Animation */}
+                  <div className="relative w-full max-w-[480px] bg-white dark:bg-slate-900 rounded-[40px] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] border border-slate-200 dark:border-slate-800 flex flex-col max-h-[82vh] overflow-hidden animate-in zoom-in-90 slide-in-from-top-4 duration-300 ease-out">
+                    {/* Header with Title */}
+                    <div className="flex items-center justify-between p-7 border-b border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md sticky top-0 z-10">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white shadow-xl shadow-indigo-500/20">
+                          <Grid3X3 size={24} strokeWidth={2.5} />
+                        </div>
+                        <div>
+                          <h3 className="font-black text-xl text-slate-900 dark:text-slate-100 tracking-tight">App Launcher</h3>
+                          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Quick Navigation</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setMenuOpen(false)}
+                        className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all duration-200 text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:rotate-90"
+                      >
+                        <X size={24} />
+                      </button>
+                    </div>
+
+                    {/* Scrollable Content - More Grid spacing */}
+                    <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-slate-50/30 dark:bg-transparent">
+                      <div className="grid grid-cols-3 gap-3 sm:gap-4">
+                        {allApps.map((item) => (
+                          <Link
+                            key={item.path}
+                            to={item.path}
+                            target={item.path === '/delivery' ? "_blank" : undefined}
+                            rel={item.path === '/delivery' ? "noopener noreferrer" : undefined}
+                            onClick={() => setMenuOpen(false)}
+                            className={`flex flex-col items-center gap-3 p-5 rounded-3xl transition-all duration-300 group hover:bg-white dark:hover:bg-slate-800 hover:shadow-xl hover:shadow-indigo-500/5 ${location.pathname === item.path ? "bg-white dark:bg-slate-800 shadow-md ring-1 ring-slate-200 dark:ring-slate-700" : ""
+                              }`}
+                          >
+                            <div className={`w-16 h-16 rounded-3xl ${item.color} flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:-rotate-3 transition-all duration-500`}>
+                              <item.icon className="w-7 h-7 text-white drop-shadow-md" strokeWidth={2} />
+                            </div>
+                            <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 text-center leading-tight uppercase tracking-[0.1em] group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                              {item.label}
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Footer with Glow */}
+                    <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md">
+                      <Link
+                        to="/apps"
+                        onClick={() => setMenuOpen(false)}
+                        className="group relative flex items-center justify-center gap-3 py-4 w-full bg-slate-900 dark:bg-indigo-600 rounded-2xl text-xs font-black text-white uppercase tracking-widest hover:scale-[1.02] transition-all active:scale-95 shadow-xl shadow-slate-900/10 dark:shadow-indigo-500/20"
+                      >
+                        <Sparkles className="w-4 h-4 animate-pulse" />
+                        Explore Full Gallery
+                      </Link>
+                    </div>
                   </div>
                 </div>
               )}

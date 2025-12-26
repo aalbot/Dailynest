@@ -67,7 +67,7 @@ export const FCMPushListener = () => {
         return () => unsubscribe();
     }, []);
 
-    return <Toaster position="top-right" />;
+    return null;
 };
 
 export default FCMPushListener;

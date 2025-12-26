@@ -65,7 +65,7 @@ export const NotificationListener = () => {
     }, []);
 
     // Important: Render Toaster so the toast actually shows up
-    return <Toaster position="top-right" theme="light" />;
+    return null;
 };
 
 export default NotificationListener;

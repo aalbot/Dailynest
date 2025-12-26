@@ -9,7 +9,7 @@ const NotificationWidget = () => {
     const { notifications } = useNotification();
 
     return (
-        <Card className="flex flex-col h-full border-white/20 dark:border-white/10 shadow-2xl bg-white/10 dark:bg-black/40 backdrop-blur-2xl">
+        <Card className="hidden xl:flex flex-col h-full border-white/20 dark:border-white/10 shadow-2xl bg-white/10 dark:bg-black/40 backdrop-blur-2xl">
             <CardHeader className="pb-3 flex-shrink-0">
                 <div className="flex items-center gap-2.5">
                     <div className="bg-indigo-500/20 p-2 rounded-lg">
