@@ -80,12 +80,13 @@ const Navbar = () => {
   }, []);
 
   const allAppsRaw = [
-    ...defaultAppItems,
+    ...defaultAppItems.map(app => ({ ...app, openInNewTab: false })),
     ...customApps.map(app => ({
       icon: iconMap[app.icon] || Package,
       label: app.name,
       path: app.path || "/",
-      color: app.colorClass || "bg-blue-500"
+      color: app.colorClass || "bg-blue-500",
+      openInNewTab: app.openInNewTab || false
     }))
   ];
 
@@ -315,8 +316,8 @@ const Navbar = () => {
                           <Link
                             key={item.path}
                             to={item.path}
-                            target={item.path === '/delivery' ? "_blank" : undefined}
-                            rel={item.path === '/delivery' ? "noopener noreferrer" : undefined}
+                            target={item.openInNewTab || item.path === '/delivery' ? "_blank" : undefined}
+                            rel={item.openInNewTab || item.path === '/delivery' ? "noopener noreferrer" : undefined}
                             onClick={() => setMenuOpen(false)}
                             className={`flex flex-col items-center gap-3 p-5 rounded-3xl transition-all duration-300 group hover:bg-white dark:hover:bg-slate-800 hover:shadow-xl hover:shadow-indigo-500/5 ${location.pathname === item.path ? "bg-white dark:bg-slate-800 shadow-md ring-1 ring-slate-200 dark:ring-slate-700" : ""
                               }`}

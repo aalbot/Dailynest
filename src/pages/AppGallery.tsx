@@ -99,6 +99,29 @@ const AppGallery = () => {
               </div>
             )}
 
+            {/* Mobile Admin Actions */}
+            {userRole === "admin" && (
+              <div className="grid grid-cols-2 xl:hidden items-center gap-3 mb-6">
+                <Link
+                  to="/staffes"
+                  className="flex items-center justify-center gap-3 py-4 px-4 rounded-3xl bg-white/70 dark:bg-slate-900/40 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-lg active:scale-95 transition-all"
+                >
+                  <Users size={18} className="text-indigo-500" />
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">Staff</span>
+                </Link>
+                <button
+                  onClick={() => setIsManaging(!isManaging)}
+                  className={`flex items-center justify-center gap-3 py-4 px-4 rounded-3xl backdrop-blur-xl border shadow-lg active:scale-95 transition-all ${isManaging
+                    ? "bg-blue-600 border-blue-500 text-white shadow-blue-500/20"
+                    : "bg-white/70 dark:bg-slate-900/40 border-white/40 dark:border-white/10 text-slate-700 dark:text-slate-200"
+                    }`}
+                >
+                  <Settings size={18} className={isManaging ? "animate-spin-slow" : "text-blue-500"} />
+                  <span className="text-xs font-black uppercase tracking-wider">{isManaging ? "Done" : "Apps"}</span>
+                </button>
+              </div>
+            )}
+
 
             <div className="flex-1 min-h-0">
               <AppGrid isManaging={isManaging} searchQuery={searchQuery} />

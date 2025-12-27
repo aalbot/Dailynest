@@ -24,7 +24,8 @@ export function AddAppModal({ open, onOpenChange, initialData }: AddAppModalProp
         icon: "Layout",
         color: appColors[0],
         type: "url" as "url" | "html",
-        content: ""
+        content: "",
+        openInNewTab: false
     });
 
     // Effect to reset or populate form
@@ -40,7 +41,8 @@ export function AddAppModal({ open, onOpenChange, initialData }: AddAppModalProp
                     icon: initialData.icon,
                     color: foundColor,
                     type: initialData.type || "url",
-                    content: initialData.type === 'html' ? initialData.htmlContent : initialData.path
+                    content: initialData.type === 'html' ? initialData.htmlContent : initialData.path,
+                    openInNewTab: initialData.openInNewTab || false
                 });
             } else {
                 setFormData({
@@ -48,7 +50,8 @@ export function AddAppModal({ open, onOpenChange, initialData }: AddAppModalProp
                     icon: "Layout",
                     color: appColors[0],
                     type: "url",
-                    content: ""
+                    content: "",
+                    openInNewTab: false
                 });
             }
             setStep("form");
@@ -80,6 +83,7 @@ export function AddAppModal({ open, onOpenChange, initialData }: AddAppModalProp
                     path: formData.type === 'url' ? formData.content : `/custom-app/${initialData.id}`,
                     type: formData.type,
                     htmlContent: formData.type === 'html' ? formData.content : null,
+                    openInNewTab: formData.openInNewTab
                 });
             } else {
                 // Create
@@ -93,6 +97,7 @@ export function AddAppModal({ open, onOpenChange, initialData }: AddAppModalProp
                     path: formData.type === 'url' ? formData.content : `/custom-app/${newAppRef.key}`,
                     type: formData.type,
                     htmlContent: formData.type === 'html' ? formData.content : null,
+                    openInNewTab: formData.openInNewTab,
                     createdAt: firebase.database.ServerValue.TIMESTAMP
                 });
             }
@@ -257,6 +262,22 @@ export function AddAppModal({ open, onOpenChange, initialData }: AddAppModalProp
                                             )}
                                         </div>
                                     )}
+                                </div>
+
+                                <div className="flex items-center space-x-2 py-2">
+                                    <input
+                                        type="checkbox"
+                                        id="open-new-tab"
+                                        checked={formData.openInNewTab}
+                                        onChange={(e) => setFormData({ ...formData, openInNewTab: e.target.checked })}
+                                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <label
+                                        htmlFor="open-new-tab"
+                                        className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer"
+                                    >
+                                        Open in new page when clicked
+                                    </label>
                                 </div>
                             </div>
 

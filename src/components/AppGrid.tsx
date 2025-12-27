@@ -120,9 +120,9 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
       {/* Admin Action Buttons */}
 
 
-      <div className="flex flex-col h-full w-full rounded-[2.5rem] bg-white/70 dark:bg-slate-900/40 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-2xl transition-all duration-500 hover:shadow-3xl hover:bg-white/80 dark:hover:bg-slate-900/50 overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-5 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 sm:gap-8 justify-items-center">
+      <div className="flex flex-col h-full w-full xl:rounded-[2.5rem] xl:bg-white/70 xl:dark:bg-slate-900/40 xl:backdrop-blur-xl xl:border xl:border-white/40 xl:dark:border-white/10 xl:shadow-2xl transition-all duration-500 xl:hover:shadow-3xl xl:hover:bg-white/80 xl:dark:hover:bg-slate-900/50 overflow-hidden">
+        <div className="flex-1 overflow-y-auto p-2 sm:p-5 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20">
+          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-8 justify-items-center">
             {filteredInitialApps.map((app, index) => (
               <div key={app.label} className={isManaging ? "opacity-50 pointer-events-none grayscale" : ""}>
                 <Link
@@ -147,7 +147,13 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
 
               return (
                 <div className="relative group/item" key={app.id}>
-                  <Link to={isManaging ? "#" : path} onClick={(e) => isManaging && e.preventDefault()} className={isManaging ? "cursor-default" : ""}>
+                  <Link
+                    to={isManaging ? "#" : path}
+                    onClick={(e) => isManaging && e.preventDefault()}
+                    className={isManaging ? "cursor-default" : ""}
+                    target={(!isManaging && app.openInNewTab) ? "_blank" : undefined}
+                    rel={(!isManaging && app.openInNewTab) ? "noopener noreferrer" : undefined}
+                  >
                     <AppIcon
                       icon={Icon}
                       label={app.name}

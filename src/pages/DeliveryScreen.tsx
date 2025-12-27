@@ -23,7 +23,6 @@ import {
     Map as MapIcon
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
-import BackButton from "@/components/BackButton";
 
 // Firebase Config
 const firebaseConfig = {
@@ -642,7 +641,6 @@ const DeliveryScreen = () => {
             <header className="sticky top-0 z-40 w-full bg-white/70 dark:bg-slate-950/70 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50 safe-pt">
                 <div className="max-w-lg mx-auto w-full px-5 py-4 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
-                        <BackButton />
                         <div className="space-y-0.5">
                             <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-white leading-none">
                                 Courier<span className="text-emerald-600">Hub</span>

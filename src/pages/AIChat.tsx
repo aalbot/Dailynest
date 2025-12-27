@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Navbar from "@/components/Navbar";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Send, User, Sparkles, StopCircle, Trash2, BarChart3, PieChart, Activity } from 'lucide-react';
+import BackButton from "@/components/BackButton";
 import firebase from "firebase/compat/app";
 import "firebase/compat/database";
 import {
@@ -424,6 +425,7 @@ const AIChat = () => {
                 {/* Mobile Header Overlay - Glass Effect */}
                 <div className="sticky top-16 left-0 right-0 z-20 flex items-center justify-between px-4 py-2 bg-background/40 backdrop-blur-xl border-b border-border/50 xl:hidden">
                     <div className="flex items-center gap-2">
+                        <BackButton />
                         <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center">
                             <Sparkles className="w-4 h-4 text-indigo-500" />
                         </div>
@@ -436,6 +438,11 @@ const AIChat = () => {
                     >
                         <Trash2 size={16} />
                     </button>
+                </div>
+
+                {/* Desktop Clear History Button */}
+                <div className="hidden xl:block absolute top-20 left-4 z-20">
+                    <BackButton />
                 </div>
 
                 {/* Desktop Clear History Button */}
