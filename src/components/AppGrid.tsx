@@ -120,9 +120,9 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
       {/* Admin Action Buttons */}
 
 
-      <div className="flex flex-col h-full w-full rounded-3xl bg-white/10 dark:bg-black/40 backdrop-blur-2xl border border-white/20 dark:border-white/10 shadow-2xl transition-all duration-300 hover:shadow-3xl hover:bg-white/15 dark:hover:bg-black/50 overflow-hidden">
+      <div className="flex flex-col h-full w-full rounded-[2.5rem] bg-white/70 dark:bg-slate-900/40 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-2xl transition-all duration-500 hover:shadow-3xl hover:bg-white/80 dark:hover:bg-slate-900/50 overflow-hidden">
         <div className="flex-1 overflow-y-auto p-5 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20">
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 sm:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 sm:gap-8 justify-items-center">
             {filteredInitialApps.map((app, index) => (
               <div key={app.label} className={isManaging ? "opacity-50 pointer-events-none grayscale" : ""}>
                 <Link
@@ -192,8 +192,8 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
                 className={`group flex flex-col items-center gap-2 cursor-pointer opacity-0 animate-fade-in ${isManaging ? 'opacity-50' : ''}`}
                 style={{ animationDelay: `${initialApps.length * 50 + 150}ms` }}
               >
-                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:border-blue-400 dark:group-hover:border-blue-500 group-hover:scale-110 group-active:scale-95 transition-all duration-300 shadow-sm hover:shadow-md">
-                  <Plus className="w-7 h-7 sm:w-8 sm:h-8" strokeWidth={1.5} />
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-[1.75rem] bg-slate-100/50 dark:bg-slate-800/50 border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:border-blue-400 dark:group-hover:border-blue-500 group-hover:scale-110 group-active:scale-95 transition-all duration-300 shadow-sm hover:shadow-md backdrop-blur-sm">
+                  <Plus className="w-8 h-8 sm:w-10 sm:h-10" strokeWidth={1.5} />
                 </div>
                 <span className="text-sm font-medium text-foreground/60 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors text-center leading-tight">
                   Add App

@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useNotification } from "@/contexts/NotificationContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 import firebase from "firebase/compat/app";
 import "firebase/compat/database";
@@ -52,7 +53,7 @@ const defaultAppItems = [
 
 const Navbar = () => {
   const location = useLocation();
-  const [isDark, setIsDark] = useState(false);
+  const { isDark, toggleTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -110,16 +111,6 @@ const Navbar = () => {
   const filteredApps = searchQuery ? allApps.filter(item => item.label.toLowerCase().includes(searchQuery.toLowerCase())) : [];
 
   useEffect(() => {
-    // Check local storage or system preference
-    const storedTheme = localStorage.getItem('theme');
-    if (storedTheme === 'dark') {
-      setIsDark(true);
-      document.documentElement.classList.add('dark');
-    } else {
-      setIsDark(false);
-      document.documentElement.classList.remove('dark');
-    }
-
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setMenuOpen(false);
@@ -134,18 +125,6 @@ const Navbar = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  const toggleTheme = () => {
-    const newTheme = !isDark;
-    setIsDark(newTheme);
-    if (newTheme) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border transition-colors duration-300">

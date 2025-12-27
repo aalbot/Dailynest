@@ -1,133 +1,71 @@
-import React, { useState, useEffect } from "react";
-import { Search, Moon, Sun, Settings, LogOut, ClipboardList, Truck, User } from "lucide-react";
+import { Search, Moon, Sun, Settings, LogOut, ClipboardList, Truck, User, Users, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import firebase from "firebase/compat/app";
 import "firebase/compat/database";
+import { useTheme } from "@/contexts/ThemeContext";
 
-const QuickActionCard = ({ onSearch }: { onSearch: (query: string) => void }) => {
+const QuickActionCard = ({
+    onSearch,
+    isManaging,
+    setIsManaging,
+    userRole
+}: {
+    onSearch: (query: string) => void;
+    isManaging: boolean;
+    setIsManaging: (val: boolean) => void;
+    userRole: string | null;
+}) => {
     const navigate = useNavigate();
-    const [isDark, setIsDark] = useState(false);
-    const [ordersToday, setOrdersToday] = useState(0);
-    const [onlineDrivers, setOnlineDrivers] = useState(0);
-
-    // Theme Toggle Logic
-    useEffect(() => {
-        const storedTheme = localStorage.getItem('theme');
-        if (storedTheme === 'dark') {
-            setIsDark(true);
-            document.documentElement.classList.add('dark');
-        } else {
-            setIsDark(false);
-            document.documentElement.classList.remove('dark');
-        }
-    }, []);
-
-    const toggleTheme = () => {
-        const newTheme = !isDark;
-        setIsDark(newTheme);
-        if (newTheme) {
-            document.documentElement.classList.add('dark');
-            localStorage.setItem('theme', 'dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-            localStorage.setItem('theme', 'light');
-        }
-    };
-
-    // Calculate Stats
-    useEffect(() => {
-        const db = firebase.database();
-        const ordersRef = db.ref("root/order");
-        const driversRef = db.ref("root/nexus_hr/employees");
-
-        const today = new Date().toLocaleDateString('en-CA');
-
-        // Orders Listener
-        ordersRef.on("value", (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                const count = Object.values(data).filter((o: any) => {
-                    const orderDate = new Date(o.last_updated || o.timestamp).toLocaleDateString('en-CA');
-                    return orderDate === today;
-                }).length;
-                setOrdersToday(count);
-            }
-        });
-
-        // Drivers Listener
-        driversRef.on("value", (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                // Filter for Logistics/Ride role and NOT offline (simplified active check)
-                const onlineCount = Object.values(data).filter((e: any) =>
-                    (e.role === 'Ride' || e.department === 'Logistics') &&
-                    e.status === 'Active' &&
-                    e.availabilityStatus !== 'Offline' // Assuming availabilityStatus or similar logic exists, otherwise just Active
-                ).length;
-                // Note: Previous logic in OrderManagement implied calculating "offline" manually.
-                // Here we will use a simpler approximation if explicit status isn't available, 
-                // but if we want strictly "Online", we might need that "delivery_boys" logic again.
-                // For now, let's count Active employees.
-                setOnlineDrivers(onlineCount);
-            }
-        });
-
-        return () => {
-            ordersRef.off();
-            driversRef.off();
-        };
-    }, []);
+    const { isDark, toggleTheme } = useTheme();
 
     return (
-        <Card className="h-full border-white/20 dark:border-white/10 shadow-xl bg-white/10 dark:bg-black/40 backdrop-blur-2xl overflow-hidden flex flex-col">
+        <Card className="h-full border-white/40 dark:border-white/10 shadow-xl bg-white/70 dark:bg-slate-900/40 backdrop-blur-xl transition-colors duration-500 overflow-hidden flex flex-col">
             <CardHeader className="pb-4">
                 <CardTitle className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
                     Quick Actions
                 </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6 flex-1">
-                {/* Search Bar */}
-                <div className="relative group">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
-                    <input
-                        type="text"
-                        placeholder="Search apps..."
-                        onChange={(e) => onSearch(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-black/20 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder:text-slate-400 text-sm font-medium"
-                    />
-                </div>
+            <CardContent className="flex-1 flex flex-col gap-4">
+                {/* Main Action Buttons */}
+                <div className="space-y-3">
+                    {userRole === "admin" && (
+                        <>
+                            <Link
+                                to="/staffes"
+                                className="w-full flex items-center justify-between p-3 rounded-xl bg-white/40 dark:bg-white/5 hover:bg-white/60 dark:hover:bg-white/10 border border-white/20 dark:border-white/10 transition-all group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                                        <Users size={18} />
+                                    </div>
+                                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Manage Staff</span>
+                                </div>
+                                <ChevronRight size={16} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
+                            </Link>
 
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-gradient-to-br from-indigo-500/10 to-blue-500/10 border border-indigo-500/20 rounded-xl p-3 flex flex-col items-center justify-center text-center gap-1">
-                        <div className="bg-indigo-500/20 p-2 rounded-full mb-1">
-                            <ClipboardList size={18} className="text-indigo-600 dark:text-indigo-400" />
-                        </div>
-                        <span className="text-2xl font-bold text-indigo-700 dark:text-indigo-300 pointer-events-none">
-                            {ordersToday}
-                        </span>
-                        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                            Orders Today
-                        </span>
-                    </div>
+                            <button
+                                onClick={() => setIsManaging(!isManaging)}
+                                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all group ${isManaging
+                                    ? "bg-blue-600 border-blue-500 text-white"
+                                    : "bg-white/40 dark:bg-white/5 hover:bg-white/60 dark:hover:bg-white/10 border-white/20 dark:border-white/10"
+                                    }`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className={`p-2 rounded-lg transition-colors ${isManaging ? "bg-white/20" : "bg-blue-500/10 text-blue-500 group-hover:bg-blue-500 group-hover:text-white"
+                                        }`}>
+                                        <Settings size={18} className={isManaging ? "animate-spin-slow" : ""} />
+                                    </div>
+                                    <span className={`text-sm font-semibold ${isManaging ? "text-white" : "text-slate-700 dark:text-slate-300"}`}>
+                                        {isManaging ? "Done Editing" : "Manage Apps"}
+                                    </span>
+                                </div>
+                                {!isManaging && <ChevronRight size={16} className="text-slate-400 group-hover:translate-x-1 transition-transform" />}
+                            </button>
+                        </>
+                    )}
 
-                    <div className="bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-xl p-3 flex flex-col items-center justify-center text-center gap-1">
-                        <div className="bg-emerald-500/20 p-2 rounded-full mb-1">
-                            <Truck size={18} className="text-emerald-600 dark:text-emerald-400" />
-                        </div>
-                        <span className="text-2xl font-bold text-emerald-700 dark:text-emerald-300 pointer-events-none">
-                            {onlineDrivers}
-                        </span>
-                        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                            Drivers Online
-                        </span>
-                    </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="space-y-2.5 mt-auto">
                     <button
                         onClick={toggleTheme}
                         className="w-full flex items-center justify-between p-3 rounded-xl bg-white/40 dark:bg-white/5 hover:bg-white/60 dark:hover:bg-white/10 border border-white/20 dark:border-white/10 transition-all group"
@@ -142,16 +80,10 @@ const QuickActionCard = ({ onSearch }: { onSearch: (query: string) => void }) =>
                             <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-300 ${isDark ? 'translate-x-4' : 'translate-x-0'}`} />
                         </div>
                     </button>
+                </div>
 
-                    <button className="w-full flex items-center justify-between p-3 rounded-xl bg-white/40 dark:bg-white/5 hover:bg-white/60 dark:hover:bg-white/10 border border-white/20 dark:border-white/10 transition-all group">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                                <Settings size={18} />
-                            </div>
-                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Settings</span>
-                        </div>
-                    </button>
-
+                {/* Sign Out - Bottom */}
+                <div className="mt-auto">
                     <button
                         onClick={() => {
                             sessionStorage.clear();

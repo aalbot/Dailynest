@@ -8,11 +8,12 @@ import { Shield, Users, Truck, LogIn, Sparkles, Info, Key, ChevronRight, LayoutD
 import { toast } from "sonner";
 import firebase from "firebase/compat/app";
 import "firebase/compat/database";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const Gateway = () => {
     const navigate = useNavigate();
+    const { isDark, toggleTheme } = useTheme();
     const [view, setView] = useState<'selection' | 'admin' | 'staff'>('selection');
-    const [isDark, setIsDark] = useState(false);
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
@@ -21,15 +22,6 @@ const Gateway = () => {
     const [staffData, setStaffData] = useState({ username: '', password: '' });
 
     useEffect(() => {
-        const storedTheme = localStorage.getItem('theme');
-        const darkMode = storedTheme === 'dark';
-        setIsDark(darkMode);
-        if (darkMode) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
-
         // Redirect if already logged in (session-based)
         const userRole = sessionStorage.getItem("user_role");
         const adminAuth = sessionStorage.getItem("admin_auth");
@@ -41,18 +33,6 @@ const Gateway = () => {
             navigate("/delivery");
         }
     }, [navigate]);
-
-    const toggleTheme = () => {
-        const newTheme = !isDark;
-        setIsDark(newTheme);
-        if (newTheme) {
-            document.documentElement.classList.add('dark');
-            localStorage.setItem('theme', 'dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-            localStorage.setItem('theme', 'light');
-        }
-    };
 
     const handleAdminLogin = (e: React.FormEvent) => {
         e.preventDefault();
@@ -154,7 +134,7 @@ const Gateway = () => {
             </div>
 
             <div className="relative z-10 w-full max-w-5xl">
-                <div className="text-center mb-16 space-y-4 animate-reveal-up">
+                <div className="text-center mb-6 space-y-2 animate-reveal-up">
                     <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-medium uppercase tracking-[0.2em] backdrop-blur-md mb-2 transition-colors duration-300 ${isDark ? 'bg-white/5 border-white/10 text-white/60' : 'bg-white border-slate-200 text-slate-500 shadow-sm'}`}>
                         <Sparkles className="w-3.5 h-3.5 text-blue-500" />
                         <span>Unified Access Control</span>
@@ -194,10 +174,6 @@ const Gateway = () => {
                                         <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                                     </div>
 
-                                    {/* Visible credentials hint so admin credentials are obvious on the selection screen */}
-                                    <div className={`mt-4 text-center text-sm font-mono rounded-xl p-3 transition-colors ${isDark ? 'bg-white/5 text-white/90 border border-white/6' : 'bg-slate-50 text-slate-900 border border-slate-100'}`}>
-                                        <span className="block">User: <strong>admin</strong> &nbsp;|&nbsp; Pass: <strong>admin</strong></span>
-                                    </div>
                                 </CardContent>
 
                                 <div className="absolute inset-0 shimmer-bg opacity-0 group-hover:opacity-10" />
@@ -271,7 +247,7 @@ const Gateway = () => {
                         <Card className={`w-full max-w-md border backdrop-blur-3xl shadow-2xl rounded-[2.5rem] overflow-hidden relative transition-all duration-500 ${isDark ? 'bg-slate-900/60 border-slate-800/80 shadow-slate-950/50' : 'bg-white border-slate-200 shadow-slate-200/50'}`}>
                             <div className={`absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r transition-all duration-500 ${view === 'admin' ? 'from-blue-500 to-indigo-500' : 'from-violet-500 to-pink-500'}`} />
 
-                            <CardHeader className="text-center p-10 pb-4">
+                            <CardHeader className="text-center p-6 sm:p-8 pb-0">
                                 <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl transition-all duration-500 ${view === 'admin' ? 'bg-blue-500/10 border-blue-500/20 text-blue-500' : 'bg-violet-500/10 border-violet-500/20 text-violet-500'} border`}>
                                     {view === 'admin' ? <Shield className="w-10 h-10" /> : <Users className="w-10 h-10" />}
                                 </div>
@@ -279,24 +255,17 @@ const Gateway = () => {
                                 <CardDescription className={`font-medium transition-colors ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                                     {view === 'admin' ? '"Access granted to authorized commanders."' : 'Internal staff authentication point.'}
                                 </CardDescription>
+                                {view === 'admin' && (
+                                    <div className={`mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[11px] font-mono transition-all duration-300 ${isDark ? 'bg-blue-500/10 border-blue-500/20 text-blue-300' : 'bg-blue-50 border-blue-100 text-blue-700'}`}>
+                                        <Key className="w-3 h-3" />
+                                        <span>User: <strong>admin</strong> | Pass: <strong>admin</strong></span>
+                                    </div>
+                                )}
                             </CardHeader>
 
-                            <CardContent className="p-10 pt-4 space-y-6">
+                            <CardContent className="p-6 sm:p-8 pt-0 space-y-4">
                                 {view === 'admin' ? (
                                     <>
-                                        <div className={`border rounded-2xl p-5 flex items-start gap-4 animate-glow-pulse transition-all duration-500 ${isDark ? 'bg-blue-500/10 border-blue-500/20' : 'bg-blue-50 border-blue-100'}`}>
-                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${isDark ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
-                                                <Key className="w-5 h-5" />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <p className={`text-xs font-bold uppercase tracking-widest transition-colors ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>Master Credentials</p>
-                                                <div className={`flex items-center gap-4 text-sm font-mono transition-colors ${isDark ? 'text-white/90' : 'text-slate-900'}`}>
-                                                    <span>User: admin</span>
-                                                    <span className="opacity-30">|</span>
-                                                    <span>Pass: admin</span>
-                                                </div>
-                                            </div>
-                                        </div>
 
                                         <div className="space-y-4">
                                             <div className="space-y-2">
@@ -331,31 +300,6 @@ const Gateway = () => {
                                             <ChevronRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
                                         </Button>
 
-                                        {/* Visible credentials on the admin login page for clarity */}
-                                        <div className="mt-4 flex items-center justify-between gap-4">
-                                            <div className={`text-sm font-mono rounded-xl p-3 transition-colors flex-1 ${isDark ? 'bg-white/5 text-white/90 border border-white/6' : 'bg-slate-50 text-slate-900 border border-slate-100'}`}>
-                                                <span className="block">User: <strong>admin</strong> &nbsp;|&nbsp; Pass: <strong>admin</strong></span>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const text = 'admin:admin';
-                                                    if (navigator.clipboard && window.isSecureContext) {
-                                                        navigator.clipboard.writeText(text).then(() => toast.success('Credentials copied'));
-                                                    } else {
-                                                        const ta = document.createElement('textarea');
-                                                        ta.value = text;
-                                                        document.body.appendChild(ta);
-                                                        ta.select();
-                                                        document.execCommand('copy');
-                                                        ta.remove();
-                                                        toast.success('Credentials copied');
-                                                    }
-                                                }}
-                                                className={`ml-3 px-3 py-2 rounded-lg text-xs font-bold transition-colors ${isDark ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-100'}`}>
-                                                Copy
-                                            </button>
-                                        </div>
                                     </>
                                 ) : (
                                     <form onSubmit={handleStaffLogin} className="space-y-6">
@@ -414,7 +358,7 @@ const Gateway = () => {
                 )}
 
                 {/* Footer Credits */}
-                <div className="mt-20 text-center animate-reveal-up stagger-4 opacity-30 hover:opacity-100 transition-opacity duration-700">
+                <div className="mt-8 text-center animate-reveal-up stagger-4 opacity-30 hover:opacity-100 transition-opacity duration-700">
                     <p className={`text-[10px] font-bold uppercase tracking-[0.4em] transition-colors ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
                         &copy; 2024 DailyClub Digital Ecosystem &bull; All Systems Operational
                     </p>
