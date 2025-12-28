@@ -14,13 +14,13 @@ import { toast, Toaster } from "sonner";
 
 // Firebase Config
 const firebaseConfig = {
-    apiKey: "AIzaSyCSH0uuKssWvkgvMOnWV_1u3zPO-1XNWPg",
-    authDomain: "dailyclub11.firebaseapp.com",
-    databaseURL: "https://dailyclub11-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "dailyclub11",
-    storageBucket: "dailyclub11.firebasestorage.app",
-    messagingSenderId: "439424426599",
-    appId: "1:439424426599:web:366ea0de36341a00fdaac2"
+    apiKey: "AIzaSyBUhKliTOKWKVW-TCTaYiRN9FXCjoxcsHg",
+    authDomain: "dclub-32718.firebaseapp.com",
+    projectId: "dclub-32718",
+    storageBucket: "dclub-32718.firebasestorage.app",
+    messagingSenderId: "401946278556",
+    appId: "1:401946278556:web:efd912ca5196ce248b0b59",
+    measurementId: "G-Q9RC6QRR7K"
 };
 
 if (!firebase.apps.length) {
@@ -98,7 +98,7 @@ const BackOffice = () => {
     const [stockSearchResults, setStockSearchResults] = useState<Product[]>([]);
     const [activeStockProduct, setActiveStockProduct] = useState<Product | null>(null);
     const [stockFilter, setStockFilter] = useState('all');
-    const [stockList, setStockList] = useState<{ pName: string, pCode: string, vKey: string, data: any }[]>([]);
+
 
     // --- Load Data ---
     useEffect(() => {
@@ -128,31 +128,11 @@ const BackOffice = () => {
             setProducts(arr.sort((a, b) => a.name.localeCompare(b.name)));
         });
 
-        // Stock Variants
-        db.ref('root/stock').on('value', snap => {
-            const data = snap.val();
-            const arr: any[] = [];
-            if (data) {
-                // Flatten
-                Object.keys(data).forEach(pKey => { // Product Key
-                    const variants = data[pKey];
-                    if (variants) {
-                        Object.keys(variants).forEach(vKey => {
-                            const vData = variants[vKey];
-                            // Find prod name for convenience
-                            // Ideally this is less efficient in big data, but ok for small shop
-                            arr.push({ pCode: pKey, vKey, data: vData });
-                        });
-                    }
-                });
-            }
-            setStockList(arr);
-        });
 
         return () => {
             db.ref('root/category').off();
             db.ref('root/products').off();
-            db.ref('root/stock').off();
+
         }
     }, []);
 

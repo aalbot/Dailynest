@@ -104,22 +104,25 @@ const EmployeeManagement = () => {
         const db = firebase.database();
         const basePath = 'root/nexus_hr';
 
-        const empRef = db.ref(`${basePath}/employees`);
+        const empRef = db.ref(`${basePath}/employees`).limitToLast(1000);
         const attRef = db.ref(`${basePath}/attendance`);
         const payRef = db.ref(`${basePath}/payroll`);
         const rolesRef = db.ref(`${basePath}/roles`);
         const deptRef = db.ref(`${basePath}/departments`);
 
+        const attQuery = attRef.limitToLast(500);
+        const payQuery = payRef.limitToLast(100);
+
         empRef.on('value', snap => setEmployees(snap.val() ? Object.values(snap.val()) : []));
-        attRef.on('value', snap => setAttendance(snap.val() ? Object.values(snap.val()) : []));
-        payRef.on('value', snap => setPayroll(snap.val() ? Object.values(snap.val()) : []));
+        attQuery.on('value', snap => setAttendance(snap.val() ? Object.values(snap.val()) : []));
+        payQuery.on('value', snap => setPayroll(snap.val() ? Object.values(snap.val()) : []));
         rolesRef.on('value', snap => setRoles(snap.val() ? Object.values(snap.val()) : []));
         deptRef.on('value', snap => setDepartments(snap.val() ? Object.values(snap.val()) : []));
 
         return () => {
             empRef.off();
-            attRef.off();
-            payRef.off();
+            attQuery.off();
+            payQuery.off();
             rolesRef.off();
             deptRef.off();
         };

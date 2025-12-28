@@ -151,7 +151,7 @@ const TaskManager = () => {
 
     useEffect(() => {
         const db = firebase.database();
-        const tasksRef = db.ref('root/nexus_hr/tasks');
+        const tasksRef = db.ref('root/nexus_hr/tasks').limitToLast(200);
 
         const onValueChange = (snap: any) => {
             const data = snap.val();
@@ -162,8 +162,9 @@ const TaskManager = () => {
             }
         };
 
-        tasksRef.on('value', onValueChange);
-        return () => tasksRef.off('value', onValueChange);
+        const limitedTasksQuery = tasksRef.limitToLast(200);
+        limitedTasksQuery.on('value', onValueChange);
+        return () => limitedTasksQuery.off('value', onValueChange);
     }, []);
 
     const handleCreateTask = () => {

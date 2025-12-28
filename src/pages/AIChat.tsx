@@ -35,13 +35,13 @@ ChartJS.register(
 
 // Firebase Config
 const firebaseConfig = {
-    apiKey: "AIzaSyCSH0uuKssWvkgvMOnWV_1u3zPO-1XNWPg",
-    authDomain: "dailyclub11.firebaseapp.com",
-    databaseURL: "https://dailyclub11-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "dailyclub11",
-    storageBucket: "dailyclub11.firebasestorage.app",
-    messagingSenderId: "439424426599",
-    appId: "1:439424426599:web:366ea0de36341a00fdaac2",
+    apiKey: "AIzaSyBUhKliTOKWKVW-TCTaYiRN9FXCjoxcsHg",
+    authDomain: "dclub-32718.firebaseapp.com",
+    projectId: "dclub-32718",
+    storageBucket: "dclub-32718.firebasestorage.app",
+    messagingSenderId: "401946278556",
+    appId: "1:401946278556:web:efd912ca5196ce248b0b59",
+    measurementId: "G-Q9RC6QRR7K"
 };
 
 if (!firebase.apps.length) {
@@ -209,41 +209,46 @@ const AIChat = () => {
         }
     }, [messages, isTyping]);
 
-    // Initial Data Fetch (Silently load data for charts)
-    useEffect(() => {
-        const fetchEssentialData = async () => {
-            try {
-                const db = firebase.database();
-                // We fetch all orders for accurate charts. This might be heavy for very large stores, 
-                // but necessary for "Total Revenue". LIMIT to last 500 for performance if needed.
-                const ordersSnap = await db.ref('root/order').limitToLast(200).once('value');
-                const productsSnap = await db.ref('root/products').limitToFirst(200).once('value');
-                // const stockSnap = await db.ref('root/stock').limitToFirst(100).once('value');
+    // Optimized Data Fetching Logic (Lazy & Smart)
+    const getStoreContext = async (userMessage: string) => {
+        // If we already have data, don't refetch
+        if (storeData) return storeData;
 
-                setStoreData({
-                    order: ordersSnap.val() || {},
-                    products: productsSnap.val() || {},
-                    // stock: stockSnap.val() || {}
-                });
-            } catch (e) {
-                console.error("Background data fetch failed", e);
-            }
-        };
-        fetchEssentialData();
-    }, []);
+        // Check if the message actually needs store data (Keywords)
+        const needsData = /revenue|sales|order|product|stock|inventory|chart|status|how many|total|top|sell/i.test(userMessage);
+        if (!needsData) return null;
+
+        try {
+            const db = firebase.database();
+            // Highly optimized limits: 100 orders and 50 products is more than enough for a context summary
+            const [ordersSnap, productsSnap] = await Promise.all([
+                db.ref('root/order').limitToLast(100).once('value'),
+                db.ref('root/products').limitToFirst(50).once('value')
+            ]);
+
+            const data = {
+                order: ordersSnap.val() || {},
+                products: productsSnap.val() || {},
+            };
+            setStoreData(data);
+            return data;
+        } catch (e) {
+            console.error("Lazy data fetch failed", e);
+            return null;
+        }
+    };
 
     // Handle Auto-Prompt from URL
     useEffect(() => {
         const params = new URLSearchParams(location.search);
         const autoPrompt = params.get('autoPrompt');
 
-        if (autoPrompt && storeData) {
-            // Wait for storeData to be ready before sending
+        if (autoPrompt) {
             handleSend(autoPrompt);
             // Clear the param from URL
             navigate(location.pathname, { replace: true });
         }
-    }, [location, storeData]);
+    }, [location.search]); // Depend on search string for changes
 
 
     const handleClearChat = () => {
@@ -259,18 +264,11 @@ const AIChat = () => {
         }
     };
 
-    const fetchContextSummary = async () => {
-        // Use local storeData if available, otherwise fetch minimal
-        let orders = storeData?.order;
-        let products = storeData?.products;
+    const fetchContextSummary = (data: any) => {
+        if (!data) return "\n(No store data requested/available for this query)\n";
 
-        if (!orders || !products) {
-            const db = firebase.database();
-            const oSnap = await db.ref('root/order').orderByKey().limitToLast(100).once('value');
-            orders = oSnap.val();
-            const pSnap = await db.ref('root/products').limitToFirst(50).once('value');
-            products = pSnap.val();
-        }
+        const orders = data.order;
+        const products = data.products;
 
         // Calculate Totals (Excluding Cancelled)
         let totalRevenue = 0;
@@ -319,7 +317,8 @@ const AIChat = () => {
         setIsTyping(true);
 
         try {
-            const liveContext = await fetchContextSummary();
+            const currentData = await getStoreContext(finalContent);
+            const liveContext = fetchContextSummary(currentData);
             const recentMessages = messages.slice(-6);
             const history = [...recentMessages, userMsg]
                 .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)

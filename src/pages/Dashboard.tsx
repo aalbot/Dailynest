@@ -39,13 +39,13 @@ ChartJS.register(
 
 // Firebase Config
 const firebaseConfig = {
-    apiKey: "AIzaSyCSH0uuKssWvkgvMOnWV_1u3zPO-1XNWPg",
-    authDomain: "dailyclub11.firebaseapp.com",
-    databaseURL: "https://dailyclub11-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "dailyclub11",
-    storageBucket: "dailyclub11.firebasestorage.app",
-    messagingSenderId: "439424426599",
-    appId: "1:439424426599:web:366ea0de36341a00fdaac2"
+    apiKey: "AIzaSyBUhKliTOKWKVW-TCTaYiRN9FXCjoxcsHg",
+    authDomain: "dclub-32718.firebaseapp.com",
+    projectId: "dclub-32718",
+    storageBucket: "dclub-32718.firebasestorage.app",
+    messagingSenderId: "401946278556",
+    appId: "1:401946278556:web:efd912ca5196ce248b0b59",
+    measurementId: "G-Q9RC6QRR7K"
 };
 
 if (!firebase.apps.length) {
@@ -98,58 +98,54 @@ const Dashboard = () => {
     // Load Data
     useEffect(() => {
         const db = firebase.database();
-        const dataRef = db.ref('/');
+        const rootRef = db.ref('root');
+        const nodes = ['category', 'fcm_tokens', 'order', 'stock', 'products'];
+
+        setIsLoading(true);
+
+        const data: any = { ...FALLBACK_DATA };
+        let loadedCount = 0;
+
+        const onDataUpdate = (node: string, val: any) => {
+            data[node] = val || {};
+            setRawData({ ...data });
+            processData({ ...data });
+
+            if (loadedCount < nodes.length) {
+                loadedCount++;
+                if (loadedCount >= nodes.length) {
+                    setIsLoading(false);
+                    setIsConnected(true);
+                }
+            }
+        };
 
         const timeout = setTimeout(() => {
-            if (!isConnected) {
+            if (isLoading) {
                 console.warn("Connection timeout. Switching to Backup Data.");
                 setIsConnected(false);
                 setDataSourceMsg("Connection Timeout (Backup Mode)");
                 processData(FALLBACK_DATA);
                 setIsLoading(false);
             }
-        }, 5000);
+        }, 10000);
 
-        const onValueChange = (snapshot: any) => {
-            const val = snapshot.val();
-            if (val) {
-                clearTimeout(timeout);
-                setIsConnected(true);
-                setDataSourceMsg("");
+        // Individual listeners for better performance and less bandwidth
+        rootRef.child('category').on('value', snap => onDataUpdate('category', snap.val()));
 
-                let source = val;
-                if (val.root) source = val.root;
+        // Products and stock are large and dashboard only needs a snapshot for stats
+        rootRef.child('products').once('value', snap => onDataUpdate('products', snap.val()));
+        rootRef.child('stock').once('value', snap => onDataUpdate('stock', snap.val()));
 
-                const newData = {
-                    category: source.category || {},
-                    fcm_tokens: source.fcm_tokens || {},
-                    order: source.order || source.orders || {},
-                    stock: source.stock || {},
-                    products: source.products || {}
-                };
+        // Limit orders to last 1000 to save bandwidth. 
+        // Note: Total revenue stats will be based on these 1000 orders.
+        rootRef.child('order').limitToLast(1000).on('value', snap => onDataUpdate('order', snap.val()));
 
-                setRawData(newData);
-                processData(newData);
-                setIsLoading(false);
-            } else {
-                setDataSourceMsg("Empty Database (Backup Mode)");
-                processData(FALLBACK_DATA);
-                setIsLoading(false);
-            }
-        };
-
-        const errorHandler = (err: any) => {
-            console.error(err);
-            clearTimeout(timeout);
-            setDataSourceMsg("Permission Denied (Backup Mode)");
-            processData(FALLBACK_DATA);
-            setIsLoading(false);
-        };
-
-        dataRef.on('value', onValueChange, errorHandler);
+        // FCM Tokens can be large and don't need real-time updates for dashboard stats
+        rootRef.child('fcm_tokens').once('value', snap => onDataUpdate('fcm_tokens', snap.val()));
 
         return () => {
-            dataRef.off('value', onValueChange);
+            nodes.forEach(node => rootRef.child(node).off());
             clearTimeout(timeout);
         };
     }, []);

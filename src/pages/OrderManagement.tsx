@@ -29,14 +29,13 @@ import { toast } from "sonner";
 
 // Firebase Config
 const firebaseConfig = {
-    apiKey: "AIzaSyCSH0uuKssWvkgvMOnWV_1u3zPO-1XNWPg",
-    authDomain: "dailyclub11.firebaseapp.com",
-    databaseURL:
-        "https://dailyclub11-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "dailyclub11",
-    storageBucket: "dailyclub11.firebasestorage.app",
-    messagingSenderId: "439424426599",
-    appId: "1:439424426599:web:366ea0de36341a00fdaac2",
+    apiKey: "AIzaSyBUhKliTOKWKVW-TCTaYiRN9FXCjoxcsHg",
+    authDomain: "dclub-32718.firebaseapp.com",
+    projectId: "dclub-32718",
+    storageBucket: "dclub-32718.firebasestorage.app",
+    messagingSenderId: "401946278556",
+    appId: "1:401946278556:web:efd912ca5196ce248b0b59",
+    measurementId: "G-Q9RC6QRR7K"
 };
 
 // Initialize Firebase only once
@@ -220,7 +219,7 @@ const OrderManagement = () => {
 
     useEffect(() => {
         const db = firebase.database();
-        const ordersRef = db.ref("root/order");
+        const ordersRef = db.ref("root/order").limitToLast(500);
 
         const onValueChange = (snapshot: any) => {
             const data = snapshot.val() || {};
@@ -259,7 +258,7 @@ const OrderManagement = () => {
             setLoading(false);
         };
 
-        ordersRef.on("value", onValueChange);
+        ordersRef.limitToLast(300).on("value", onValueChange);
         return () => ordersRef.off("value", onValueChange);
     }, []);
 
