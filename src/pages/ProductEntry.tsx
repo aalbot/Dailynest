@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import firebase from "firebase/compat/app";
-import "firebase/compat/database";
-import "firebase/compat/storage";
+import { firebase } from "@/lib/firebase";
 import Navbar from "@/components/Navbar";
 import BackButton from "@/components/BackButton";
 import { toast } from "sonner";
@@ -39,21 +37,6 @@ interface Product {
     pkg: string;
     pic?: string;
     categoryCode: string;
-}
-
-// --- Firebase Config ---
-const firebaseConfig = {
-    apiKey: "AIzaSyBUhKliTOKWKVW-TCTaYiRN9FXCjoxcsHg",
-    authDomain: "dclub-32718.firebaseapp.com",
-    projectId: "dclub-32718",
-    storageBucket: "dclub-32718.firebasestorage.app",
-    messagingSenderId: "401946278556",
-    appId: "1:401946278556:web:efd912ca5196ce248b0b59",
-    measurementId: "G-Q9RC6QRR7K"
-};
-
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
 }
 
 const ProductEntry = () => {

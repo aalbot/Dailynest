@@ -1,22 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { initializeApp } from "firebase/app";
-import { getDatabase, ref, onChildAdded, query, limitToLast } from "firebase/database";
-import { Toaster, toast } from 'sonner';
-
-// Firebase Config
-const firebaseConfig = {
-    apiKey: "AIzaSyBUhKliTOKWKVW-TCTaYiRN9FXCjoxcsHg",
-    authDomain: "dclub-32718.firebaseapp.com",
-    projectId: "dclub-32718",
-    storageBucket: "dclub-32718.firebasestorage.app",
-    messagingSenderId: "401946278556",
-    appId: "1:401946278556:web:efd912ca5196ce248b0b59",
-    measurementId: "G-Q9RC6QRR7K"
-};
-
-// Initialize
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+import { db } from "@/lib/firebase";
+import { ref, onChildAdded, query, limitToLast } from "firebase/database";
+import { toast } from 'sonner';
 
 export const NotificationListener = () => {
     // Use a ref to track initialization time to prevent showing old alerts

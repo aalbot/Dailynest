@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
-import firebase from "firebase/compat/app";
-import "firebase/compat/database";
+import { firebase } from "@/lib/firebase";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
 import BackButton from "@/components/BackButton";
@@ -14,21 +13,6 @@ import {
     Minus,
     Plus
 } from "lucide-react";
-
-// Initialize Firebase if not already initialized
-const firebaseConfig = {
-    apiKey: "AIzaSyBUhKliTOKWKVW-TCTaYiRN9FXCjoxcsHg",
-    authDomain: "dclub-32718.firebaseapp.com",
-    projectId: "dclub-32718",
-    storageBucket: "dclub-32718.firebasestorage.app",
-    messagingSenderId: "401946278556",
-    appId: "1:401946278556:web:efd912ca5196ce248b0b59",
-    measurementId: "G-Q9RC6QRR7K"
-};
-
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
 
 interface Product {
     code: string;

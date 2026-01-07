@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
-import firebase from "firebase/compat/app";
-import "firebase/compat/database";
+import { firebase } from "@/lib/firebase";
 import {
     Search,
     Volume2,
@@ -26,22 +25,6 @@ import {
 import Navbar from "@/components/Navbar";
 import BackButton from "@/components/BackButton";
 import { toast } from "sonner";
-
-// Firebase Config
-const firebaseConfig = {
-    apiKey: "AIzaSyBUhKliTOKWKVW-TCTaYiRN9FXCjoxcsHg",
-    authDomain: "dclub-32718.firebaseapp.com",
-    projectId: "dclub-32718",
-    storageBucket: "dclub-32718.firebasestorage.app",
-    messagingSenderId: "401946278556",
-    appId: "1:401946278556:web:efd912ca5196ce248b0b59",
-    measurementId: "G-Q9RC6QRR7K"
-};
-
-// Initialize Firebase only once
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
 
 const STATUS_OPTIONS = [
     "Order Placed",
@@ -217,49 +200,54 @@ const OrderManagement = () => {
         setIsMuted(!isMuted);
     };
 
+    const prevOrdersRef = useRef<Record<string, any>>({});
+
     useEffect(() => {
         const db = firebase.database();
-        const ordersRef = db.ref("root/order").limitToLast(500);
+        const ordersRef = db.ref("root/order");
 
         const onValueChange = (snapshot: any) => {
             const data = snapshot.val() || {};
-            setOrders((prevOrders) => {
-                // Check for new 'Order Placed'
-                Object.keys(data).forEach((key) => {
-                    const newOrder = data[key];
-                    const oldOrder = prevOrders[key];
+            const prevOrders = prevOrdersRef.current;
 
-                    // Standard Beep for any update
-                    if (oldOrder && JSON.stringify(oldOrder) !== JSON.stringify(newOrder)) {
-                        playBeep();
-                    }
+            // Check for changes and trigger side effects
+            Object.keys(data).forEach((key) => {
+                const newOrder = data[key];
+                const oldOrder = prevOrders[key];
 
-                    // Alert for new "Order Placed"
-                    if (newOrder.status === "Order Placed") {
-                        if (!oldOrder) {
-                            // Totally new order
-                            if (!isInitialLoadRef.current) {
-                                setAlertData({ id: key, ...newOrder });
-                                playAlertSound();
-                            }
-                        } else if (oldOrder.status !== "Order Placed") {
-                            // Status changed TO Order Placed (unlikely but possible)
-                            if (!isInitialLoadRef.current) {
-                                setAlertData({ id: key, ...newOrder });
-                                playAlertSound();
-                            }
+                // Standard Beep for any update
+                if (oldOrder && JSON.stringify(oldOrder) !== JSON.stringify(newOrder)) {
+                    playBeep();
+                }
+
+                // Alert for new "Order Placed"
+                if (newOrder.status === "Order Placed") {
+                    if (!oldOrder) {
+                        // Totally new order
+                        if (!isInitialLoadRef.current) {
+                            setAlertData({ id: key, ...newOrder });
+                            playAlertSound();
+                        }
+                    } else if (oldOrder.status !== "Order Placed") {
+                        // Status changed TO Order Placed (unlikely but possible)
+                        if (!isInitialLoadRef.current) {
+                            setAlertData({ id: key, ...newOrder });
+                            playAlertSound();
                         }
                     }
-                });
-
-                if (isInitialLoadRef.current) isInitialLoadRef.current = false;
-                return data;
+                }
             });
+
+            if (isInitialLoadRef.current) isInitialLoadRef.current = false;
+
+            setOrders(data);
+            prevOrdersRef.current = data;
             setLoading(false);
         };
 
-        ordersRef.limitToLast(300).on("value", onValueChange);
-        return () => ordersRef.off("value", onValueChange);
+        const ordersQuery = ordersRef.limitToLast(300);
+        ordersQuery.on("value", onValueChange);
+        return () => ordersQuery.off("value", onValueChange);
     }, []);
 
     // Filter Logic

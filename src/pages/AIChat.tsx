@@ -3,8 +3,7 @@ import Navbar from "@/components/Navbar";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Send, User, Sparkles, StopCircle, Trash2, BarChart3, PieChart, Activity } from 'lucide-react';
 import BackButton from "@/components/BackButton";
-import firebase from "firebase/compat/app";
-import "firebase/compat/database";
+import { firebase } from "@/lib/firebase";
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -32,21 +31,6 @@ ChartJS.register(
     Tooltip,
     Legend
 );
-
-// Firebase Config
-const firebaseConfig = {
-    apiKey: "AIzaSyBUhKliTOKWKVW-TCTaYiRN9FXCjoxcsHg",
-    authDomain: "dclub-32718.firebaseapp.com",
-    projectId: "dclub-32718",
-    storageBucket: "dclub-32718.firebasestorage.app",
-    messagingSenderId: "401946278556",
-    appId: "1:401946278556:web:efd912ca5196ce248b0b59",
-    measurementId: "G-Q9RC6QRR7K"
-};
-
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
 
 interface Message {
     id: string;
@@ -209,16 +193,55 @@ const AIChat = () => {
         }
     }, [messages, isTyping]);
 
-    // Optimized Data Fetching Logic (Lazy & Smart)
-    const getStoreContext = async (userMessage: string) => {
-        // If we already have data, don't refetch
-        if (storeData) return storeData;
+    // --- CACHING LOGIC ---
+    const CACHE_KEY = 'dailyclub_store_data_cache';
+    const CACHE_TTL = 30 * 60 * 1000; // 30 Minutes in milliseconds
 
-        // Check if the message actually needs store data (Keywords)
+    const getCachedStoreData = () => {
+        try {
+            const cached = localStorage.getItem(CACHE_KEY);
+            if (!cached) return null;
+            const { data, timestamp } = JSON.parse(cached);
+            if (Date.now() - timestamp < CACHE_TTL) {
+                return data;
+            }
+        } catch (e) {
+            console.error("Failed to parse cached store data", e);
+        }
+        return null;
+    };
+
+    const saveStoreDataToCache = (data: any) => {
+        try {
+            localStorage.setItem(CACHE_KEY, JSON.stringify({
+                data,
+                timestamp: Date.now()
+            }));
+        } catch (e) {
+            console.error("Failed to save store data to cache", e);
+        }
+    };
+
+    // Optimized Data Fetching Logic with LocalStorage Caching
+    const getStoreContext = async (userMessage: string) => {
+        // 1. Check if the message actually needs store data (Keywords)
         const needsData = /revenue|sales|order|product|stock|inventory|chart|status|how many|total|top|sell/i.test(userMessage);
         if (!needsData) return null;
 
+        // 2. Check in-memory state first
+        if (storeData) return storeData;
+
+        // 3. Check LocalStorage cache
+        const cachedData = getCachedStoreData();
+        if (cachedData) {
+            console.log("Using cached store data from LocalStorage");
+            setStoreData(cachedData);
+            return cachedData;
+        }
+
+        // 4. Fetch from Firebase (Only if cache is empty or expired)
         try {
+            console.log("Fetching fresh store data from Firebase...");
             const db = firebase.database();
             // Highly optimized limits: 100 orders and 50 products is more than enough for a context summary
             const [ordersSnap, productsSnap] = await Promise.all([
@@ -230,10 +253,12 @@ const AIChat = () => {
                 order: ordersSnap.val() || {},
                 products: productsSnap.val() || {},
             };
+
             setStoreData(data);
+            saveStoreDataToCache(data); // Save to localstorage for next time
             return data;
         } catch (e) {
-            console.error("Lazy data fetch failed", e);
+            console.error("Firebase data fetch failed", e);
             return null;
         }
     };
@@ -328,7 +353,7 @@ const AIChat = () => {
 
             const fullPrompt = `${systemPrompt}\n${liveContext}\n\nCONVERSATION:\n${history}\nAssistant:`;
 
-            const response = await fetch(`https://text.pollinations.ai/${encodeURIComponent(fullPrompt)}`);
+            const response = await fetch(`https://enter.pollinations.ai/${encodeURIComponent(fullPrompt)}`);
             if (!response.ok) throw new Error("API Error");
             const text = await response.text();
 

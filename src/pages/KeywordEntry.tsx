@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import firebase from "firebase/compat/app";
-import "firebase/compat/database";
+import { firebase } from "@/lib/firebase";
 import {
     Check,
     Search,
@@ -16,21 +15,6 @@ import {
 import Navbar from "@/components/Navbar";
 import BackButton from "@/components/BackButton";
 import { toast, Toaster } from "sonner";
-
-// Firebase Config
-const firebaseConfig = {
-    apiKey: "AIzaSyBUhKliTOKWKVW-TCTaYiRN9FXCjoxcsHg",
-    authDomain: "dclub-32718.firebaseapp.com",
-    projectId: "dclub-32718",
-    storageBucket: "dclub-32718.firebasestorage.app",
-    messagingSenderId: "401946278556",
-    appId: "1:401946278556:web:efd912ca5196ce248b0b59",
-    measurementId: "G-Q9RC6QRR7K"
-};
-
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
 
 interface Product {
     dbKey: string;

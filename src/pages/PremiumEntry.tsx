@@ -1,25 +1,10 @@
 import React, { useState } from "react";
-import firebase from "firebase/compat/app";
+import { firebase } from "@/lib/firebase";
 import "firebase/compat/database";
 import { toast, Toaster } from "sonner";
 import Navbar from "@/components/Navbar";
 import BackButton from "@/components/BackButton";
 import { Crown, Loader2, Send, Check } from "lucide-react";
-
-// Initialize Firebase if not already initialized
-const firebaseConfig = {
-    apiKey: "AIzaSyBUhKliTOKWKVW-TCTaYiRN9FXCjoxcsHg",
-    authDomain: "dclub-32718.firebaseapp.com",
-    projectId: "dclub-32718",
-    storageBucket: "dclub-32718.firebasestorage.app",
-    messagingSenderId: "401946278556",
-    appId: "1:401946278556:web:efd912ca5196ce248b0b59",
-    measurementId: "G-Q9RC6QRR7K"
-};
-
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
 
 const PremiumEntry = () => {
     const [formData, setFormData] = useState({

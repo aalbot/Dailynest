@@ -1,24 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import firebase from "firebase/compat/app";
-import "firebase/compat/database";
+import { firebase } from "@/lib/firebase";
 import { toast } from "sonner";
 import { adjustStockForOrder } from "@/utils/stockManagement";
-
-// Re-using the firebase config from existing files
-const firebaseConfig = {
-    apiKey: "AIzaSyBUhKliTOKWKVW-TCTaYiRN9FXCjoxcsHg",
-    authDomain: "dclub-32718.firebaseapp.com",
-    projectId: "dclub-32718",
-    storageBucket: "dclub-32718.firebasestorage.app",
-    messagingSenderId: "401946278556",
-    appId: "1:401946278556:web:efd912ca5196ce248b0b59",
-    measurementId: "G-Q9RC6QRR7K"
-};
-
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
 
 export interface Notification {
     id: string;
@@ -61,78 +45,68 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }
     };
 
+    const prevOrdersRef = useRef<Record<string, any>>({});
+    const prevStockLevelsRef = useRef<Record<string, number>>({});
+
     useEffect(() => {
         const db = firebase.database();
         const ordersRef = db.ref("root/order");
 
         const onValueChange = (snapshot: any) => {
             const data = snapshot.val() || {};
+            const prevOrders = prevOrdersRef.current;
 
-            setOrders(prevOrders => {
-                // If it's not the first load, check for changes
-                if (!isInitialLoad.current) {
-                    Object.keys(data).forEach(key => {
-                        const newOrder = data[key];
-                        const oldOrder = prevOrders[key];
+            // If it's not the first load, check for changes
+            if (!isInitialLoad.current) {
+                Object.keys(data).forEach(key => {
+                    const newOrder = data[key];
+                    const oldOrder = prevOrders[key];
 
-                        // Case 1: New Order Placed
-                        if (!oldOrder && newOrder.status === "Order Placed") {
-                            addNotification({
-                                title: "New Order Received",
-                                message: `Order #${key} has been placed.`,
-                                type: 'order',
-                                orderId: key
-                            });
-                        }
+                    // Case 1: New Order Placed
+                    if (!oldOrder && newOrder.status === "Order Placed") {
+                        addNotification({
+                            title: "New Order Received",
+                            message: `Order #${key} has been placed.`,
+                            type: 'order',
+                            orderId: key
+                        });
+                    }
 
-                        // --- Stock Management Side Effects ---
-                        // 1. Reduce Stock for New/Unprocessed Orders
-                        if (!newOrder.stock_reduced && newOrder.status !== "Cancelled" && !processingOrders.current.has(key)) {
-                            console.log(`[Stock] Reducing stock for order #${key}`);
-                            processingOrders.current.add(key);
-                            adjustStockForOrder(newOrder, 'reduce')
-                                .then(() => db.ref(`root/order/${key}`).update({ stock_reduced: true }))
-                                .catch(err => console.error(`Failed to reduce stock for ${key}`, err))
-                                .finally(() => processingOrders.current.delete(key));
-                        }
+                    // --- Stock Management Side Effects ---
+                    // 1. Reduce Stock for New/Unprocessed Orders
+                    if (!newOrder.stock_reduced && newOrder.status !== "Cancelled" && !processingOrders.current.has(key)) {
+                        console.log(`[Stock] Reducing stock for order #${key}`);
+                        processingOrders.current.add(key);
+                        adjustStockForOrder(newOrder, 'reduce')
+                            .then(() => db.ref(`root/order/${key}`).update({ stock_reduced: true }))
+                            .catch(err => console.error(`Failed to reduce stock for ${key}`, err))
+                            .finally(() => processingOrders.current.delete(key));
+                    }
 
-                        // 2. Increase Stock for Cancelled Orders
-                        if (newOrder.status === "Cancelled" && newOrder.stock_reduced && !processingOrders.current.has(key)) {
-                            console.log(`[Stock] Restoring stock for cancelled order #${key}`);
-                            processingOrders.current.add(key);
-                            adjustStockForOrder(newOrder, 'increase')
-                                .then(() => db.ref(`root/order/${key}`).update({ stock_reduced: false }))
-                                .catch(err => console.error(`Failed to restore stock for ${key}`, err))
-                                .finally(() => processingOrders.current.delete(key));
-                        }
+                    // 2. Increase Stock for Cancelled Orders
+                    if (newOrder.status === "Cancelled" && newOrder.stock_reduced && !processingOrders.current.has(key)) {
+                        console.log(`[Stock] Restoring stock for cancelled order #${key}`);
+                        processingOrders.current.add(key);
+                        adjustStockForOrder(newOrder, 'increase')
+                            .then(() => db.ref(`root/order/${key}`).update({ stock_reduced: false }))
+                            .catch(err => console.error(`Failed to restore stock for ${key}`, err))
+                            .finally(() => processingOrders.current.delete(key));
+                    }
 
-                        // Case 2: Status Change to "Ready for Pickup" (Delivery Alert)
-                        if (oldOrder && oldOrder.status !== "Ready for Pickup" && newOrder.status === "Ready for Pickup") {
-                            addNotification({
-                                title: "Ready for Pickup",
-                                message: `Order #${key} is ready for delivery.`,
-                                type: 'delivery',
-                                orderId: key
-                            });
-                        }
+                    // Case 2: Status Change to "Ready for Pickup" (Delivery Alert)
+                    if (oldOrder && oldOrder.status !== "Ready for Pickup" && newOrder.status === "Ready for Pickup") {
+                        addNotification({
+                            title: "Ready for Pickup",
+                            message: `Order #${key} is ready for delivery.`,
+                            type: 'delivery',
+                            orderId: key
+                        });
+                    }
+                });
+            }
 
-                        // Case 3: Any status change (General Info - optional, mostly for management)
-                        // If we want to notify on EVERY status change:
-                        if (oldOrder && oldOrder.status !== newOrder.status && newOrder.status !== "Ready for Pickup") {
-                            // Uncomment if you want notifications for all status changes
-                            /*
-                            addNotification({
-                                title: "Order Updated",
-                                message: `Order #${ key } is now ${ newOrder.status } `,
-                                type: 'info',
-                                orderId: key
-                            });
-                            */
-                        }
-                    });
-                }
-                return data;
-            });
+            setOrders(data);
+            prevOrdersRef.current = data;
 
             if (isInitialLoad.current) {
                 isInitialLoad.current = false;
@@ -160,20 +134,21 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
         const onStockChange = (snapshot: any) => {
             const data = snapshot.val() || {};
+            const currentStockLevels = prevStockLevelsRef.current;
 
             if (!isInitialLoad.current) {
                 Object.entries(data).forEach(([prodId, variants]: [string, any]) => {
                     Object.entries(variants).forEach(([varId, variant]: [string, any]) => {
                         const qty = parseInt(variant.quantity) || 0;
                         const stockKey = `${prodId}_${varId} `;
-                        const prevQty = stockLevels[stockKey] ?? 100; // Assume healthy if first time seeing
+                        const prevQty = currentStockLevels[stockKey] ?? 100; // Assume healthy if first time seeing
 
                         // Notify only if it JUST crossed below or at 5
                         if (prevQty > 5 && qty <= 5) {
                             const pName = productData.current?.[prodId]?.name || "Unknown Product";
                             addNotification({
                                 title: "Low Stock Alert",
-                                message: `${pName} is running low(Current Qty: ${qty})`,
+                                message: `${pName} is running low (Current Qty: ${qty})`,
                                 type: 'stock'
                             });
                         }
@@ -188,13 +163,15 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                     newLevels[`${prodId}_${varId} `] = parseInt(variant.quantity) || 0;
                 });
             });
+
             setStockLevels(newLevels);
+            prevStockLevelsRef.current = newLevels;
         };
 
         const stockQuery = stockRef.limitToLast(500);
         stockQuery.on("value", onStockChange);
         return () => stockQuery.off("value", onStockChange);
-    }, [stockLevels]);
+    }, []);
 
     // Listen for Broadcasts (New Notifications)
     useEffect(() => {
