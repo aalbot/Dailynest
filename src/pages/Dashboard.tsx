@@ -91,13 +91,7 @@ const Dashboard = () => {
 
         const onDataUpdate = (node: string, val: any) => {
             dataBuffer[node] = val || {};
-
-            // Batch updates to rawData to avoid excessive re-renders
-            if (node === 'order' || node === 'stock') {
-                setRawData({ ...dataBuffer });
-            } else {
-                setRawData(prev => ({ ...prev, [node]: val || {} }));
-            }
+            setRawData((prev: any) => ({ ...prev, [node]: val || {} }));
 
             if (loadedCount < nodes.length) {
                 loadedCount++;
@@ -110,29 +104,63 @@ const Dashboard = () => {
 
         const timeout = setTimeout(() => {
             if (isLoading) {
-                console.warn("Connection timeout. Switching to Backup Data.");
                 setIsConnected(false);
-                setDataSourceMsg("Connection Timeout (Backup Mode)");
+                setDataSourceMsg("Timeout - Backup Mode");
                 setIsLoading(false);
             }
-        }, 10000);
+        }, 12000);
 
-        // Individual listeners for better performance and less bandwidth
-        rootRef.child('category').on('value', snap => onDataUpdate('category', snap.val()));
+        // Optimization: Cache large static nodes in SessionStorage
+        const cachedProducts = sessionStorage.getItem('dashboard_products');
+        const cachedCategories = sessionStorage.getItem('dashboard_categories');
 
-        // Products and stock are large and dashboard only needs a snapshot for stats
-        rootRef.child('products').once('value', snap => onDataUpdate('products', snap.val()));
-        rootRef.child('stock').once('value', snap => onDataUpdate('stock', snap.val()));
+        if (cachedCategories) {
+            onDataUpdate('category', JSON.parse(cachedCategories));
+        } else {
+            rootRef.child('category').once('value', snap => {
+                const val = snap.val();
+                if (val) sessionStorage.setItem('dashboard_categories', JSON.stringify(val));
+                onDataUpdate('category', val);
+            });
+        }
 
-        // Limit orders to last 1000 to save bandwidth. 
-        // Note: Total revenue stats will be based on these 1000 orders.
-        rootRef.child('order').limitToLast(1000).on('value', snap => onDataUpdate('order', snap.val()));
+        if (cachedProducts) {
+            onDataUpdate('products', JSON.parse(cachedProducts));
+        } else {
+            rootRef.child('products').once('value', snap => {
+                const val = snap.val();
+                if (val) sessionStorage.setItem('dashboard_products', JSON.stringify(val));
+                onDataUpdate('products', val);
+            });
+        }
 
-        // FCM Tokens can be large and don't need real-time updates for dashboard stats
+        // Real-time stock updates (Incremental)
+        rootRef.child('stock').on('value', snap => onDataUpdate('stock', snap.val()));
+
+        // Efficient Orders (Incremental)
+        const orderQuery = rootRef.child('order').limitToLast(500);
+
+        const handleOrderUpdate = (snap: any) => {
+            setRawData((prev: any) => ({
+                ...prev,
+                order: { ...(prev.order || {}), [snap.key!]: snap.val() }
+            }));
+            if (loadedCount < nodes.length && nodes.includes('order')) {
+                loadedCount++;
+                if (loadedCount >= nodes.length) setIsLoading(false);
+            }
+        };
+
+        orderQuery.on('child_added', handleOrderUpdate);
+        orderQuery.on('child_changed', handleOrderUpdate);
+
         rootRef.child('fcm_tokens').once('value', snap => onDataUpdate('fcm_tokens', snap.val()));
 
         return () => {
-            nodes.forEach(node => rootRef.child(node).off());
+            rootRef.child('category').off();
+            rootRef.child('stock').off();
+            orderQuery.off('child_added', handleOrderUpdate);
+            orderQuery.off('child_changed', handleOrderUpdate);
             clearTimeout(timeout);
         };
     }, []);

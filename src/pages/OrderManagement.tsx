@@ -205,51 +205,49 @@ const OrderManagement = () => {
     useEffect(() => {
         const db = firebase.database();
         const ordersRef = db.ref("root/order");
+        const ordersQuery = ordersRef.limitToLast(150); // Optimized limit
 
-        const onValueChange = (snapshot: any) => {
-            const data = snapshot.val() || {};
+        const handleOrderUpdate = (snapshot: any) => {
+            const key = snapshot.key;
+            const newOrder = snapshot.val();
+            if (!key) return;
+
             const prevOrders = prevOrdersRef.current;
+            const oldOrder = prevOrders[key];
 
-            // Check for changes and trigger side effects
-            Object.keys(data).forEach((key) => {
-                const newOrder = data[key];
-                const oldOrder = prevOrders[key];
-
-                // Play beep if status changed or it's a new order
-                if (oldOrder) {
-                    if (oldOrder.status !== newOrder.status || oldOrder.last_updated !== newOrder.last_updated) {
-                        playBeep();
-                    }
+            // Side effects (Beep/Alert)
+            if (oldOrder) {
+                if (oldOrder.status !== newOrder.status || oldOrder.last_updated !== newOrder.last_updated) {
+                    playBeep();
                 }
+            }
 
-                // Alert for new "Order Placed"
-                if (newOrder.status === "Order Placed") {
-                    if (!oldOrder) {
-                        // Totally new order
-                        if (!isInitialLoadRef.current) {
-                            setAlertData({ id: key, ...newOrder });
-                            playAlertSound();
-                        }
-                    } else if (oldOrder.status !== "Order Placed") {
-                        // Status changed TO Order Placed (unlikely but possible)
-                        if (!isInitialLoadRef.current) {
-                            setAlertData({ id: key, ...newOrder });
-                            playAlertSound();
-                        }
-                    }
+            if (newOrder.status === "Order Placed") {
+                if (!oldOrder && !isInitialLoadRef.current) {
+                    setAlertData({ id: key, ...newOrder });
+                    playAlertSound();
+                } else if (oldOrder && oldOrder.status !== "Order Placed" && !isInitialLoadRef.current) {
+                    setAlertData({ id: key, ...newOrder });
+                    playAlertSound();
                 }
-            });
+            }
 
-            if (isInitialLoadRef.current) isInitialLoadRef.current = false;
-
-            setOrders(data);
-            prevOrdersRef.current = data;
-            setLoading(false);
+            setOrders(prev => ({ ...prev, [key]: newOrder }));
+            prevOrdersRef.current[key] = newOrder;
         };
 
-        const ordersQuery = ordersRef.limitToLast(300);
-        ordersQuery.on("value", onValueChange);
-        return () => ordersQuery.off("value", onValueChange);
+        ordersQuery.on("child_added", handleOrderUpdate);
+        ordersQuery.on("child_changed", handleOrderUpdate);
+
+        ordersQuery.once("value", () => {
+            setLoading(false);
+            if (isInitialLoadRef.current) isInitialLoadRef.current = false;
+        });
+
+        return () => {
+            ordersQuery.off("child_added", handleOrderUpdate);
+            ordersQuery.off("child_changed", handleOrderUpdate);
+        };
     }, []);
 
     // Filter Logic

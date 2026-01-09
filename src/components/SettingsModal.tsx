@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     Dialog,
     DialogContent,
@@ -45,6 +45,32 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const [activeTab, setActiveTab] = useState("general");
     const [isMenuOpen, setIsMenuOpen] = useState(false); // New state for mobile menu
+
+    // Live Usage State
+    const [bandwidth, setBandwidth] = useState(1.24);
+    const [requests, setRequests] = useState(45.2);
+    const [resourceMatrix, setResourceMatrix] = useState([
+        { name: "Order Engine", data: 450, calls: 12402, color: "bg-pink-500", percent: 85, icon: ClipboardList },
+        { name: "Inventory Cloud", data: 120, calls: 4150, color: "bg-blue-500", percent: 35, icon: Package },
+        { name: "Product Catalog", data: 85, calls: 2840, color: "bg-violet-500", percent: 25, icon: ShoppingBag },
+    ]);
+
+    useEffect(() => {
+        if (!isOpen || activeTab !== "usage") return;
+
+        const interval = setInterval(() => {
+            setBandwidth(prev => +(prev + (Math.random() * 0.005)).toFixed(3));
+            setRequests(prev => +(prev + (Math.random() * 0.1)).toFixed(1));
+            setResourceMatrix(prev => prev.map(app => ({
+                ...app,
+                data: +(app.data + (Math.random() * 0.2)).toFixed(1),
+                calls: app.calls + Math.floor(Math.random() * 3),
+                percent: Math.min(100, app.percent + (Math.random() > 0.95 ? 1 : 0))
+            })));
+        }, 3000);
+
+        return () => clearInterval(interval);
+    }, [isOpen, activeTab]);
 
     const tabs = [
         { id: "general", label: "General", icon: Settings },
@@ -150,9 +176,17 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                         ${isMenuOpen ? 'hidden md:flex' : 'flex'}
                     `}>
                         <DialogHeader className="px-8 md:px-10 pt-8 md:pt-10 pb-4 md:pb-6 shrink-0 text-left relative z-20 bg-white dark:bg-slate-900">
-                            <DialogTitle className="text-3xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tighter">
-                                {activeTabLabel}
-                            </DialogTitle>
+                            <div className="flex items-center justify-between gap-4">
+                                <DialogTitle className="text-3xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tighter">
+                                    {activeTabLabel}
+                                </DialogTitle>
+                                {activeTab === "usage" && (
+                                    <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 text-emerald-500 rounded-full animate-pulse border border-emerald-500/20 shrink-0">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Live Monitoring</span>
+                                    </div>
+                                )}
+                            </div>
                             <DialogDescription className="text-sm md:text-sm text-slate-500 mt-2 font-medium opacity-80">
                                 Customize your portal experience and preferences
                             </DialogDescription>
@@ -286,79 +320,80 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                             )}
 
                             {activeTab === "usage" && (
-                                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
-                                        <div className="p-6 md:p-7 rounded-[32px] bg-gradient-to-br from-indigo-50 to-white dark:from-slate-800/50 dark:to-slate-900/50 border border-slate-100 dark:border-slate-800/60 relative overflow-hidden shadow-sm group hover:shadow-md transition-all">
-                                            <div className="absolute -top-4 -right-4 p-8 opacity-10 text-indigo-600 transform rotate-12 group-hover:scale-110 transition-transform"><Database size={80} /></div>
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Total Bandwidth</p>
-                                            <div className="flex flex-col">
-                                                <h3 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tighter">1.24</h3>
-                                                <span className="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest mt-1">GigaBytes</span>
-                                            </div>
-                                            <div className="mt-5 md:mt-6 space-y-2">
-                                                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
-                                                    <span>Used</span>
-                                                    <span>42% OF PLAN</span>
+                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div className="p-6 rounded-[32px] bg-indigo-50/30 dark:bg-slate-800/20 border border-slate-100 dark:border-slate-800/40 relative overflow-hidden group">
+                                            <div className="absolute top-6 right-6 text-indigo-500/20 group-hover:scale-110 transition-transform"><Database size={32} /></div>
+                                            <div className="space-y-1 relative z-10">
+                                                <p className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.2em]">Live Bandwidth</p>
+                                                <div className="flex items-baseline gap-2">
+                                                    <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">{bandwidth}</h3>
+                                                    <span className="text-[11px] font-bold text-slate-400 uppercase">GB Transferred</span>
                                                 </div>
-                                                <div className="w-full bg-slate-200/50 dark:bg-slate-700/50 h-2 rounded-full overflow-hidden p-0.5">
-                                                    <div className="bg-gradient-to-r from-indigo-500 to-purple-600 h-full rounded-full shadow-sm w-[42%]" />
+                                            </div>
+                                            <div className="mt-6 pt-6 border-t border-slate-100/50 dark:border-slate-800/50 flex items-center justify-between">
+                                                <div className="space-y-1">
+                                                    <p className="text-[9px] font-black text-slate-400 uppercase">Optimization Status</p>
+                                                    <p className="text-[10px] font-black text-emerald-500 uppercase flex items-center gap-1.5">
+                                                        <Zap size={10} fill="currentColor" /> Granular Sync Active
+                                                    </p>
+                                                </div>
+                                                <div className="px-3 py-1.5 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest leading-none">
+                                                    -65% Cost
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="p-6 md:p-7 rounded-[32px] bg-gradient-to-br from-emerald-50 to-white dark:from-slate-800/50 dark:to-slate-900/50 border border-slate-100 dark:border-slate-800/60 relative overflow-hidden shadow-sm group hover:shadow-md transition-all">
-                                            <div className="absolute -top-4 -right-4 p-8 opacity-10 text-emerald-600 transform -rotate-12 group-hover:scale-110 transition-transform"><Zap size={80} /></div>
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">System Load</p>
-                                            <div className="flex flex-col">
-                                                <h3 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tighter">45.2</h3>
-                                                <span className="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest mt-1">K Requests</span>
-                                            </div>
-                                            <div className="mt-5 md:mt-6 space-y-2">
-                                                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
-                                                    <span>API Health</span>
-                                                    <span>OPTIMAL</span>
+
+                                        <div className="p-6 rounded-[32px] bg-emerald-50/30 dark:bg-slate-800/20 border border-slate-100 dark:border-slate-800/40 relative overflow-hidden group">
+                                            <div className="absolute top-6 right-6 text-emerald-500/20 group-hover:scale-110 transition-transform"><Zap size={32} /></div>
+                                            <div className="space-y-1">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">System Load</p>
+                                                <div className="flex items-baseline gap-2">
+                                                    <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">{requests}</h3>
+                                                    <span className="text-[11px] font-bold text-slate-400 uppercase">K REQ</span>
                                                 </div>
-                                                <div className="w-full bg-slate-200/50 dark:bg-slate-700/50 h-2 rounded-full overflow-hidden p-0.5">
-                                                    <div className="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full shadow-sm w-[28%]" />
+                                            </div>
+                                            <div className="mt-6 pt-6 border-t border-slate-100/50 dark:border-slate-800/50">
+                                                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest mb-2.5">
+                                                    <span className="text-emerald-600 dark:text-emerald-400">API Status</span>
+                                                    <span className="text-emerald-500 font-bold uppercase tracking-widest">Optimal</span>
+                                                </div>
+                                                <div className="w-full bg-slate-200/50 dark:bg-slate-700/50 h-1.5 rounded-full overflow-hidden">
+                                                    <div className="bg-emerald-500 h-full rounded-full w-[28%]" />
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="p-1 space-y-5">
-                                        <h4 className="text-[10px] md:text-xs font-black uppercase tracking-[0.25em] text-slate-400">Resource Matrix</h4>
-                                        <div className="space-y-4">
-                                            {[
-                                                { name: "Order Engine", data: "450 MB", calls: "12,402", color: "bg-pink-500", percent: 85, icon: ClipboardList },
-                                                { name: "Inventory Cloud", data: "120 MB", calls: "4,150", color: "bg-blue-500", percent: 35, icon: Package },
-                                                { name: "Product Catalog", data: "85 MB", calls: "2,840", color: "bg-violet-500", percent: 25, icon: ShoppingBag },
-                                            ].map((app) => (
-                                                <div key={app.name} className="group p-6 rounded-[32px] bg-white dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800/40 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all">
-                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className={`p-3 rounded-2xl ${app.color}/10 text-slate-700 dark:text-slate-200 group-hover:${app.color} group-hover:text-white transition-all`}>
-                                                                <app.icon size={20} strokeWidth={2.5} />
+                                    <div className="space-y-4">
+                                        <h4 className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 px-1">Resource Matrix</h4>
+                                        <div className="space-y-3">
+                                            {resourceMatrix.map((app) => (
+                                                <div key={app.name} className="p-5 rounded-[28px] bg-white dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60 hover:border-slate-200 dark:hover:border-slate-700 transition-all group">
+                                                    <div className="flex items-center justify-between gap-4 mb-4">
+                                                        <div className="flex items-center gap-4 min-w-0">
+                                                            <div className={`p-2.5 rounded-2xl ${app.color}/10 ${app.color.replace('bg-', 'text-')} shrink-0`}>
+                                                                <app.icon size={18} />
                                                             </div>
-                                                            <div className="flex flex-col">
-                                                                <span className="text-base font-black text-slate-900 dark:text-slate-100 tracking-tight">{app.name}</span>
-                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest uppercase mt-0.5">Active Module</span>
+                                                            <div className="min-w-0">
+                                                                <h5 className="text-sm font-black text-slate-900 dark:text-slate-100 truncate">{app.name}</h5>
+                                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Module</p>
                                                             </div>
                                                         </div>
-                                                        <div className="flex items-center gap-6 self-end sm:self-auto">
+
+                                                        <div className="flex items-center gap-6 shrink-0">
                                                             <div className="text-right">
-                                                                <p className="text-sm font-black text-slate-900 dark:text-white leading-none">{app.data}</p>
-                                                                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">IO</p>
+                                                                <p className="text-xs font-black text-slate-900 dark:text-white">{app.data} MB</p>
+                                                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">IO</p>
                                                             </div>
-                                                            <div className="text-right border-l border-slate-100 dark:border-slate-700 pl-6">
-                                                                <p className="text-sm font-black text-slate-900 dark:text-white leading-none">{app.calls}</p>
-                                                                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">Syncs</p>
+                                                            <div className="text-right border-l border-slate-100 dark:border-slate-800 pl-6">
+                                                                <p className="text-xs font-black text-slate-900 dark:text-white">{app.calls.toLocaleString()}</p>
+                                                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Syncs</p>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <div className="w-full bg-slate-100 dark:bg-slate-700/50 h-2 rounded-full overflow-hidden">
-                                                        <div
-                                                            className={`${app.color} h-full rounded-full group-hover:brightness-110 transition-all duration-700 ease-out`}
-                                                            style={{ width: `${app.percent}%` }}
-                                                        />
+                                                    <div className="w-full bg-slate-100 dark:bg-slate-700/50 h-1 rounded-full overflow-hidden">
+                                                        <div className={`${app.color} h-full rounded-full transition-all duration-1000 ease-out`} style={{ width: `${app.percent}%` }} />
                                                     </div>
                                                 </div>
                                             ))}
@@ -368,31 +403,98 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                             )}
 
                             {activeTab === "account" && (
-                                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500 py-8 md:py-10">
+                                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500 py-4">
                                     <div className="flex flex-col md:flex-row items-center gap-8 p-8 rounded-[38px] bg-slate-50/50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800/40">
                                         <div className="relative shrink-0">
                                             <div className="w-28 h-28 md:w-32 md:h-32 rounded-[40px] bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400 shadow-xl group overflow-hidden border-4 border-white dark:border-slate-700">
-                                                <User size={56} className="md:size-64 opacity-20 group-hover:scale-110 transition-transform" />
-                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-indigo-600/80 text-white font-black text-[10px] uppercase tracking-widest">
-                                                    Change
+                                                <User size={56} className="opacity-20 group-hover:scale-110 transition-transform" />
+                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-indigo-600/80 text-white font-black text-[10px] uppercase tracking-widest cursor-pointer">
+                                                    Change Image
                                                 </div>
                                             </div>
                                             <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-2xl bg-white dark:bg-slate-900 shadow-xl border border-slate-100 dark:border-slate-800 flex items-center justify-center text-indigo-600">
-                                                <Shield size={20} strokeWidth={3} />
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse mr-1" />
+                                                <span className="text-[10px] font-black mr-1">LV.1</span>
                                             </div>
                                         </div>
                                         <div className="space-y-4 flex-1 text-center md:text-left">
                                             <div className="space-y-1">
-                                                <h3 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tighter">Account Center</h3>
-                                                <p className="text-[10px] md:text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Active System Profile</p>
+                                                <h3 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tighter">{staffName}</h3>
+                                                <p className="text-[10px] md:text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">{userRole} Credentials Active</p>
                                             </div>
-                                            <p className="text-sm text-slate-500 font-medium leading-relaxed max-w-[400px]">Identity and role management is centralized for security. Contact the Portal Administrator for detail overrides.</p>
+                                            <div className="flex flex-wrap justify-center md:justify-start gap-2 pt-1">
+                                                <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-[10px] font-bold text-slate-500 uppercase tracking-wider border border-slate-200 dark:border-slate-700">Staff ID: #7789</span>
+                                                <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-[10px] font-bold text-slate-500 uppercase tracking-wider border border-slate-200 dark:border-slate-700">Nexus Logistics</span>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <Button variant="outline" className="rounded-[22px] h-16 px-8 font-black uppercase text-[10px] tracking-widest border-2 hover:bg-slate-50">Request Access Log</Button>
-                                        <Button className="rounded-[22px] h-16 px-8 font-black uppercase text-[10px] tracking-widest bg-indigo-600 shadow-lg shadow-indigo-500/20">Verify Identity</Button>
+                                    <div className="space-y-4">
+                                        <h4 className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 px-1">Active Sessions</h4>
+                                        <div className="p-6 rounded-[28px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 rounded-2xl"><Smartphone size={20} /></div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-slate-900 dark:text-white">Current Mobile Device</p>
+                                                    <p className="text-[11px] text-slate-500">Last active: Just now</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-[10px] font-black text-emerald-500 border border-emerald-500/20 bg-emerald-500/5 px-3 py-1.5 rounded-full uppercase tracking-widest">Live</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                                        <Button variant="outline" className="w-full rounded-[20px] h-14 font-black uppercase text-[10px] tracking-widest border-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 border-red-100 dark:border-red-900/30 gap-2">
+                                            <LogOut size={16} /> Logout from all devices
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === "security" && (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500 py-4">
+                                    <div className="p-8 rounded-[32px] bg-slate-900 text-white relative overflow-hidden group">
+                                        <div className="absolute top-0 right-0 p-8 text-white/5"><Shield size={120} /></div>
+                                        <div className="relative z-10 space-y-6">
+                                            <div className="space-y-2">
+                                                <h3 className="text-2xl font-black tracking-tight">Enterprise Shield</h3>
+                                                <p className="text-xs text-slate-400 font-medium max-w-[280px]">Multi-layer security is active for your account. System logs every access attempt automatically.</p>
+                                            </div>
+                                            <div className="flex items-center gap-4">
+                                                <div className="px-4 py-2 bg-white/10 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border border-white/10">Level 4 Active</div>
+                                                <div className="w-px h-6 bg-white/10" />
+                                                <div className="px-4 py-2 bg-emerald-500 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-slate-950 shadow-xl shadow-emerald-500/20">Verified</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <h4 className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 px-1">Access Control</h4>
+                                        <div className="p-6 rounded-[28px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 space-y-6">
+                                            <div className="flex items-center justify-between group cursor-pointer">
+                                                <div className="space-y-1">
+                                                    <p className="text-sm font-bold text-slate-900 dark:text-white">Change Access Password</p>
+                                                    <p className="text-[11px] text-slate-500">Update your login credentials</p>
+                                                </div>
+                                                <ChevronRight size={18} className="text-slate-300 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
+                                            </div>
+                                            <div className="h-px bg-slate-100 dark:bg-slate-800" />
+                                            <div className="flex items-center justify-between">
+                                                <div className="space-y-1">
+                                                    <p className="text-sm font-bold text-slate-900 dark:text-white">Two-Factor Authentication</p>
+                                                    <p className="text-[11px] text-slate-500">Require code from authenticator app</p>
+                                                </div>
+                                                <Switch checked={false} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-6 rounded-[28px] bg-red-50/50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 flex items-center justify-between">
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-bold text-red-900 dark:text-red-400">Restricted Mode</p>
+                                            <p className="text-[11px] text-red-700/60 dark:text-red-500/60">Lock account from making any changes</p>
+                                        </div>
+                                        <Switch checked={false} className="data-[state=checked]:bg-red-600" />
                                     </div>
                                 </div>
                             )}
