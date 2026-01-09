@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from "@/components/Navbar";
 import { useToast } from "@/components/ui/use-toast";
-import firebase from "firebase/compat/app";
-import "firebase/compat/database";
+import { firebase } from "@/lib/firebase";
 import {
     Activity,
     CheckCircle,
@@ -90,7 +89,7 @@ const TaskCard = ({ task, onClick }: { task: any, onClick: () => void }) => {
             <div className="mt-3 w-full bg-slate-100 dark:bg-slate-800 h-1 rounded-full overflow-hidden">
                 <div
                     className="h-full bg-emerald-500 transition-all duration-500"
-                    style={{ width: `${progress}%` }}
+                    style={{ width: `${progress}% ` }}
                 />
             </div>
         </div>
@@ -100,17 +99,17 @@ const TaskCard = ({ task, onClick }: { task: any, onClick: () => void }) => {
 const SidebarItem = ({ icon: Icon, label, active, onClick, count }: any) => (
     <button
         onClick={onClick}
-        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all duration-200 font-medium ${active
-            ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300'
-            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
+        className={`w - full flex items - center justify - between px - 3 py - 2 rounded - lg text - sm transition - all duration - 200 font - medium ${active
+                ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            } `}
     >
         <div className="flex items-center gap-3">
-            <Icon className={`w-4 h-4 ${active ? 'text-violet-600 dark:text-violet-400' : 'text-slate-400'}`} />
+            <Icon className={`w - 4 h - 4 ${active ? 'text-violet-600 dark:text-violet-400' : 'text-slate-400'} `} />
             <span>{label}</span>
         </div>
         {count > 0 && (
-            <span className={`text-xs px-2 py-0.5 rounded-full ${active ? 'bg-violet-200 dark:bg-violet-800 text-violet-800 dark:text-violet-200' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+            <span className={`text - xs px - 2 py - 0.5 rounded - full ${active ? 'bg-violet-200 dark:bg-violet-800 text-violet-800 dark:text-violet-200' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'} `}>
                 {count}
             </span>
         )}
@@ -149,9 +148,11 @@ const TaskManager = () => {
         clientName: ''
     });
 
+    const [searchQuery, setSearchQuery] = useState("");
+
     useEffect(() => {
         const db = firebase.database();
-        const tasksRef = db.ref('root/nexus_hr/tasks').limitToLast(200);
+        const tasksRef = db.ref('root/nexus_hr/tasks');
 
         const onValueChange = (snap: any) => {
             const data = snap.val();
@@ -191,7 +192,7 @@ const TaskManager = () => {
             status: 'In Progress'
         };
 
-        firebase.database().ref(`root/nexus_hr/tasks/${taskId}`).set(taskData)
+        firebase.database().ref(`root / nexus_hr / tasks / ${taskId} `).set(taskData)
             .then(() => {
                 setIsCreateOpen(false);
                 setNewTask({ title: '', description: '', priority: 'Normal', dueDate: '', clientName: '' });
@@ -207,7 +208,7 @@ const TaskManager = () => {
         const updates: any = {};
         const now = new Date().toISOString();
 
-        updates[`stages/${stageKey}/status`] = newStatus;
+        updates[`stages / ${stageKey}/status`] = newStatus;
         if (newStatus === 'In Progress' && !task.stages[stageKey].startedAt) updates[`stages/${stageKey}/startedAt`] = now;
 
         if (newStatus === 'Completed') {
@@ -227,9 +228,18 @@ const TaskManager = () => {
         firebase.database().ref(`root/nexus_hr/tasks/${taskId}`).update(updates);
     };
 
-    const filteredTasks = filterRole === 'All'
-        ? tasks
-        : tasks.filter(t => t.currentStage === filterRole);
+    const [filterStatus, setFilterStatus] = useState<string>("All");
+
+    const filteredTasks = tasks.filter(t => {
+        const matchesRole = filterRole === 'All' || t.currentStage === filterRole;
+        const matchesStatus = filterStatus === 'All' || t.status === filterStatus;
+        const matchesSearch = !searchQuery ||
+            t.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            t.taskId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            t.clientName?.toLowerCase().includes(searchQuery.toLowerCase());
+
+        return matchesRole && matchesStatus && matchesSearch;
+    });
 
     return (
         <div className="flex flex-col h-screen bg-slate-50 dark:bg-slate-950 font-sans transition-colors duration-300">
@@ -261,8 +271,8 @@ const TaskManager = () => {
                                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Dashboards</span>
                             </div>
                             <div className="space-y-1">
-                                <SidebarItem icon={Hash} label="All Tasks" active={filterRole === 'All'} onClick={() => setFilterRole('All')} count={tasks.length} />
-                                <SidebarItem icon={Activity} label="In Progress" active={false} onClick={() => { }} count={tasks.filter(t => t.status === 'In Progress').length} />
+                                <SidebarItem icon={Hash} label="All Tasks" active={filterRole === 'All' && filterStatus === 'All'} onClick={() => { setFilterRole('All'); setFilterStatus('All'); }} count={tasks.length} />
+                                <SidebarItem icon={Activity} label="In Progress" active={filterStatus === 'In Progress'} onClick={() => { setFilterStatus('In Progress'); }} count={tasks.filter(t => t.status === 'In Progress').length} />
                             </div>
                         </div>
 
@@ -301,6 +311,14 @@ const TaskManager = () => {
                     </div>
                 </div>
 
+                {/* Mobile Sidebar Overlay */}
+                {sidebarOpen && (
+                    <div
+                        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-30 md:hidden"
+                        onClick={() => setSidebarOpen(false)}
+                    />
+                )}
+
                 {/* MAIN CONTENT */}
                 <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-900 h-full relative">
                     {/* Header */}
@@ -328,6 +346,8 @@ const TaskManager = () => {
                                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                 <Input
                                     placeholder={`Search ${filterRole}...`}
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
                                     className="h-8 pl-9 bg-slate-100 dark:bg-slate-800 border-none focus-visible:ring-1 focus-visible:ring-indigo-500"
                                 />
                             </div>

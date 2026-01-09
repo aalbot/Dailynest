@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { firebase } from "@/lib/firebase";
 import { toast } from "sonner";
 import { adjustStockForOrder } from "@/utils/stockManagement";
+import { CONFIG } from "@/config";
 
 export interface Notification {
     id: string;
@@ -31,13 +32,37 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const isInitialLoad = useRef(true);
     const productData = useRef<any>(null);
     const processingOrders = useRef<Set<string>>(new Set());
+    const hiddenNotificationsRef = useRef<Record<string, boolean>>({});
     const navigate = useNavigate();
     const location = useLocation();
+
+    const getSafeUserKey = () => {
+        const userName = sessionStorage.getItem("staff_name") || sessionStorage.getItem("user_role") || "anonymous";
+        return userName.replace(/[.$#[\]]/g, "_");
+    };
+
+    // 1. Initial Load & Sync from Firebase
+    useEffect(() => {
+        const userKey = getSafeUserKey();
+        const db = firebase.database();
+        const hiddenRef = db.ref(`root/user_metadata/${userKey}/hidden_notifications`);
+
+        const handleHiddenChange = (snapshot: any) => {
+            const hidden = snapshot.val() || {};
+            hiddenNotificationsRef.current = hidden;
+            setNotifications(prev =>
+                prev.map(n => hidden[n.id] ? { ...n, read: true } : n)
+            );
+        };
+
+        hiddenRef.on("value", handleHiddenChange);
+        return () => hiddenRef.off("value", handleHiddenChange);
+    }, []);
 
     // Sound logic
     const playNotificationSound = () => {
         try {
-            const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
+            const audio = new Audio(CONFIG.ASSETS.notificationSound);
             audio.volume = 0.5;
             audio.play().catch(e => console.log("Audio play failed (user interaction needed first)", e));
         } catch (e) {
@@ -65,6 +90,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                     // Case 1: New Order Placed
                     if (!oldOrder && newOrder.status === "Order Placed") {
                         addNotification({
+                            id: `order_${key}_placed`,
                             title: "New Order Received",
                             message: `Order #${key} has been placed.`,
                             type: 'order',
@@ -96,6 +122,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                     // Case 2: Status Change to "Ready for Pickup" (Delivery Alert)
                     if (oldOrder && oldOrder.status !== "Ready for Pickup" && newOrder.status === "Ready for Pickup") {
                         addNotification({
+                            id: `order_${key}_pickup`,
                             title: "Ready for Pickup",
                             message: `Order #${key} is ready for delivery.`,
                             type: 'delivery',
@@ -147,6 +174,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                         if (prevQty > 5 && qty <= 5) {
                             const pName = productData.current?.[prodId]?.name || "Unknown Product";
                             addNotification({
+                                id: `stock_${prodId}_${varId}`,
                                 title: "Low Stock Alert",
                                 message: `${pName} is running low (Current Qty: ${qty})`,
                                 type: 'stock'
@@ -182,9 +210,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         const onBroadcast = (snapshot: any) => {
             const data = snapshot.val();
             if (data) {
-                // Ensure we don't show the same notification multiple times if multiple come in at once
-                // snapshot.val() for child_added is the item itself
                 addNotification({
+                    id: snapshot.key || Date.now().toString(),
                     title: data.title,
                     message: data.message,
                     type: data.type || 'info'
@@ -196,18 +223,39 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return () => broadcastRef.off("child_added", onBroadcast);
     }, []);
 
-    const addNotification = (n: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
-        const newNotification: Notification = {
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-            timestamp: Date.now(),
-            read: false,
-            ...n
-        };
+    const addNotification = (n: Omit<Notification, 'timestamp' | 'read'>) => {
+        const id = n.id || (Date.now().toString() + Math.random().toString(36).substr(2, 9));
 
-        setNotifications(prev => [newNotification, ...prev]);
+        // 1. Check if suppressed by Firebase persistence
+        if (hiddenNotificationsRef.current[id]) {
+            return;
+        }
 
-        // Don't show visual/audio alerts on the Gateway page or Delivery Screen
+        // 2. Add to local state (with duplicate prevention)
+        setNotifications(prev => {
+            const isDuplicate = prev.some(notif => notif.id === id);
+            if (isDuplicate) return prev;
+
+            const newNotification: Notification = {
+                id,
+                timestamp: Date.now(),
+                read: false,
+                ...n
+            };
+
+            // 3. Trigger Toast/Sound only for truly new notifications
+            // We do this via a side effect trigger to keep the setter pure
+            setTimeout(() => triggerNotificationEffects(newNotification), 0);
+
+            return [newNotification, ...prev];
+        });
+    };
+
+    const triggerNotificationEffects = (newNotification: Notification) => {
         if (location.pathname === '/' || location.pathname.startsWith('/delivery')) return;
+
+        // Skip toast and sound for low stock notifications as requested
+        if (newNotification.type === 'stock') return;
 
         // Trigger Toast (The "Slide from side" alert)
         toast(newNotification.title, {
@@ -225,24 +273,49 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         playNotificationSound();
     };
 
-    const markAsRead = (id: string) => {
+    const markAsRead = React.useCallback((id: string) => {
         setNotifications(prev =>
             prev.map(n => n.id === id ? { ...n, read: true } : n)
         );
-    };
 
-    const markAllAsRead = () => {
+        const userKey = getSafeUserKey();
+        firebase.database().ref(`root/user_metadata/${userKey}/hidden_notifications/${id}`).set(true);
+    }, []);
+
+    const markAllAsRead = React.useCallback(() => {
+        const userKey = getSafeUserKey();
+        const updates: any = {};
+        notifications.forEach(n => {
+            updates[n.id] = true;
+        });
+
+        firebase.database().ref(`root/user_metadata/${userKey}/hidden_notifications`).update(updates);
         setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    };
+    }, [notifications]);
 
-    const clearNotifications = () => {
+    const clearNotifications = React.useCallback(() => {
+        const userKey = getSafeUserKey();
+        const updates: any = {};
+        notifications.forEach(n => {
+            updates[n.id] = true;
+        });
+
+        firebase.database().ref(`root/user_metadata/${userKey}/hidden_notifications`).update(updates);
         setNotifications([]);
-    };
+    }, [notifications]);
 
-    const unreadCount = notifications.filter(n => !n.read).length;
+    const unreadCount = React.useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
+
+    const contextValue = React.useMemo(() => ({
+        notifications,
+        unreadCount,
+        markAsRead,
+        markAllAsRead,
+        clearNotifications
+    }), [notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications]);
 
     return (
-        <NotificationContext.Provider value={{ notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications }}>
+        <NotificationContext.Provider value={contextValue}>
             {children}
         </NotificationContext.Provider>
     );

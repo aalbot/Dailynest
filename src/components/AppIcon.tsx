@@ -14,11 +14,11 @@ const AppIcon = ({ icon: Icon, label, colorClass, delay = 0 }: AppIconProps) => 
       style={{ animationDelay: `${delay}ms` }}
     >
       <div
-        className={`app-icon ${colorClass} w-16 h-16 sm:w-20 sm:h-20 group-hover:scale-110 group-hover:shadow-icon-hover group-active:scale-95 shadow-xl`}
+        className={`app-icon ${colorClass} w-16 h-16 sm:w-24 sm:h-24 group-hover:scale-110 group-hover:shadow-icon-hover group-active:scale-95 shadow-xl`}
       >
-        <Icon className="w-8 h-8 sm:w-10 sm:h-10 text-white drop-shadow-sm" strokeWidth={1.5} />
+        <Icon className="w-8 h-8 sm:w-11 sm:h-11 text-white drop-shadow-sm" strokeWidth={1.5} />
       </div>
-      <span className="text-[11px] sm:text-sm font-medium text-foreground/80 group-hover:text-foreground transition-colors text-center leading-tight line-clamp-2 max-w-[80px]">
+      <span className="text-[10px] sm:text-xs font-semibold text-foreground/80 group-hover:text-foreground transition-colors text-center leading-tight line-clamp-2 max-w-[70px] sm:max-w-[96px]">
         {label}
       </span>
     </div>

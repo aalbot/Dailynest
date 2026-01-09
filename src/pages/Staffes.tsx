@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Navbar from "@/components/Navbar";
 import BackButton from "@/components/BackButton";
 import {
@@ -17,7 +17,6 @@ import {
     Package,
     TrendingUp,
     LayoutDashboard,
-    Sparkles,
     ClipboardList,
     Truck,
     ShoppingBag,
@@ -45,7 +44,7 @@ const initialAppsList = [
     { id: "dashboard", label: "Dashboard", path: "/dashboard", icon: TrendingUp },
     { id: "employee-management", label: "Employee Management", path: "/employee-management", icon: Users },
     { id: "overview", label: "Report", path: "/overview", icon: LayoutDashboard },
-    { id: "chat", label: "AI Chat", path: "/chat", icon: Sparkles },
+
     { id: "orders", label: "Orders", path: "/orders", icon: ClipboardList },
     { id: "delivery", label: "Delivery", path: "/delivery", icon: Truck },
     { id: "stock-entry", label: "Stocks", path: "/stock-entry", icon: Package },
@@ -76,7 +75,6 @@ const Staffes = () => {
     });
     const [isEditing, setIsEditing] = useState(false);
     const [editStaffId, setEditStaffId] = useState<string | null>(null);
-    const [aiBannerEnabled, setAiBannerEnabled] = useState(true);
 
     useEffect(() => {
         const db = firebase.database();
@@ -103,25 +101,12 @@ const Staffes = () => {
             }
         });
 
-        // Listen for settings
-        const settingsRef = db.ref("root/settings/aiBannerEnabled");
-        settingsRef.on("value", (snapshot) => {
-            const val = snapshot.val();
-            if (val !== null) setAiBannerEnabled(val);
-        });
-
         return () => {
             staffRef.off();
             appsRef.off();
-            settingsRef.off();
         };
     }, []);
 
-    const toggleAiBanner = (enabled: boolean) => {
-        setAiBannerEnabled(enabled);
-        firebase.database().ref("root/settings/aiBannerEnabled").set(enabled);
-        toast.success(enabled ? "AI Banner enabled" : "AI Banner disabled");
-    };
 
     const handleEditClick = (staff: any) => {
         setNewStaff({
@@ -148,7 +133,7 @@ const Staffes = () => {
         setEditStaffId(null);
     };
 
-    const allAvailableApps = [
+    const allAvailableApps = useMemo(() => [
         ...initialAppsList,
         ...customApps.map(app => ({
             id: app.id,
@@ -156,7 +141,7 @@ const Staffes = () => {
             path: app.path,
             icon: Package // Default icon for custom apps in list
         }))
-    ];
+    ], [customApps]);
 
     const toggleAppPermission = (appPath: string) => {
         setNewStaff(prev => ({
@@ -213,11 +198,11 @@ const Staffes = () => {
         }
     };
 
-    const filteredStaff = staffMembers.filter(s =>
+    const filteredStaff = useMemo(() => staffMembers.filter(s =>
         s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.username.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    ), [staffMembers, searchTerm]);
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
@@ -247,7 +232,7 @@ const Staffes = () => {
                 </div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
                     <Card className="bg-white dark:bg-slate-900 border-none shadow-sm h-full rounded-2xl overflow-hidden">
                         <CardContent className="p-6 flex items-center gap-4">
                             <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
@@ -288,28 +273,7 @@ const Staffes = () => {
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-white dark:bg-slate-900 border-none shadow-sm h-full rounded-2xl overflow-hidden relative group">
-                        <CardContent className="p-6 flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                                    <Sparkles className="w-6 h-6" />
-                                </div>
-                                <div>
-                                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400">AI Banner</p>
-                                    <p className="text-lg font-bold text-slate-900 dark:text-white">{aiBannerEnabled ? 'Enabled' : 'Disabled'}</p>
-                                </div>
-                            </div>
-                            <Button
-                                variant={aiBannerEnabled ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => toggleAiBanner(!aiBannerEnabled)}
-                                className={`rounded-xl px-4 font-bold transition-all ${aiBannerEnabled ? 'bg-indigo-600 hover:bg-indigo-700' : ''}`}
-                            >
-                                {aiBannerEnabled ? 'Disable' : 'Enable'}
-                            </Button>
-                        </CardContent>
-                        <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-indigo-500 to-violet-500 opacity-20" />
-                    </Card>
+
                 </div>
 
                 {/* Content Section */}

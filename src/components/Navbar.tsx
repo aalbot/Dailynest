@@ -32,6 +32,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import firebase from "firebase/compat/app";
 import "firebase/compat/database";
 import { iconMap } from "@/utils/appIcons";
+import SettingsModal from "./SettingsModal";
 
 const defaultAppItems = [
   { icon: TrendingUp, label: "Dashboard", path: "/dashboard", color: "bg-rose-500" },
@@ -60,6 +61,7 @@ const Navbar = () => {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications } = useNotification();
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const navigate = useNavigate();
 
   const [customApps, setCustomApps] = useState<any[]>([]);
@@ -123,8 +125,13 @@ const Navbar = () => {
         setProfileOpen(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    const handleOpenSettings = () => setSettingsOpen(true);
+    window.addEventListener('open-settings', handleOpenSettings);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener('open-settings', handleOpenSettings);
+    };
   }, []);
 
   return (
@@ -269,6 +276,15 @@ const Navbar = () => {
               )}
             </div>
 
+            {/* Settings */}
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="p-2.5 rounded-full hover:bg-secondary transition-colors text-muted-foreground hover:text-primary hidden sm:flex"
+              title="Settings"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+
             {/* App Launcher */}
             <div className="relative">
               <button
@@ -379,7 +395,10 @@ const Navbar = () => {
                       </div>
                     </button>
 
-                    <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                    <button
+                      onClick={() => { setSettingsOpen(true); setProfileOpen(false); }}
+                      className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                    >
                       <Settings size={16} />
                       <span>Settings</span>
                     </button>
@@ -404,6 +423,7 @@ const Navbar = () => {
           </div>
         </div>
       </div>
+      <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </nav>
   );
 };

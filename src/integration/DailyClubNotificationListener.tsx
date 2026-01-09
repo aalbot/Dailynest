@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { db } from "@/lib/firebase";
 import { ref, onChildAdded, query, limitToLast } from "firebase/database";
 import { toast } from 'sonner';
+import { CONFIG } from "@/config";
 
 export const NotificationListener = () => {
     // Use a ref to track initialization time to prevent showing old alerts
@@ -10,7 +11,7 @@ export const NotificationListener = () => {
     useEffect(() => {
         const playSound = () => {
             try {
-                const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
+                const audio = new Audio(CONFIG.ASSETS.notificationSound);
                 audio.volume = 0.5;
                 audio.play().catch(e => console.log("Audio autoplay blocked", e));
             } catch (e) {
@@ -31,6 +32,9 @@ export const NotificationListener = () => {
                 // ONLY show if the notification was created AFTER this component mounted
                 // (with a small buffer of 2 seconds to account for network delay)
                 if (data.timestamp > (initTime.current - 2000)) {
+                    // Skip toast and sound for stock notifications
+                    if (data.type === 'stock') return;
+
                     toast(data.title, {
                         description: data.message,
                         duration: 5000,

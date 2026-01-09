@@ -215,9 +215,11 @@ const OrderManagement = () => {
                 const newOrder = data[key];
                 const oldOrder = prevOrders[key];
 
-                // Standard Beep for any update
-                if (oldOrder && JSON.stringify(oldOrder) !== JSON.stringify(newOrder)) {
-                    playBeep();
+                // Play beep if status changed or it's a new order
+                if (oldOrder) {
+                    if (oldOrder.status !== newOrder.status || oldOrder.last_updated !== newOrder.last_updated) {
+                        playBeep();
+                    }
                 }
 
                 // Alert for new "Order Placed"

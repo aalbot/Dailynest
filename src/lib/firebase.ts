@@ -8,17 +8,10 @@ import "firebase/compat/database";
 import "firebase/compat/auth";
 import "firebase/compat/storage";
 
+import { CONFIG } from "@/config";
+
 // Your web app's Firebase configuration
-const firebaseConfig = {
-    apiKey: "AIzaSyBUhKliTOKWKVW-TCTaYiRN9FXCjoxcsHg",
-    authDomain: "dclub-32718.firebaseapp.com",
-    databaseURL: "https://dclub-32718-default-rtdb.firebaseio.com",
-    projectId: "dclub-32718",
-    storageBucket: "dclub-32718.firebasestorage.app",
-    messagingSenderId: "401946278556",
-    appId: "1:401946278556:web:efd912ca5196ce248b0b59",
-    measurementId: "G-Q9RC6QRR7K"
-};
+const firebaseConfig = CONFIG.FIREBASE;
 
 // Initialize modular SDK
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();

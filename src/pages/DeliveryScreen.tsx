@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { firebase } from "@/lib/firebase";
+import { CONFIG } from "@/config";
 import {
     Bell,
     Truck,
@@ -255,7 +256,7 @@ const DeliveryScreen = () => {
         }
 
         if (lat && lng) {
-            const apiKey = "AIzaSyDj1gRVZ4lRJIM2v8c4pJxdyfEY6I1ZGEk";
+            const apiKey = CONFIG.GOOGLE_MAPS.apiKey;
             fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`)
                 .then(res => res.json())
                 .then(data => {
@@ -405,7 +406,7 @@ const DeliveryScreen = () => {
         const loadMap = () => {
             if (!(window as any).google) {
                 const script = document.createElement("script");
-                script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyDj1gRVZ4lRJIM2v8c4pJxdyfEY6I1ZGEk&libraries=places,geometry`;
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${CONFIG.GOOGLE_MAPS.apiKey}&libraries=places,geometry`;
                 script.async = true;
                 script.defer = true;
                 document.body.appendChild(script);

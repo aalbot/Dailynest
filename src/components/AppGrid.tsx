@@ -11,7 +11,7 @@ import {
   Keyboard,
   Building2,
   TrendingUp,
-  Sparkles,
+
   Plus,
   Edit,
   Trash,
@@ -41,7 +41,7 @@ const initialApps = [
   { icon: TrendingUp, label: "Dashboard", colorClass: "app-icon-rose", path: "/dashboard" },
   { icon: Users, label: "Employee Management", colorClass: "app-icon-indigo", path: "/employee-management" },
   { icon: LayoutDashboard, label: "Report", colorClass: "app-icon-cyan", path: "/overview" },
-  { icon: Sparkles, label: "AI Chat", colorClass: "app-icon-blue", path: "/chat" },
+
   { icon: ClipboardList, label: "Orders", colorClass: "app-icon-pink", path: "/orders" },
   { icon: Truck, label: "Delivery", colorClass: "app-icon-green", path: "/delivery" },
   { icon: Package, label: "Stocks", colorClass: "app-icon-blue", path: "/stock-entry" },
@@ -120,9 +120,9 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
       {/* Admin Action Buttons */}
 
 
-      <div className="flex flex-col h-full w-full xl:rounded-[2.5rem] xl:bg-white/70 xl:dark:bg-slate-900/40 xl:backdrop-blur-xl xl:border xl:border-white/40 xl:dark:border-white/10 xl:shadow-2xl transition-all duration-500 xl:hover:shadow-3xl xl:hover:bg-white/80 xl:dark:hover:bg-slate-900/50 overflow-hidden">
+      <div className="flex flex-col h-full w-full overflow-hidden">
         <div className="flex-1 overflow-y-auto p-2 sm:p-5 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20">
-          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-8 justify-items-center">
+          <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-12 justify-items-center">
             {filteredInitialApps.map((app, index) => (
               <div key={app.label} className={isManaging ? "opacity-50 pointer-events-none grayscale" : ""}>
                 <Link
@@ -198,7 +198,7 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
                 className={`group flex flex-col items-center gap-2 cursor-pointer opacity-0 animate-fade-in ${isManaging ? 'opacity-50' : ''}`}
                 style={{ animationDelay: `${initialApps.length * 50 + 150}ms` }}
               >
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-[1.75rem] bg-slate-100/50 dark:bg-slate-800/50 border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:border-blue-400 dark:group-hover:border-blue-500 group-hover:scale-110 group-active:scale-95 transition-all duration-300 shadow-sm hover:shadow-md backdrop-blur-sm">
+                <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-[1.5rem] bg-slate-100/50 dark:bg-slate-800/50 border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:border-blue-400 dark:group-hover:border-blue-500 group-hover:scale-110 group-active:scale-95 transition-all duration-300 shadow-sm hover:shadow-md backdrop-blur-sm">
                   <Plus className="w-8 h-8 sm:w-10 sm:h-10" strokeWidth={1.5} />
                 </div>
                 <span className="text-sm font-medium text-foreground/60 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors text-center leading-tight">

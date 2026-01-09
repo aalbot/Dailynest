@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { app } from "@/lib/firebase";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { toast } from 'sonner';
+import { CONFIG } from "@/config";
 const messaging = getMessaging(app);
 
 export const FCMPushListener = () => {
@@ -16,7 +17,7 @@ export const FCMPushListener = () => {
                     // 2. Get Token (VAPID Key is public, can be generated in console, or used without for basic)
                     // You might need to add your VAPID key: getToken(messaging, { vapidKey: 'YOUR_KEY' });
                     const token = await getToken(messaging, {
-                        vapidKey: 'YOUR_VAPID_PUBLIC_KEY_HERE' // OPTIONAL but recommended
+                        vapidKey: CONFIG.FCM.vapidKey
                     });
 
                     if (token) {
@@ -46,7 +47,7 @@ export const FCMPushListener = () => {
 
             // Play sound
             try {
-                new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3").play();
+                new Audio(CONFIG.ASSETS.notificationSound).play();
             } catch (e) { }
         });
 

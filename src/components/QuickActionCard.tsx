@@ -80,6 +80,19 @@ const QuickActionCard = ({
                             <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-300 ${isDark ? 'translate-x-4' : 'translate-x-0'}`} />
                         </div>
                     </button>
+
+                    <button
+                        onClick={() => window.dispatchEvent(new CustomEvent('open-settings'))}
+                        className="w-full flex items-center justify-between p-3 rounded-xl bg-white/40 dark:bg-white/5 hover:bg-white/60 dark:hover:bg-white/10 border border-white/20 dark:border-white/10 transition-all group"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                                <Settings size={18} />
+                            </div>
+                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Portal Settings</span>
+                        </div>
+                        <ChevronRight size={16} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
+                    </button>
                 </div>
 
                 {/* Sign Out - Bottom */}

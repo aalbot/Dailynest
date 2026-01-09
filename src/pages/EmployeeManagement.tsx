@@ -25,8 +25,7 @@ import {
     CheckCircle,
     Truck
 } from 'lucide-react';
-import firebase from "firebase/compat/app";
-import "firebase/compat/database";
+import { firebase } from "@/lib/firebase";
 import { useToast } from "@/components/ui/use-toast";
 import {
     Dialog,

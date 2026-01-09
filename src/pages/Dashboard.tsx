@@ -62,7 +62,6 @@ const Dashboard = () => {
 
     // Data State
     const [rawData, setRawData] = useState<any>(FALLBACK_DATA);
-    const [processed, setProcessed] = useState<any>(null);
 
     // Users Filter/Sort
     const [userFilter, setUserFilter] = useState('all');
@@ -87,13 +86,18 @@ const Dashboard = () => {
 
         setIsLoading(true);
 
-        const data: any = { ...FALLBACK_DATA };
+        const dataBuffer: any = { ...FALLBACK_DATA };
         let loadedCount = 0;
 
         const onDataUpdate = (node: string, val: any) => {
-            data[node] = val || {};
-            setRawData({ ...data });
-            processData({ ...data });
+            dataBuffer[node] = val || {};
+
+            // Batch updates to rawData to avoid excessive re-renders
+            if (node === 'order' || node === 'stock') {
+                setRawData({ ...dataBuffer });
+            } else {
+                setRawData(prev => ({ ...prev, [node]: val || {} }));
+            }
 
             if (loadedCount < nodes.length) {
                 loadedCount++;
@@ -109,7 +113,6 @@ const Dashboard = () => {
                 console.warn("Connection timeout. Switching to Backup Data.");
                 setIsConnected(false);
                 setDataSourceMsg("Connection Timeout (Backup Mode)");
-                processData(FALLBACK_DATA);
                 setIsLoading(false);
             }
         }, 10000);
@@ -145,7 +148,11 @@ const Dashboard = () => {
         return platform;
     };
 
-    const processData = (data: any) => {
+    // Memoize processing logic for maximum performance
+    const processed = useMemo(() => {
+        if (!rawData) return null;
+        const data = rawData;
+
         // 1. Categories
         const catArray = Object.entries(data.category || {}).map(([key, value]: [string, any]) => ({
             id: key,
@@ -333,18 +340,20 @@ const Dashboard = () => {
             catalogValue
         };
 
+        const inventoryChartData = {
+            labels: Object.keys(inventoryByCategory),
+            values: Object.values(inventoryByCategory)
+        };
+        const revLabels = Object.keys(revenueByMethod).filter(k => revenueByMethod[k] > 0);
+        const revValues = revLabels.map(k => revenueByMethod[k]);
+
         const orderStatusData = [
             { name: 'Delivered', value: completedOrders, color: '#10b981' },
             { name: 'Pending', value: pendingOrders, color: '#f59e0b' },
             { name: 'Cancelled', value: cancelledOrders, color: '#ef4444' }
         ];
 
-        const invLabels = Object.keys(inventoryByCategory);
-        const invValues = Object.values(inventoryByCategory);
-        const revLabels = Object.keys(revenueByMethod).filter(k => revenueByMethod[k] > 0);
-        const revValues = revLabels.map(k => revenueByMethod[k]);
-
-        setProcessed({
+        return {
             categories: catArray,
             users: userArray,
             stats: { totalCategories: catArray.length, totalUsers: userArray.length, registeredUsers, totalOrders, completedOrders, cancelledOrders, totalVariants },
@@ -354,6 +363,7 @@ const Dashboard = () => {
             financialStats,
             topProducts,
             orderStatusData,
+            inventoryChartData,
             revenueChartData: { labels: revLabels, values: revValues },
             detailedRevenue,
             lowStockProducts,
@@ -374,8 +384,8 @@ const Dashboard = () => {
                     pic: productInfo?.pic || ""
                 }));
             })
-        });
-    };
+        };
+    }, [rawData]);
 
     const fmtMoney = (n: number) => '₹' + n.toLocaleString();
 
