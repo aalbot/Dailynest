@@ -71,6 +71,7 @@ const TaskCard = ({ task, employees, onClick }: { task: any, employees: any[], o
         switch (status) {
             case 'Completed': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
             case 'In Progress': return 'bg-indigo-100 text-indigo-700 border-indigo-200';
+            case 'Testing': return 'bg-purple-100 text-purple-700 border-purple-200';
             case 'On Hold': return 'bg-amber-100 text-amber-700 border-amber-200';
             default: return 'bg-slate-100 text-slate-700 border-slate-200';
         }
@@ -189,6 +190,7 @@ const TaskManager = () => {
         priority: 'Normal',
         dueDate: '',
         assignedEmployeeIds: [] as string[],
+        testerId: '' as string,
         items: [{ title: '', description: '', images: [] as string[] }]
     });
 
@@ -307,6 +309,7 @@ const TaskManager = () => {
                 priority: newTask.priority,
                 dueDate: newTask.dueDate,
                 assignedEmployeeIds: newTask.assignedEmployeeIds,
+                testerId: newTask.testerId,
                 teamId: selectedTeamId,
                 createdAt: createdNow,
                 stages: initialStages,
@@ -323,6 +326,7 @@ const TaskManager = () => {
                 priority: 'Normal',
                 dueDate: '',
                 assignedEmployeeIds: [],
+                testerId: '',
                 items: [{ title: '', description: '', images: [] }]
             });
             setSelectedTeamId("");
@@ -386,15 +390,21 @@ const TaskManager = () => {
     const confirmCompletion = () => {
         if (!selectedTask || !tempStatus) return;
 
+        const isTransitionToTesting = selectedTask.testerId && selectedTask.status !== 'Testing';
+        const finalStatus = isTransitionToTesting ? 'Testing' : tempStatus;
+
         const updates: any = {
-            status: tempStatus,
+            status: finalStatus,
             completedAt: new Date().toISOString(),
             completionNote: completionNote
         };
 
         firebase.database().ref(`root/nexus_hr/tasks/${selectedTask.id}`).update(updates)
             .then(() => {
-                toast({ title: "Success", description: "Task completed with note" });
+                toast({
+                    title: isTransitionToTesting ? "Sent for Testing" : "Success",
+                    description: isTransitionToTesting ? "Task has been sent to the tester." : "Task completed with note"
+                });
                 setIsCompletionModalOpen(false);
                 setCompletionNote("");
                 setTempStatus(null);
@@ -456,6 +466,7 @@ const TaskManager = () => {
                                 />
                                 <SidebarItem icon={Clock} label="Pending" active={filterStatus === 'Pending'} onClick={() => setFilterStatus('Pending')} count={tasks.filter(t => t.status === 'Pending').length} />
                                 <SidebarItem icon={Activity} label="In Progress" active={filterStatus === 'In Progress'} onClick={() => setFilterStatus('In Progress')} count={tasks.filter(t => t.status === 'In Progress').length} />
+                                <SidebarItem icon={Plus} label="Testing" active={filterStatus === 'Testing'} onClick={() => setFilterStatus('Testing')} count={tasks.filter(t => t.status === 'Testing').length} />
                                 <SidebarItem icon={CheckCircle} label="Completed" active={filterStatus === 'Completed'} onClick={() => setFilterStatus('Completed')} count={tasks.filter(t => t.status === 'Completed').length} />
                                 <SidebarItem icon={Lock} label="On Hold" active={filterStatus === 'On Hold'} onClick={() => setFilterStatus('On Hold')} count={tasks.filter(t => t.status === 'On Hold').length} />
                             </div>
@@ -655,77 +666,126 @@ const TaskManager = () => {
                                 </div>
 
                                 {selectedTeamId && (
-                                    <div className="space-y-2">
-                                        <Label>Assign Members</Label>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <Button variant="outline" className="w-full justify-between h-10 border-slate-200 dark:border-slate-800">
-                                                    <span className="text-slate-500 font-normal">Search and assign members...</span>
-                                                    <Search className="w-4 h-4 opacity-50" />
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                                                <Command>
-                                                    <CommandInput placeholder="Search employee name..." />
-                                                    <CommandList>
-                                                        <CommandEmpty>No employee found.</CommandEmpty>
-                                                        <CommandGroup>
-                                                            {employees
-                                                                .filter(emp => {
-                                                                    const team = teams.find(t => t.id === selectedTeamId);
-                                                                    return team?.memberIds?.includes(emp.id);
-                                                                })
-                                                                .map(emp => (
-                                                                    <CommandItem
-                                                                        key={emp.id}
-                                                                        onSelect={() => {
-                                                                            const current = newTask.assignedEmployeeIds || [];
-                                                                            const updated = current.includes(emp.id)
-                                                                                ? current.filter(id => id !== emp.id)
-                                                                                : [...current, emp.id];
-                                                                            setNewTask({ ...newTask, assignedEmployeeIds: updated });
-                                                                        }}
-                                                                        className="flex items-center gap-2"
-                                                                    >
-                                                                        <div className={`flex h-4 w-4 items-center justify-center rounded-sm border border-primary ${newTask.assignedEmployeeIds?.includes(emp.id) ? 'bg-primary text-primary-foreground' : 'opacity-50'}`}>
-                                                                            {newTask.assignedEmployeeIds?.includes(emp.id) && <Check className="h-3 w-3" />}
-                                                                        </div>
-                                                                        <Avatar className="w-6 h-6">
-                                                                            <AvatarImage src={emp.photoUrl} />
-                                                                            <AvatarFallback className="text-[8px]">{emp.firstName?.[0]}</AvatarFallback>
-                                                                        </Avatar>
-                                                                        <span className="text-xs font-bold">{emp.firstName} {emp.lastName}</span>
-                                                                    </CommandItem>
-                                                                ))}
-                                                        </CommandGroup>
-                                                    </CommandList>
-                                                </Command>
-                                            </PopoverContent>
-                                        </Popover>
+                                    <>
+                                        <div className="space-y-2">
+                                            <Label>Assign Members</Label>
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <Button variant="outline" className="w-full justify-between h-10 border-slate-200 dark:border-slate-800">
+                                                        <span className="text-slate-500 font-normal">Search and assign members...</span>
+                                                        <Search className="w-4 h-4 opacity-50" />
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                                                    <Command>
+                                                        <CommandInput placeholder="Search employee name..." />
+                                                        <CommandList>
+                                                            <CommandEmpty>No employee found.</CommandEmpty>
+                                                            <CommandGroup>
+                                                                {employees
+                                                                    .filter(emp => {
+                                                                        const team = teams.find(t => t.id === selectedTeamId);
+                                                                        return team?.memberIds?.includes(emp.id);
+                                                                    })
+                                                                    .map(emp => (
+                                                                        <CommandItem
+                                                                            key={emp.id}
+                                                                            onSelect={() => {
+                                                                                const current = newTask.assignedEmployeeIds || [];
+                                                                                const updated = current.includes(emp.id)
+                                                                                    ? current.filter(id => id !== emp.id)
+                                                                                    : [...current, emp.id];
+                                                                                setNewTask({ ...newTask, assignedEmployeeIds: updated });
+                                                                            }}
+                                                                            className="flex items-center gap-2"
+                                                                        >
+                                                                            <div className={`flex h-4 w-4 items-center justify-center rounded-sm border border-primary ${newTask.assignedEmployeeIds?.includes(emp.id) ? 'bg-primary text-primary-foreground' : 'opacity-50'}`}>
+                                                                                {newTask.assignedEmployeeIds?.includes(emp.id) && <Check className="h-3 w-3" />}
+                                                                            </div>
+                                                                            <Avatar className="w-6 h-6">
+                                                                                <AvatarImage src={emp.photoUrl} />
+                                                                                <AvatarFallback className="text-[8px]">{emp.firstName?.[0]}</AvatarFallback>
+                                                                            </Avatar>
+                                                                            <span className="text-xs font-bold">{emp.firstName} {emp.lastName}</span>
+                                                                        </CommandItem>
+                                                                    ))}
+                                                            </CommandGroup>
+                                                        </CommandList>
+                                                    </Command>
+                                                </PopoverContent>
+                                            </Popover>
 
-                                        {/* Assigned Badges */}
-                                        <div className="flex flex-wrap gap-2 mt-2">
-                                            {(newTask.assignedEmployeeIds || []).map(id => {
-                                                const emp = employees.find(e => e.id === id);
-                                                if (!emp) return null;
-                                                return (
-                                                    <Badge key={id} variant="secondary" className="pl-1 pr-2 py-0.5 gap-2 rounded-full">
-                                                        <Avatar className="w-4 h-4">
-                                                            <AvatarImage src={emp.photoUrl} />
-                                                            <AvatarFallback className="text-[6px]">{emp.firstName?.[0]}</AvatarFallback>
-                                                        </Avatar>
-                                                        <span className="text-[10px] font-medium">{emp.firstName}</span>
-                                                        <button
-                                                            onClick={() => setNewTask({ ...newTask, assignedEmployeeIds: newTask.assignedEmployeeIds.filter(mid => mid !== id) })}
-                                                            className="hover:text-red-500"
-                                                        >
-                                                            <X className="w-3 h-3" />
-                                                        </button>
-                                                    </Badge>
-                                                );
-                                            })}
+                                            {/* Assigned Badges */}
+                                            <div className="flex flex-wrap gap-2 mt-2">
+                                                {(newTask.assignedEmployeeIds || []).map(id => {
+                                                    const emp = employees.find(e => e.id === id);
+                                                    if (!emp) return null;
+                                                    return (
+                                                        <Badge key={id} variant="secondary" className="pl-1 pr-2 py-0.5 gap-2 rounded-full">
+                                                            <Avatar className="w-4 h-4">
+                                                                <AvatarImage src={emp.photoUrl} />
+                                                                <AvatarFallback className="text-[6px]">{emp.firstName?.[0]}</AvatarFallback>
+                                                            </Avatar>
+                                                            <span className="text-[10px] font-medium">{emp.firstName}</span>
+                                                            <button
+                                                                onClick={() => setNewTask({ ...newTask, assignedEmployeeIds: newTask.assignedEmployeeIds.filter(mid => mid !== id) })}
+                                                                className="hover:text-red-500"
+                                                            >
+                                                                <X className="w-3 h-3" />
+                                                            </button>
+                                                        </Badge>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
-                                    </div>
+
+                                        <div className="space-y-2">
+                                            <Label>Select Tester</Label>
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <Button variant="outline" className="w-full justify-between h-10 border-slate-200 dark:border-slate-800">
+                                                        <span className="text-slate-500 font-normal">
+                                                            {newTask.testerId ? employees.find(e => e.id === newTask.testerId)?.firstName + ' ' + employees.find(e => e.id === newTask.testerId)?.lastName : 'Search and choose a tester...'}
+                                                        </span>
+                                                        <Search className="w-4 h-4 opacity-50" />
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                                                    <Command>
+                                                        <CommandInput placeholder="Search employee name..." />
+                                                        <CommandList>
+                                                            <CommandEmpty>No employee found.</CommandEmpty>
+                                                            <CommandGroup>
+                                                                {employees
+                                                                    .filter(emp => {
+                                                                        const team = teams.find(t => t.id === selectedTeamId);
+                                                                        return team?.memberIds?.includes(emp.id);
+                                                                    })
+                                                                    .map(emp => (
+                                                                        <CommandItem
+                                                                            key={emp.id}
+                                                                            onSelect={() => {
+                                                                                setNewTask({ ...newTask, testerId: newTask.testerId === emp.id ? '' : emp.id });
+                                                                            }}
+                                                                            className="flex items-center gap-2"
+                                                                        >
+                                                                            <div className={`flex h-4 w-4 items-center justify-center rounded-sm border border-primary ${newTask.testerId === emp.id ? 'bg-primary text-primary-foreground' : 'opacity-50'}`}>
+                                                                                {newTask.testerId === emp.id && <Check className="h-3 w-3" />}
+                                                                            </div>
+                                                                            <Avatar className="w-6 h-6">
+                                                                                <AvatarImage src={emp.photoUrl} />
+                                                                                <AvatarFallback className="text-[8px]">{emp.firstName?.[0]}</AvatarFallback>
+                                                                            </Avatar>
+                                                                            <span className="text-xs font-bold">{emp.firstName} {emp.lastName}</span>
+                                                                        </CommandItem>
+                                                                    ))}
+                                                            </CommandGroup>
+                                                        </CommandList>
+                                                    </Command>
+                                                </PopoverContent>
+                                            </Popover>
+                                        </div>
+                                    </>
                                 )}
                             </div>
 
@@ -857,7 +917,8 @@ const TaskManager = () => {
                                             <Badge className={
                                                 selectedTask.status === 'Completed' ? 'bg-emerald-100 text-emerald-800' :
                                                     selectedTask.status === 'In Progress' ? 'bg-indigo-100 text-indigo-800' :
-                                                        'bg-amber-100 text-amber-800'
+                                                        selectedTask.status === 'Testing' ? 'bg-purple-100 text-purple-800' :
+                                                            'bg-amber-100 text-amber-800'
                                             }>
                                                 {selectedTask.status}
                                             </Badge>
@@ -883,8 +944,9 @@ const TaskManager = () => {
                                                 <Badge className={
                                                     selectedTask.status === 'Completed' ? 'bg-emerald-100 text-emerald-800' :
                                                         selectedTask.status === 'In Progress' ? 'bg-indigo-100 text-indigo-800' :
-                                                            selectedTask.status === 'On Hold' ? 'bg-amber-100 text-amber-800' :
-                                                                'bg-slate-100 text-slate-800'
+                                                            selectedTask.status === 'Testing' ? 'bg-purple-100 text-purple-800' :
+                                                                selectedTask.status === 'On Hold' ? 'bg-amber-100 text-amber-800' :
+                                                                    'bg-slate-100 text-slate-800'
                                                 }>
                                                     {selectedTask.status}
                                                 </Badge>
@@ -902,7 +964,8 @@ const TaskManager = () => {
                                                         <SelectItem value="Pending">Pending</SelectItem>
                                                         <SelectItem value="In Progress">In Progress</SelectItem>
                                                         <SelectItem value="On Hold">On Hold</SelectItem>
-                                                        <SelectItem value="Completed">Mark Completed</SelectItem>
+                                                        <SelectItem value="Testing">In Testing</SelectItem>
+                                                        <SelectItem value="Completed">{selectedTask.status === 'Testing' ? 'Pass & Complete' : 'Mark Completed'}</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                             </div>
@@ -930,6 +993,25 @@ const TaskManager = () => {
                                         <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-1">Due Date</p>
                                         <p className="font-medium">{selectedTask.dueDate || 'None'}</p>
                                     </div>
+                                    {selectedTask.testerId && (
+                                        <div className="col-span-2 mt-2">
+                                            <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-2">Assigned Tester</p>
+                                            <div className="flex items-center gap-2 bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800 p-1 pr-3 rounded-full shadow-sm w-fit">
+                                                <Avatar className="w-6 h-6">
+                                                    <AvatarImage src={employees.find(e => e.id === selectedTask.testerId)?.photoUrl} />
+                                                    <AvatarFallback className="text-[10px] text-purple-700">
+                                                        {employees.find(e => e.id === selectedTask.testerId)?.firstName?.[0] || 'T'}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                <span className="text-xs font-medium text-purple-700 dark:text-purple-300">
+                                                    {(() => {
+                                                        const tester = employees.find(e => e.id === selectedTask.testerId);
+                                                        return tester ? `${tester.firstName} ${tester.lastName}` : 'Unknown Tester';
+                                                    })()}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="col-span-2 mt-2">
                                         <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-2">Assigned To</p>
                                         <div className="flex flex-wrap gap-3">
