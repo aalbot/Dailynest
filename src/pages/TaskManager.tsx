@@ -93,7 +93,7 @@ const TaskCard = ({ task, employees, onClick }: { task: any, employees: any[], o
                     <CheckCircle className="w-4 h-4 text-emerald-500" />
                 ) : (
                     <Badge variant="outline" className={`text-[9px] uppercase font-bold px-1.5 py-0 ${getStatusStyles(task.status)}`}>
-                        {task.status || 'Pending'}
+                        {task.status === 'Testing' ? 'QA Testing' : (task.status || 'Pending')}
                     </Badge>
                 )}
             </div>
@@ -101,42 +101,59 @@ const TaskCard = ({ task, employees, onClick }: { task: any, employees: any[], o
             <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-1 group-hover:text-indigo-600 transition-colors line-clamp-1">{task.title}</h3>
 
             <div className="flex items-center gap-2 text-xs text-slate-500 mt-auto pt-3">
-                <div className="flex items-center gap-2 overflow-hidden">
-                    <div className="flex -space-x-1.5 overflow-hidden">
-                        {(task.assignedEmployeeIds || []).slice(0, 3).map((id: string) => {
-                            const emp = employees.find(e => e.id === id);
-                            return (
-                                <Avatar key={id} className="w-5 h-5 border border-white dark:border-slate-900">
-                                    <AvatarImage src={emp?.photoUrl} />
-                                    <AvatarFallback className="text-[8px] bg-emerald-100 text-emerald-700">
-                                        {emp?.firstName?.[0] || 'E'}
-                                    </AvatarFallback>
-                                </Avatar>
-                            );
-                        })}
-                        {(task.assignedEmployeeIds || []).length > 3 && (
-                            <div className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-800 border border-white dark:border-slate-900 flex items-center justify-center text-[8px] font-bold text-slate-500">
-                                +{(task.assignedEmployeeIds || []).length - 3}
+                <div className="flex items-center gap-2 overflow-hidden w-full">
+                    {task.status === 'Testing' && task.testerId ? (
+                        <div className="flex items-center gap-2 bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded-md border border-purple-100 dark:border-purple-800 w-full overflow-hidden">
+                            <Avatar className="w-4 h-4 shrink-0">
+                                <AvatarImage src={employees.find(e => e.id === task.testerId)?.photoUrl} />
+                                <AvatarFallback className="text-[6px] bg-purple-100 text-purple-700">
+                                    {employees.find(e => e.id === task.testerId)?.firstName?.[0] || 'T'}
+                                </AvatarFallback>
+                            </Avatar>
+                            <span className="font-bold text-purple-700 dark:text-purple-300 truncate">
+                                QA: {employees.find(e => e.id === task.testerId)?.firstName || 'Unknown'}
+                            </span>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2 overflow-hidden">
+                            <div className="flex -space-x-1.5 overflow-hidden">
+                                {(task.assignedEmployeeIds || []).slice(0, 3).map((id: string) => {
+                                    const emp = employees.find(e => e.id === id);
+                                    return (
+                                        <Avatar key={id} className="w-5 h-5 border border-white dark:border-slate-900">
+                                            <AvatarImage src={emp?.photoUrl} />
+                                            <AvatarFallback className="text-[8px] bg-emerald-100 text-emerald-700">
+                                                {emp?.firstName?.[0] || 'E'}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                    );
+                                })}
+                                {(task.assignedEmployeeIds || []).length > 3 && (
+                                    <div className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-800 border border-white dark:border-slate-900 flex items-center justify-center text-[8px] font-bold text-slate-500">
+                                        +{(task.assignedEmployeeIds || []).length - 3}
+                                    </div>
+                                )}
                             </div>
-                        )}
-                    </div>
-                    <span className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[100px]">
-                        {task.assignedEmployeeIds?.length > 0
-                            ? (task.assignedEmployeeIds.length === 1
-                                ? employees.find(e => e.id === task.assignedEmployeeIds[0])?.firstName
-                                : `${task.assignedEmployeeIds.length} Assignees`)
-                            : 'Unassigned'}
-                    </span>
+                            <span className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[80px]">
+                                {task.assignedEmployeeIds?.length > 0
+                                    ? (task.assignedEmployeeIds.length === 1
+                                        ? employees.find(e => e.id === task.assignedEmployeeIds[0])?.firstName
+                                        : `${task.assignedEmployeeIds.length} Assignees`)
+                                    : 'Unassigned'}
+                            </span>
+                        </div>
+                    )}
                 </div>
                 <span className="mx-1 ms-auto">•</span>
                 <Clock className="w-3 h-3" />
-                <span>{task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No Date'}</span>
+                <span className="shrink-0">{task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No Date'}</span>
             </div>
 
             {/* Minimal Status Line */}
             <div className={`absolute bottom-0 left-0 h-1 transition-all duration-500 ${task.status === 'Completed' ? 'bg-emerald-500 w-full' :
-                task.status === 'In Progress' ? 'bg-indigo-500 w-1/2' :
-                    task.status === 'On Hold' ? 'bg-amber-500 w-1/4' : 'bg-slate-200 w-0'
+                task.status === 'Testing' ? 'bg-purple-500 w-3/4' :
+                    task.status === 'In Progress' ? 'bg-indigo-500 w-1/2' :
+                        task.status === 'On Hold' ? 'bg-amber-500 w-1/4' : 'bg-slate-200 w-0'
                 }`} />
         </div>
     );
@@ -587,7 +604,7 @@ const TaskManager = () => {
 
                             {filterStatus === 'All' ? (
                                 <div className="space-y-12">
-                                    {['Pending', 'In Progress', 'On Hold', 'Completed'].map(status => {
+                                    {['Pending', 'In Progress', 'Testing', 'On Hold', 'Completed'].map(status => {
                                         const tasksInStatus = filteredTasks.filter(t => (t.status || 'Pending') === status);
                                         if (tasksInStatus.length === 0) return null;
 
@@ -595,10 +612,13 @@ const TaskManager = () => {
                                             <div key={status} className="space-y-4">
                                                 <div className="flex items-center gap-2 px-1">
                                                     <div className={`w-3 h-3 rounded-sm ${status === 'Completed' ? 'bg-emerald-500' :
-                                                        status === 'In Progress' ? 'bg-indigo-500' :
-                                                            status === 'On Hold' ? 'bg-amber-500' : 'bg-slate-300'
+                                                        status === 'Testing' ? 'bg-purple-500' :
+                                                            status === 'In Progress' ? 'bg-indigo-500' :
+                                                                status === 'On Hold' ? 'bg-amber-500' : 'bg-slate-300'
                                                         }`} />
-                                                    <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500">{status}</h2>
+                                                    <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500">
+                                                        {status === 'Testing' ? 'QA Testing' : status}
+                                                    </h2>
                                                     <Badge variant="secondary" className="rounded-full h-5 min-w-[20px] px-1.5">{tasksInStatus.length}</Badge>
                                                 </div>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
