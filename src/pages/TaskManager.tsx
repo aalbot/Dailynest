@@ -568,7 +568,7 @@ const TaskManager = () => {
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2 max-w-md w-full mx-4">
+                        <div className="flex items-center gap-2 max-w-md w-full mx-4 hidden md:flex">
                             <div className="relative w-full">
                                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                 <Input
@@ -580,7 +580,15 @@ const TaskManager = () => {
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 h-9 w-9 md:hidden"
+                                onClick={() => setIsCreateOpen(true)}
+                            >
+                                <Plus className="w-5 h-5" />
+                            </Button>
                             <Button variant="ghost" size="icon" className="text-slate-500"><HelpCircle className="w-5 h-5" /></Button>
                         </div>
                     </header>
@@ -588,7 +596,7 @@ const TaskManager = () => {
                     {/* Content Area */}
                     <ScrollArea className="flex-1 p-6">
                         <div className="max-w-5xl mx-auto">
-                            <div className="flex items-center justify-between mb-6">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                                 <div>
                                     <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                                         {filterStatus === 'All' ? 'Overview' : `${filterStatus} Tasks`}
@@ -597,7 +605,8 @@ const TaskManager = () => {
                                         {filteredTasks.length} active tasks in this view
                                     </p>
                                 </div>
-                                <Button onClick={() => setIsCreateOpen(true)} className="bg-[#007a5a] hover:bg-[#007a5a]/90 text-white">
+                                <Button onClick={() => setIsCreateOpen(true)} className="bg-[#007a5a] hover:bg-[#007a5a]/90 text-white w-full sm:w-auto">
+                                    <Plus className="w-4 h-4 mr-2 sm:hidden" />
                                     New Task
                                 </Button>
                             </div>
@@ -649,10 +658,14 @@ const TaskManager = () => {
                             )}
 
                             {filteredTasks.length === 0 && (
-                                <div className="col-span-full py-12 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+                                <div className="col-span-full py-12 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl flex flex-col items-center">
                                     <MessageSquare className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                                     <h3 className="text-slate-900 dark:text-slate-100 font-medium">No tasks found</h3>
-                                    <p className="text-slate-500 text-sm">There are no tasks in this view.</p>
+                                    <p className="text-slate-500 text-sm mb-4">There are no tasks in this view.</p>
+                                    <Button onClick={() => setIsCreateOpen(true)} className="bg-[#007a5a] hover:bg-[#007a5a]/90 text-white">
+                                        <Plus className="w-4 h-4 mr-2" />
+                                        Create New Task
+                                    </Button>
                                 </div>
                             )}
                         </div>
@@ -661,7 +674,7 @@ const TaskManager = () => {
 
                 {/* CREATE TASK DIALOG */}
                 <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                    <DialogContent className="sm:max-w-[500px]">
+                    <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                             <DialogTitle>Create New Task</DialogTitle>
                             <DialogDescription>Initiate a new workflow chain.</DialogDescription>
