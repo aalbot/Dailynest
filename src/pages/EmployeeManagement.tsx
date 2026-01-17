@@ -10,7 +10,7 @@ import {
     Search,
     ChevronRight,
     HandCoins,
-    DollarSign,
+    IndianRupee,
     Menu,
     Briefcase,
     Mail,
@@ -90,6 +90,8 @@ const EmployeeManagement = () => {
     const [isAdvanceOpen, setIsAdvanceOpen] = useState(false);
     const [isPayrollOpen, setIsPayrollOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [selectedAttDate, setSelectedAttDate] = useState(new Date().toISOString().split('T')[0]);
+    const [advanceEmpId, setAdvanceEmpId] = useState<string>("");
 
     // Role Mgmt State
     const [newRoleName, setNewRoleName] = useState("");
@@ -257,7 +259,7 @@ const EmployeeManagement = () => {
         setIsMarkAttOpen(false);
     };
 
-    const markEmployeeAttendance = (empId: string, status: string, time: string = "09:00", date: string = new Date().toISOString().split('T')[0]) => {
+    const markEmployeeAttendance = (empId: string, status: string, time: string = "09:00", date: string = selectedAttDate) => {
         const record = {
             id: 'ATT-' + Date.now() + Math.random().toString(36).substr(2, 9),
             employeeId: empId,
@@ -269,7 +271,7 @@ const EmployeeManagement = () => {
 
         firebase.database().ref(`root/nexus_hr/attendance/${record.id}`).set(record)
             .then(() => {
-                toast({ title: "Attendance Marked", description: `Marked as ${status}` });
+                toast({ title: "Attendance Marked", description: `Marked as ${status} for ${date}` });
             });
     };
 
@@ -279,7 +281,7 @@ const EmployeeManagement = () => {
         e.preventDefault();
         const form = e.target as HTMLFormElement;
         const data = new FormData(form);
-        const empId = data.get('employeeId') as string;
+        const empId = advanceEmpId;
         const amount = Number(data.get('amount'));
         const emiMonths = Number(data.get('emiMonths'));
         const updates: any = {};
@@ -296,7 +298,8 @@ const EmployeeManagement = () => {
 
             firebase.database().ref().update(updates).then(() => {
                 setIsAdvanceOpen(false);
-                toast({ title: "Advance Issued", description: `$${amount} credited for ${emiMonths} month(s) EMI.` });
+                setAdvanceEmpId("");
+                toast({ title: "Advance Issued", description: `₹${amount} credited for ${emiMonths} month(s) EMI.` });
             });
         }
     };
@@ -336,22 +339,24 @@ const EmployeeManagement = () => {
         }
         firebase.database().ref().update(updates).then(() => {
             setIsPayrollOpen(false);
-            toast({ title: "Payroll Processed", description: `Net Pay: $${netPay}` });
+            toast({ title: "Payroll Processed", description: `Net Pay: ₹${netPay}` });
         });
     };
 
-    const filteredEmployees = employees.filter(e =>
-        e.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        e.lastName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        e.role?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredEmployees = employees.filter(e => {
+        const isRide = e.role === 'Ride' || e.department === 'Logistics';
+        if (isRide) return false;
+        return e.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            e.lastName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            e.role?.toLowerCase().includes(searchQuery.toLowerCase());
+    });
 
     // Sidebar Items
     const menuItems = [
         { id: 'dashboard', label: 'Dashboard', icon: PieChart },
         { id: 'employees', label: 'Employees', icon: Users },
         { id: 'attendance', label: 'Attendance', icon: Clock },
-        { id: 'payroll', label: 'Payroll', icon: DollarSign },
+        { id: 'payroll', label: 'Payroll', icon: IndianRupee },
         { id: 'manage', label: 'Manage', icon: Settings },
         { id: 'delivery_boys', label: 'Delivery Boys', icon: Truck },
     ];
@@ -455,11 +460,22 @@ const EmployeeManagement = () => {
 
                         {/* DASHBOARD */}
                         <TabsContent value="dashboard" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                <StatCard label="Total Employees" value={employees.length} icon={Users} color="bg-blue-600" subtext="+2 this month" />
-                                <StatCard label="Present Today" value={attendance.filter(a => a.dateString === new Date().toISOString().split('T')[0] && a.status === 'Present').length} icon={CheckCircle} color="bg-emerald-500" subtext={`${Math.round((attendance.filter(a => a.dateString === new Date().toISOString().split('T')[0] && a.status === 'Present').length / (employees.length || 1)) * 100)}% Attendance`} />
-                                <StatCard label="Payroll" value={`$${payroll.reduce((a, b) => a + (b.netPay || 0), 0).toLocaleString()}`} icon={DollarSign} color="bg-indigo-500" subtext="Last 30 days" />
-                                <StatCard label="Advances" value={`$${employees.reduce((a, b) => a + (b.advanceBalance || 0), 0).toLocaleString()}`} icon={HandCoins} color="bg-amber-500" subtext="Outstanding" />
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+                                <StatCard label="Total Employees" value={employees.filter(e => e.role !== 'Ride' && e.department !== 'Logistics').length} icon={Users} color="bg-blue-600" subtext="+2 this month" />
+                                <StatCard label="Present Today" value={attendance.filter(a => {
+                                    const emp = employees.find(e => e.id === a.employeeId);
+                                    return a.dateString === new Date().toISOString().split('T')[0] && a.status === 'Present' && emp && emp.role !== 'Ride' && emp.department !== 'Logistics';
+                                }).length} icon={CheckCircle} color="bg-emerald-500" subtext={`${Math.round((attendance.filter(a => {
+                                    const emp = employees.find(e => e.id === a.employeeId);
+                                    return a.dateString === new Date().toISOString().split('T')[0] && a.status === 'Present' && emp && emp.role !== 'Ride' && emp.department !== 'Logistics';
+                                }).length / (employees.filter(e => e.role !== 'Ride' && e.department !== 'Logistics').length || 1)) * 100)}% Attendance`} />
+                                <StatCard label="Payroll" value={`₹${payroll.reduce((acc, p) => {
+                                    const emp = employees.find(e => e.id === p.employeeId);
+                                    const isRide = emp && (emp.role === 'Ride' || emp.department === 'Logistics');
+                                    return isRide ? acc : acc + (p.netPay || 0);
+                                }, 0).toLocaleString()}`} icon={IndianRupee} color="bg-indigo-500" subtext="Last 30 days" />
+                                <StatCard label="Advances" value={`₹${employees.filter(e => e.role !== 'Ride' && e.department !== 'Logistics').reduce((a, b) => a + (b.advanceBalance || 0), 0).toLocaleString()}`} icon={HandCoins} color="bg-amber-500" subtext="Outstanding" />
+                                <StatCard label="Ride Fleet" value={employees.filter(e => e.role === 'Ride' || e.department === 'Logistics').length} icon={Truck} color="bg-orange-500" subtext={`${employees.filter(e => (e.role === 'Ride' || e.department === 'Logistics') && e.status === 'Active').length} Active Partners`} />
                             </div>
 
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -470,7 +486,10 @@ const EmployeeManagement = () => {
                                     </CardHeader>
                                     <CardContent>
                                         <div className="space-y-4">
-                                            {attendance.slice(-5).reverse().map((att, i) => {
+                                            {attendance.slice().reverse().filter(att => {
+                                                const emp = employees.find(e => e.id === att.employeeId);
+                                                return emp && emp.role !== 'Ride' && emp.department !== 'Logistics';
+                                            }).slice(0, 5).map((att, i) => {
                                                 const emp = employees.find(e => e.id === att.employeeId);
                                                 return (
                                                     <div key={i} className="flex items-center gap-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
@@ -502,7 +521,7 @@ const EmployeeManagement = () => {
                                         <Button variant="secondary" className="w-full justify-start hover:bg-indigo-50 text-indigo-700 border-0" onClick={() => setIsMarkAttOpen(true)}>
                                             <Clock className="mr-2 h-4 w-4" /> Mark Attendance
                                         </Button>
-                                        <Button variant="secondary" className="w-full justify-start hover:bg-indigo-50 text-indigo-700 border-0" onClick={() => setIsAdvanceOpen(true)}>
+                                        <Button variant="secondary" className="w-full justify-start hover:bg-indigo-50 text-indigo-700 border-0" onClick={() => { setAdvanceEmpId(""); setIsAdvanceOpen(true); }}>
                                             <HandCoins className="mr-2 h-4 w-4" /> Issue Advance
                                         </Button>
                                         <Button variant="secondary" className="w-full justify-start hover:bg-indigo-50 text-indigo-700 border-0" onClick={() => setIsPayrollOpen(true)}>
@@ -564,7 +583,10 @@ const EmployeeManagement = () => {
                                                     <TableCell>
                                                         <Badge variant="default" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200 shadow-none">Active</Badge>
                                                     </TableCell>
-                                                    <TableCell className="text-right pr-6">
+                                                    <TableCell className="text-right pr-6 flex items-center justify-end gap-2">
+                                                        <Button size="sm" variant="ghost" className="h-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50" onClick={(e) => { e.stopPropagation(); setAdvanceEmpId(emp.id); setIsAdvanceOpen(true); }}>
+                                                            <HandCoins className="h-4 w-4 mr-1" /> Advance
+                                                        </Button>
                                                         <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-500">
                                                             <ChevronRight className="h-4 w-4" />
                                                         </Button>
@@ -582,21 +604,39 @@ const EmployeeManagement = () => {
                             {/* Today's Sheet */}
                             <Card className="border-slate-200 dark:border-slate-800 shadow-sm">
                                 <CardHeader>
-                                    <div className="flex justify-between items-center">
+                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                         <div>
                                             <CardTitle>Attendance Sheet</CardTitle>
-                                            <CardDescription>Mark attendance for today ({new Date().toLocaleDateString()}).</CardDescription>
+                                            <CardDescription>Select date to mark or view attendance.</CardDescription>
+                                        </div>
+                                        <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900 p-2 rounded-xl border border-slate-100 dark:border-slate-800">
+                                            <Calendar className="w-4 h-4 text-slate-400" />
+                                            <Input
+                                                type="date"
+                                                value={selectedAttDate}
+                                                onChange={(e) => setSelectedAttDate(e.target.value)}
+                                                className="h-8 border-none bg-transparent focus-visible:ring-0 w-36 px-1"
+                                            />
+                                            {selectedAttDate !== new Date().toISOString().split('T')[0] && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 text-[10px] font-bold uppercase"
+                                                    onClick={() => setSelectedAttDate(new Date().toISOString().split('T')[0])}
+                                                >
+                                                    Today
+                                                </Button>
+                                            )}
                                         </div>
                                     </div>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {employees.map(emp => {
-                                            const today = new Date().toISOString().split('T')[0];
-                                            const todayRecord = attendance.find(a => a.employeeId === emp.id && a.dateString === today);
+                                        {employees.filter(e => e.role !== 'Ride' && e.department !== 'Logistics').map(emp => {
+                                            const todayRecord = attendance.find(a => a.employeeId === emp.id && a.dateString === selectedAttDate);
 
                                             return (
-                                                <div key={emp.id} className="flex items-center justify-between p-3 border border-slate-100 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 shadow-sm">
+                                                <div key={emp.id} className="flex items-center justify-between p-3 border border-slate-100 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 shadow-sm transition-all hover:border-indigo-100 dark:hover:border-indigo-900">
                                                     <div className="flex items-center gap-3">
                                                         <Avatar className="h-10 w-10 border border-slate-200">
                                                             <AvatarImage src={emp.photoUrl} />
@@ -688,7 +728,7 @@ const EmployeeManagement = () => {
                                 <Card className="flex-1 bg-gradient-to-br from-indigo-600 to-purple-700 text-white border-none shadow-md">
                                     <CardContent className="p-6">
                                         <p className="text-indigo-100 font-medium">Total Disbursement</p>
-                                        <h2 className="text-3xl font-bold mt-2">${payroll.reduce((acc, c) => acc + (c.netPay || 0), 0).toLocaleString()}</h2>
+                                        <h2 className="text-3xl font-bold mt-2">₹{payroll.reduce((acc, c) => acc + (c.netPay || 0), 0).toLocaleString()}</h2>
                                         <p className="text-xs text-indigo-200 mt-1">Lifetime total</p>
                                     </CardContent>
                                 </Card>
@@ -696,16 +736,16 @@ const EmployeeManagement = () => {
                                     <CardContent className="p-6">
                                         <p className="text-slate-500 dark:text-slate-400 font-medium">Next Pay Run</p>
                                         <h2 className="text-3xl font-bold mt-2 text-slate-800 dark:text-slate-100">Oct 31</h2>
-                                        <p className="text-xs text-slate-400 mt-1">Estimated: $12,400</p>
+                                        <p className="text-xs text-slate-400 mt-1">Estimated: ₹12,400</p>
                                     </CardContent>
                                 </Card>
                             </div>
                             <div className="flex justify-end gap-2">
-                                <Button variant="outline" onClick={() => setIsAdvanceOpen(true)} className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100">
+                                <Button variant="outline" onClick={() => { setAdvanceEmpId(""); setIsAdvanceOpen(true); }} className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100">
                                     <HandCoins className="mr-2 h-4 w-4" /> Issue Advance
                                 </Button>
                                 <Button onClick={() => setIsPayrollOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 hover:text-white">
-                                    <DollarSign className="mr-2 h-4 w-4" /> Process Payroll
+                                    <IndianRupee className="mr-2 h-4 w-4" /> Process Payroll
                                 </Button>
                             </div>
                             <Card className="border-slate-200 dark:border-slate-800 shadow-sm overflow-x-auto">
@@ -721,16 +761,19 @@ const EmployeeManagement = () => {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {payroll.slice().reverse().map((p, i) => {
+                                        {payroll.slice().reverse().filter(p => {
+                                            const emp = employees.find(e => e.id === p.employeeId);
+                                            return emp && emp.role !== 'Ride' && emp.department !== 'Logistics';
+                                        }).map((p, i) => {
                                             const emp = employees.find(e => e.id === p.employeeId);
                                             return (
                                                 <TableRow key={i}>
                                                     <TableCell className="pl-6 font-medium text-slate-500">{p.monthStr}</TableCell>
                                                     <TableCell className="font-semibold text-slate-800 dark:text-slate-100">{emp?.firstName} {emp?.lastName}</TableCell>
-                                                    <TableCell>${p.baseSalary?.toLocaleString()}</TableCell>
-                                                    <TableCell className="text-emerald-600">+{p.bonus}</TableCell>
-                                                    <TableCell className="text-red-500">{p.advance > 0 ? `-${p.advance}` : '-'}</TableCell>
-                                                    <TableCell className="text-right pr-6 font-bold text-slate-900 dark:text-slate-100">${p.netPay?.toLocaleString()}</TableCell>
+                                                    <TableCell>₹{p.baseSalary?.toLocaleString()}</TableCell>
+                                                    <TableCell className="text-emerald-600">+₹{p.bonus}</TableCell>
+                                                    <TableCell className="text-red-500">{p.advance > 0 ? `-₹${p.advance}` : '-'}</TableCell>
+                                                    <TableCell className="text-right pr-6 font-bold text-slate-900 dark:text-slate-100">₹{p.netPay?.toLocaleString()}</TableCell>
                                                 </TableRow>
                                             )
                                         })}
@@ -822,7 +865,7 @@ const EmployeeManagement = () => {
                                         <ScrollArea className="h-[300px]">
                                             <Table>
                                                 <TableBody>
-                                                    {employees.map(emp => (
+                                                    {employees.filter(e => e.role !== 'Ride' && e.department !== 'Logistics').map(emp => (
                                                         <TableRow key={emp.id}>
                                                             <TableCell className="font-medium">{emp.firstName} {emp.lastName}</TableCell>
                                                             <TableCell className="text-slate-500 text-xs">{emp.role}</TableCell>
@@ -841,13 +884,13 @@ const EmployeeManagement = () => {
                             </div>
                         </TabsContent>
 
-                        {/* DELIVERY BOYS */}
+                        {/* DELIVERY BOYS (RESTORED) */}
                         <TabsContent value="delivery_boys" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                             {/* Stats */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <StatCard label="Total Partners" value={employees.filter(e => e.role === 'Ride' || e.department === 'Logistics').length} icon={Truck} color="blue" subtext="Registered Fleet" />
-                                <StatCard label="Active Now" value={employees.filter(e => (e.role === 'Ride' || e.department === 'Logistics') && e.status === 'Active').length} icon={CheckCircle} color="emerald" subtext="Online & Ready" />
-                                <StatCard label="Pending Approval" value="0" icon={Clock} color="orange" subtext="Document Verification" />
+                                <StatCard label="Total Partners" value={employees.filter(e => e.role === 'Ride' || e.department === 'Logistics').length} icon={Truck} color="bg-blue-600" subtext="Registered Fleet" />
+                                <StatCard label="Active Now" value={employees.filter(e => (e.role === 'Ride' || e.department === 'Logistics') && e.status === 'Active').length} icon={CheckCircle} color="bg-emerald-500" subtext="Online & Ready" />
+                                <StatCard label="Pending Approval" value="0" icon={Clock} color="bg-orange-500" subtext="Document Verification" />
                             </div>
 
                             <Card className="border-slate-200 dark:border-slate-800 shadow-sm">
@@ -871,7 +914,7 @@ const EmployeeManagement = () => {
                                         </TableHeader>
                                         <TableBody>
                                             {employees.filter(e => e.role === 'Ride' || e.department === 'Logistics').map(driver => (
-                                                <TableRow key={driver.id} className="group hover:bg-slate-50 dark:hover:bg-slate-900/50">
+                                                <TableRow key={driver.id} className="group hover:bg-slate-50 dark:hover:bg-slate-900/50 cursor-pointer" onClick={() => { setSelectedEmp(driver); setIsProfileOpen(true); }}>
                                                     <TableCell className="font-medium">
                                                         <div className="flex items-center gap-3">
                                                             <Avatar className="h-9 w-9 border border-indigo-100 dark:border-indigo-900/30">
@@ -907,6 +950,7 @@ const EmployeeManagement = () => {
                                 </CardContent>
                             </Card>
                         </TabsContent>
+
                     </Tabs>
                 </div>
             </main>
@@ -938,7 +982,7 @@ const EmployeeManagement = () => {
                                     <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl space-y-1">
                                         <span className="text-xs font-medium text-slate-500 uppercase">Salary</span>
                                         <p className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                                            <DollarSign className="w-4 h-4 text-emerald-500" /> ${selectedEmp.salary?.toLocaleString()}/yr
+                                            <span className="text-emerald-500 font-bold">₹</span> {selectedEmp.salary?.toLocaleString()}/yr
                                         </p>
                                     </div>
                                 </div>
@@ -957,9 +1001,12 @@ const EmployeeManagement = () => {
                                         <span className="text-slate-700 dark:text-slate-300">Joined on {selectedEmp.joiningDate}</span>
                                     </div>
                                 </div>
-                                <div className="flex justify-center mt-6">
+                                <div className="grid grid-cols-2 gap-4 mt-6">
+                                    <Button variant="outline" className="w-full border-amber-200 text-amber-700 hover:bg-amber-50" onClick={() => { setIsProfileOpen(false); setAdvanceEmpId(selectedEmp.id); setIsAdvanceOpen(true); }}>
+                                        <HandCoins className="w-4 h-4 mr-2" /> Issue Advance
+                                    </Button>
                                     <Button variant="default" className="w-full bg-slate-900 text-white" onClick={() => { setIsProfileOpen(false); setIsEditEmpOpen(true); }}>
-                                        Edit This Profile
+                                        Edit Profile
                                     </Button>
                                 </div>
                             </div>
@@ -1039,7 +1086,7 @@ const EmployeeManagement = () => {
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div className="space-y-2"><Label>Annual Salary ($)</Label><Input name="salary" type="number" required defaultValue={isEditEmpOpen ? selectedEmp?.salary : ''} /></div>
+                        <div className="space-y-2"><Label>Annual Salary (₹)</Label><Input name="salary" type="number" required defaultValue={isEditEmpOpen ? selectedEmp?.salary : ''} /></div>
                         <DialogFooter className="pt-4">
                             <Button variant="outline" type="button" onClick={() => { setIsAddEmpOpen(false); setIsEditEmpOpen(false); }}>Cancel</Button>
                             <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">{isEditEmpOpen ? "Update Changes" : "Save Employee"}</Button>
@@ -1057,7 +1104,7 @@ const EmployeeManagement = () => {
                             <Select name="employeeId" required>
                                 <SelectTrigger><SelectValue placeholder="Select Employee" /></SelectTrigger>
                                 <SelectContent>
-                                    {employees.map(e => <SelectItem key={e.id} value={e.id}>{e.firstName} {e.lastName}</SelectItem>)}
+                                    {employees.filter(e => e.role !== 'Ride' && e.department !== 'Logistics').map(e => <SelectItem key={e.id} value={e.id}>{e.firstName} {e.lastName}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -1089,14 +1136,14 @@ const EmployeeManagement = () => {
                     <DialogHeader><DialogTitle>Issue Advance</DialogTitle></DialogHeader>
                     <form onSubmit={handleIssueAdvance} className="space-y-4 pt-4">
                         <div className="space-y-2"><Label>Employee</Label>
-                            <Select name="employeeId" required>
+                            <Select value={advanceEmpId} onValueChange={setAdvanceEmpId} required>
                                 <SelectTrigger><SelectValue placeholder="Select Employee" /></SelectTrigger>
                                 <SelectContent>
-                                    {employees.map(e => <SelectItem key={e.id} value={e.id}>{e.firstName} {e.lastName}</SelectItem>)}
+                                    {employees.filter(e => e.role !== 'Ride' && e.department !== 'Logistics').map(e => <SelectItem key={e.id} value={e.id}>{e.firstName} {e.lastName}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div className="space-y-2"><Label>Amount ($)</Label><Input name="amount" type="number" required min="1" /></div>
+                        <div className="space-y-2"><Label>Amount (₹)</Label><Input name="amount" type="number" required min="1" /></div>
                         <div className="space-y-2"><Label>EMI Duration (Months)</Label><Input name="emiMonths" type="number" required min="1" defaultValue="1" placeholder="e.g. 3 for 3 installments" /></div>
                         <DialogFooter className="pt-4">
                             <Button variant="outline" type="button" onClick={() => setIsAdvanceOpen(false)}>Cancel</Button>
@@ -1116,16 +1163,16 @@ const EmployeeManagement = () => {
                                 <Select name="employeeId" required>
                                     <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
                                     <SelectContent>
-                                        {employees.map(e => <SelectItem key={e.id} value={e.id}>{e.firstName} {e.lastName}</SelectItem>)}
+                                        {employees.filter(e => e.role !== 'Ride' && e.department !== 'Logistics').map(e => <SelectItem key={e.id} value={e.id}>{e.firstName} {e.lastName}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
                             <div className="space-y-2"><Label>Month</Label><Input name="month" type="month" required /></div>
                         </div>
-                        <div className="space-y-2"><Label>Base Salary ($)</Label><Input name="calculatedBase" type="number" required placeholder="Monthly Base" /></div>
+                        <div className="space-y-2"><Label>Base Salary (₹)</Label><Input name="calculatedBase" type="number" required placeholder="Monthly Base" /></div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2"><Label>Bonus ($)</Label><Input name="bonus" type="number" defaultValue="0" /></div>
-                            <div className="space-y-2"><Label>Advance Deduction ($)</Label><Input name="advance" type="number" defaultValue="0" className="text-red-500" /></div>
+                            <div className="space-y-2"><Label>Bonus (₹)</Label><Input name="bonus" type="number" defaultValue="0" /></div>
+                            <div className="space-y-2"><Label>Advance Deduction (₹)</Label><Input name="advance" type="number" defaultValue="0" className="text-red-500" /></div>
                         </div>
                         <DialogFooter className="pt-4">
                             <Button variant="outline" type="button" onClick={() => setIsPayrollOpen(false)}>Cancel</Button>

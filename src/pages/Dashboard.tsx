@@ -2,10 +2,10 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { firebase } from "@/lib/firebase";
 import {
-    TrendingUp, Menu, LayoutDashboard, DollarSign,
+    TrendingUp, Menu, LayoutDashboard, IndianRupee,
     ShoppingBasket, Users, Loader2, Globe, DatabaseBackup,
     Layers, Package, CheckCircle, XCircle, Activity, Briefcase, Clock, Smartphone,
-    ChevronDown, X, AlertTriangle, Search
+    ChevronDown, X, AlertTriangle, Search, Calendar
 } from 'lucide-react';
 import {
     Chart as ChartJS,
@@ -67,6 +67,7 @@ const Dashboard = () => {
     const [userFilter, setUserFilter] = useState('all');
     const [userSortConfig, setUserSortConfig] = useState({ key: 'orderCompletedAt', direction: 'desc' });
     const [stockSearchTerm, setStockSearchTerm] = useState('');
+    const [timePeriod, setTimePeriod] = useState<string>('all');
     const location = useLocation();
 
     // Handle incoming tab state
@@ -160,6 +161,10 @@ const Dashboard = () => {
     const processed = useMemo(() => {
         if (!rawData) return null;
         const data = rawData;
+        const now = Date.now();
+        const startOfToday = new Date().setHours(0, 0, 0, 0);
+        const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
+        const thirtyDaysAgo = now - (30 * 24 * 60 * 60 * 1000);
 
         // Categories
         const catArray = Object.entries(data.category || {}).map(([key, value]: [string, any]) => ({ id: key, ...value }));
@@ -178,7 +183,17 @@ const Dashboard = () => {
         }
 
         // Orders
-        const orderList = data.order ? Object.entries(data.order).map(([k, v]: [string, any]) => ({ id: k, ...v })) : [];
+        const allOrders = data.order ? Object.entries(data.order).map(([k, v]: [string, any]) => ({ id: k, ...v })) : [];
+        let orderList = allOrders;
+
+        if (timePeriod === 'today') {
+            orderList = allOrders.filter(o => (o.timestamp || o.createdAt) >= startOfToday);
+        } else if (timePeriod === '7d') {
+            orderList = allOrders.filter(o => (o.timestamp || o.createdAt) >= sevenDaysAgo);
+        } else if (timePeriod === '30d') {
+            orderList = allOrders.filter(o => (o.timestamp || o.createdAt) >= thirtyDaysAgo);
+        }
+
         let totalRevenue = 0, completedOrders = 0, cancelledOrders = 0, pendingOrders = 0;
         let productSales: Record<string, number> = {};
         let methodStats: Record<string, number> = { 'COD': 0, 'Wallet': 0, 'Other': 0 };
@@ -232,8 +247,35 @@ const Dashboard = () => {
             });
         }
 
+        // Specific Today Stats for Snapshot (Always calculated regardless of filter)
+        let todayRevenue = 0, todayOrders = 0, todayUsers = 0;
+        allOrders.forEach((o: any) => {
+            if ((o.timestamp || o.createdAt) >= startOfToday) {
+                todayOrders++;
+                const status = (o.status || '').toLowerCase();
+                if (status.includes('deliver') || status.includes('complete')) {
+                    let amt = 0;
+                    if (typeof o.total === 'string' && o.total.includes('-')) amt = parseFloat(o.total.split('-')[0]);
+                    else amt = parseFloat(o.total) || 0;
+                    todayRevenue += amt;
+                }
+            }
+        });
+        userArray.forEach(u => { if (u.updatedAt >= startOfToday) todayUsers++; });
+
         return {
-            stats: { totalCategories: catArray.length, totalUsers: userArray.length, totalOrders: orderList.length, completedOrders, cancelledOrders, totalVariants: stockVariants },
+            stats: {
+                totalCategories: catArray.length,
+                totalUsers: userArray.length,
+                totalOrders: orderList.length,
+                completedOrders,
+                cancelledOrders,
+                totalVariants: stockVariants,
+                allOrdersCount: allOrders.length,
+                todayOrders,
+                todayUsers
+            },
+            pulse: { revenue: todayRevenue, orders: todayOrders, users: todayUsers },
             chartData: Object.values(timeMap).sort((a, b) => a.date.localeCompare(b.date)).slice(-14),
             platformData: Object.entries(userArray.reduce((acc, u) => { acc[u.cleanPlatform] = (acc[u.cleanPlatform] || 0) + 1; return acc; }, {} as any)).map(([name, value]: any) => ({ name, value })),
             financialStats: { totalRevenue, avgOrder: completedOrders > 0 ? totalRevenue / completedOrders : 0, stockValue: stockVal, totalStockQuantity: stockQty, pendingOrders, totalVariants: stockVariants },
@@ -261,7 +303,7 @@ const Dashboard = () => {
                 }));
             })
         };
-    }, [rawData]);
+    }, [rawData, timePeriod]);
 
     const sortedUsers = useMemo(() => {
         if (!processed?.users) return [];
@@ -278,7 +320,7 @@ const Dashboard = () => {
 
     if (isLoading || !processed) return <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950"><Loader2 className="animate-spin text-blue-600" /></div>;
 
-    const { stats, chartData, platformData, financialStats, topProducts, orderStatusData, inventoryChartData, revenueChartData, detailedRevenue, lowStockProducts, users, engagementData, hrStats, allStockItems } = processed;
+    const { stats, pulse, chartData, platformData, financialStats, topProducts, orderStatusData, inventoryChartData, revenueChartData, detailedRevenue, lowStockProducts, users, engagementData, hrStats, allStockItems } = processed;
 
     return (
         <div className="flex h-screen bg-slate-50 dark:bg-slate-950 font-sans transition-colors duration-300">
@@ -292,7 +334,7 @@ const Dashboard = () => {
                 <nav className="flex-1 space-y-1">
                     {[
                         { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
-                        { id: 'business', label: 'Business & Finance', icon: DollarSign },
+                        { id: 'business', label: 'Business & Finance', icon: IndianRupee },
                         { id: 'users', label: 'Users & Orders', icon: Users },
                         { id: 'stocks', label: 'Inventory & Stocks', icon: Package }
                     ].map(item => (
@@ -329,8 +371,68 @@ const Dashboard = () => {
                 )}
 
                 <div className="flex-1 overflow-auto p-4 md:p-8 custom-scrollbar">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+                        <div>
+                            <h2 className="text-3xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-3 capitalize">
+                                {activeTab} Analytics
+                            </h2>
+                            <p className="text-slate-500 dark:text-slate-400 text-sm">Real-time business intelligence for your organization.</p>
+                        </div>
+                        <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                            {[
+                                { id: 'today', label: 'Today' },
+                                { id: '7d', label: '7 Days' },
+                                { id: '30d', label: '30 Days' },
+                                { id: 'all', label: 'All Time' }
+                            ].map(p => (
+                                <button
+                                    key={p.id}
+                                    onClick={() => setTimePeriod(p.id)}
+                                    className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${timePeriod === p.id
+                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                                        : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                                >
+                                    {p.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     {activeTab === 'dashboard' && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            {/* Today Pulse Snapshot */}
+                            <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-6 md:p-8 text-white shadow-2xl shadow-indigo-500/20 relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
+                                    <TrendingUp size={160} />
+                                </div>
+                                <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                                    <div className="space-y-1">
+                                        <p className="text-indigo-100 text-xs font-bold uppercase tracking-widest opacity-80">Today's Revenue</p>
+                                        <div className="flex items-baseline gap-2">
+                                            <h3 className="text-4xl md:text-5xl font-black">{fmtMoney(pulse.revenue)}</h3>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 text-indigo-100/60 text-xs">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                            Live Tracking
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-3 md:grid-cols-3 col-span-1 lg:col-span-3 gap-4 border-t md:border-t-0 md:border-l border-white/10 pt-6 md:pt-0 md:pl-8">
+                                        <div className="space-y-1">
+                                            <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest opacity-60">Orders</p>
+                                            <p className="text-2xl md:text-3xl font-black">{pulse.orders}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest opacity-60">New Users</p>
+                                            <p className="text-2xl md:text-3xl font-black">{pulse.users}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest opacity-60">Avg Today</p>
+                                            <p className="text-2xl md:text-3xl font-black">{fmtMoney(pulse.orders > 0 ? pulse.revenue / pulse.orders : 0)}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             {lowStockProducts.length > 0 && (
                                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-center justify-between gap-4">
                                     <div className="flex items-center gap-3">

@@ -43,8 +43,8 @@ const CellRenderer = ({ value, column }: { value: any, column: string }) => {
         if (parsedValue.mrp || parsedValue.offerPrice || parsedValue.price) {
             return (
                 <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs flex flex-col gap-1 min-w-[140px]">
-                    {parsedValue.mrp && <div className="line-through text-slate-400">MRP: {parsedValue.mrp}</div>}
-                    {parsedValue.offerPrice && <div className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1"><Tag size={10} />{parsedValue.offerPrice}</div>}
+                    {parsedValue.mrp && <div className="line-through text-slate-400">MRP: ₹{parsedValue.mrp}</div>}
+                    {parsedValue.offerPrice && <div className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1"><Tag size={10} />₹{parsedValue.offerPrice}</div>}
                     {parsedValue.stock && <div className="border-t border-slate-200 dark:border-slate-700 mt-1 pt-1 text-slate-500">Stock: {parsedValue.stock}</div>}
                 </div>
             );
