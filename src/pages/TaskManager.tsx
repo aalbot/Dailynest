@@ -225,6 +225,13 @@ const TaskManager = () => {
     const [tempStatus, setTempStatus] = useState<string | null>(null);
     const [isAssignPopoverOpen, setIsAssignPopoverOpen] = useState(false);
     const [isTesterPopoverOpen, setIsTesterPopoverOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isTeamDeleteModalOpen, setIsTeamDeleteModalOpen] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState<any>(null);
+    const [isReassignOpen, setIsReassignOpen] = useState(false);
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+    const activeTask = tasks.find(t => t.id === selectedTask?.id) || selectedTask;
 
     // Team Creation State
     const [newTeam, setNewTeam] = useState({
@@ -286,13 +293,52 @@ const TaskManager = () => {
     };
 
     const handleDeleteTask = (taskId: string) => {
-        if (!confirm("Are you sure you want to delete this task?")) return;
+        setItemToDelete(taskId);
+        setIsDeleteModalOpen(true);
+    };
 
-        firebase.database().ref(`root/nexus_hr/tasks/${taskId}`).remove()
+    const confirmDeleteTask = () => {
+        if (!itemToDelete) return;
+
+        firebase.database().ref(`root/nexus_hr/tasks/${itemToDelete}`).remove()
             .then(() => {
                 setIsDetailOpen(false);
                 setSelectedTask(null);
+                setIsDeleteModalOpen(false);
+                setItemToDelete(null);
                 toast({ title: "Deleted", description: "Task has been removed" });
+            })
+            .catch((error) => {
+                console.error("Error deleting task:", error);
+                toast({
+                    title: "Error",
+                    description: "Unable to delete task. Please check permissions.",
+                    variant: "destructive"
+                });
+            });
+    };
+
+    const handleDeleteTeam = (teamId: string) => {
+        setItemToDelete(teamId);
+        setIsTeamDeleteModalOpen(true);
+    };
+
+    const confirmDeleteTeam = () => {
+        if (!itemToDelete) return;
+
+        firebase.database().ref(`root/nexus_hr/teams/${itemToDelete}`).remove()
+            .then(() => {
+                setIsTeamDeleteModalOpen(false);
+                setItemToDelete(null);
+                toast({ title: "Deleted", description: "Team has been removed" });
+            })
+            .catch((error) => {
+                console.error("Error deleting team:", error);
+                toast({
+                    title: "Error",
+                    description: "Unable to delete team. Please check permissions.",
+                    variant: "destructive"
+                });
             });
     };
 
@@ -715,12 +761,12 @@ const TaskManager = () => {
                                                     <div className="flex items-center justify-between p-2 border-b bg-slate-50 dark:bg-slate-900">
                                                         <span className="text-[10px] font-bold uppercase text-slate-500 ml-1">Assign Members</span>
                                                         <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-6 w-6 text-slate-400 hover:text-slate-600"
+                                                            variant="secondary"
+                                                            size="sm"
+                                                            className="h-7 px-3 text-[11px] font-bold"
                                                             onClick={() => setIsAssignPopoverOpen(false)}
                                                         >
-                                                            <X className="w-3.5 h-3.5" />
+                                                            Done
                                                         </Button>
                                                     </div>
                                                     <Command>
@@ -800,12 +846,12 @@ const TaskManager = () => {
                                                     <div className="flex items-center justify-between p-2 border-b bg-slate-50 dark:bg-slate-900">
                                                         <span className="text-[10px] font-bold uppercase text-slate-500 ml-1">Select Tester</span>
                                                         <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-6 w-6 text-slate-400 hover:text-slate-600"
+                                                            variant="secondary"
+                                                            size="sm"
+                                                            className="h-7 px-3 text-[11px] font-bold"
                                                             onClick={() => setIsTesterPopoverOpen(false)}
                                                         >
-                                                            <X className="w-3.5 h-3.5" />
+                                                            Done
                                                         </Button>
                                                     </div>
                                                     <Command>
@@ -965,31 +1011,31 @@ const TaskManager = () => {
                 {/* TASK DETAIL SHEET */}
                 <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
                     <SheetContent className="w-full sm:max-w-xl overflow-y-auto pt-10">
-                        {selectedTask && (
+                        {activeTask && (
                             <div className="flex flex-col h-full">
                                 <div className="pb-6 border-b border-slate-100 dark:border-slate-800">
                                     <div className="flex items-center justify-between mb-2">
                                         <div className="flex items-center gap-2">
-                                            <Badge variant="outline" className="font-mono">{selectedTask.id}</Badge>
+                                            <Badge variant="outline" className="font-mono">{activeTask.id}</Badge>
                                             <Badge className={
-                                                selectedTask.status === 'Completed' ? 'bg-emerald-100 text-emerald-800' :
-                                                    selectedTask.status === 'In Progress' ? 'bg-indigo-100 text-indigo-800' :
-                                                        selectedTask.status === 'Testing' ? 'bg-purple-100 text-purple-800' :
+                                                activeTask.status === 'Completed' ? 'bg-emerald-100 text-emerald-800' :
+                                                    activeTask.status === 'In Progress' ? 'bg-indigo-100 text-indigo-800' :
+                                                        activeTask.status === 'Testing' ? 'bg-purple-100 text-purple-800' :
                                                             'bg-amber-100 text-amber-800'
                                             }>
-                                                {selectedTask.status}
+                                                {activeTask.status}
                                             </Badge>
                                         </div>
                                         <Button
                                             variant="ghost"
                                             size="icon"
                                             className="text-slate-400 hover:text-red-500 h-8 w-8"
-                                            onClick={() => handleDeleteTask(selectedTask.id)}
+                                            onClick={() => handleDeleteTask(activeTask.id)}
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </Button>
                                     </div>
-                                    <h1 className="text-2xl font-bold mb-1">{selectedTask.title}</h1>
+                                    <h1 className="text-2xl font-bold mb-1">{activeTask.title}</h1>
                                 </div>
 
                                 <div className="py-6 space-y-6">
@@ -999,20 +1045,20 @@ const TaskManager = () => {
                                             <div>
                                                 <p className="text-xs font-bold uppercase text-slate-500 mb-1">Current Status</p>
                                                 <Badge className={
-                                                    selectedTask.status === 'Completed' ? 'bg-emerald-100 text-emerald-800' :
-                                                        selectedTask.status === 'In Progress' ? 'bg-indigo-100 text-indigo-800' :
-                                                            selectedTask.status === 'Testing' ? 'bg-purple-100 text-purple-800' :
-                                                                selectedTask.status === 'On Hold' ? 'bg-amber-100 text-amber-800' :
+                                                    activeTask.status === 'Completed' ? 'bg-emerald-100 text-emerald-800' :
+                                                        activeTask.status === 'In Progress' ? 'bg-indigo-100 text-indigo-800' :
+                                                            activeTask.status === 'Testing' ? 'bg-purple-100 text-purple-800' :
+                                                                activeTask.status === 'On Hold' ? 'bg-amber-100 text-amber-800' :
                                                                     'bg-slate-100 text-slate-800'
                                                 }>
-                                                    {selectedTask.status}
+                                                    {activeTask.status}
                                                 </Badge>
                                             </div>
                                             <div className="flex flex-col gap-2">
                                                 <Label className="text-[10px] uppercase font-bold text-slate-400">Update To</Label>
                                                 <Select
-                                                    value={selectedTask.status}
-                                                    onValueChange={(val) => handleStatusUpdate(selectedTask.id, val)}
+                                                    value={activeTask.status}
+                                                    onValueChange={(val) => handleStatusUpdate(activeTask.id, val)}
                                                 >
                                                     <SelectTrigger className="w-[140px] h-9">
                                                         <SelectValue />
@@ -1022,7 +1068,7 @@ const TaskManager = () => {
                                                         <SelectItem value="In Progress">In Progress</SelectItem>
                                                         <SelectItem value="On Hold">On Hold</SelectItem>
                                                         <SelectItem value="Testing">In Testing</SelectItem>
-                                                        <SelectItem value="Completed">{selectedTask.status === 'Testing' ? 'Pass & Complete' : 'Mark Completed'}</SelectItem>
+                                                        <SelectItem value="Completed">{activeTask.status === 'Testing' ? 'Pass & Complete' : 'Mark Completed'}</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                             </div>
@@ -1033,36 +1079,36 @@ const TaskManager = () => {
                                     <div className="grid grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
                                         <div>
                                             <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-1">Priority</p>
-                                            <p className="font-medium">{selectedTask.priority}</p>
+                                            <p className="font-medium">{activeTask.priority}</p>
                                         </div>
                                     </div>
 
-                                    {selectedTask.completionNote && (
+                                    {activeTask.completionNote && (
                                         <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900 rounded-xl p-4">
                                             <p className="text-xs font-bold uppercase text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-2">
                                                 <FileText className="w-3 h-3" />
                                                 Completion Note
                                             </p>
-                                            <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed italic">"{selectedTask.completionNote}"</p>
+                                            <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed italic">"{activeTask.completionNote}"</p>
                                         </div>
                                     )}
                                     <div>
                                         <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-1">Due Date</p>
-                                        <p className="font-medium">{selectedTask.dueDate || 'None'}</p>
+                                        <p className="font-medium">{activeTask.dueDate || 'None'}</p>
                                     </div>
-                                    {selectedTask.testerId && (
+                                    {activeTask.testerId && (
                                         <div className="col-span-2 mt-2">
                                             <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-2">Assigned Tester</p>
                                             <div className="flex items-center gap-2 bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800 p-1 pr-3 rounded-full shadow-sm w-fit">
                                                 <Avatar className="w-6 h-6">
-                                                    <AvatarImage src={employees.find(e => e.id === selectedTask.testerId)?.photoUrl} />
+                                                    <AvatarImage src={employees.find(e => e.id === activeTask.testerId)?.photoUrl} />
                                                     <AvatarFallback className="text-[10px] text-purple-700">
-                                                        {employees.find(e => e.id === selectedTask.testerId)?.firstName?.[0] || 'T'}
+                                                        {employees.find(e => e.id === activeTask.testerId)?.firstName?.[0] || 'T'}
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <span className="text-xs font-medium text-purple-700 dark:text-purple-300">
                                                     {(() => {
-                                                        const tester = employees.find(e => e.id === selectedTask.testerId);
+                                                        const tester = employees.find(e => e.id === activeTask.testerId);
                                                         return tester ? `${tester.firstName} ${tester.lastName}` : 'Unknown Tester';
                                                     })()}
                                                 </span>
@@ -1070,16 +1116,69 @@ const TaskManager = () => {
                                         </div>
                                     )}
                                     <div className="col-span-2 mt-2">
-                                        <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-2">Assigned To</p>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold">Assigned To</p>
+                                            <Popover open={isReassignOpen} onOpenChange={setIsReassignOpen}>
+                                                <PopoverTrigger asChild>
+                                                    <Button variant="ghost" size="sm" className="h-7 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-2 gap-1.5 rounded-full">
+                                                        <UserPlus className="w-3.5 h-3.5" />
+                                                        <span className="text-[10px] font-bold">REASSIGN</span>
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-[300px] p-0" align="end">
+                                                    <div className="flex items-center justify-between p-2 border-b bg-slate-50 dark:bg-slate-900">
+                                                        <span className="text-[10px] font-bold uppercase text-slate-500 ml-1">Reassign Task</span>
+                                                        <Button variant="secondary" size="sm" className="h-7 px-3 text-[11px] font-bold" onClick={() => setIsReassignOpen(false)}>Done</Button>
+                                                    </div>
+                                                    <Command>
+                                                        <CommandInput placeholder="Search team member..." />
+                                                        <CommandList>
+                                                            <CommandEmpty>No member found.</CommandEmpty>
+                                                            <CommandGroup>
+                                                                {employees
+                                                                    .filter(emp => {
+                                                                        const team = teams.find(t => t.id === activeTask.teamId);
+                                                                        return team?.memberIds?.includes(emp.id);
+                                                                    })
+                                                                    .map(emp => (
+                                                                        <CommandItem
+                                                                            key={emp.id}
+                                                                            onSelect={() => {
+                                                                                const current = activeTask.assignedEmployeeIds || [];
+                                                                                const updated = current.includes(emp.id)
+                                                                                    ? current.filter(id => id !== emp.id)
+                                                                                    : [...current, emp.id];
+                                                                                firebase.database().ref(`root/nexus_hr/tasks/${activeTask.id}`).update({
+                                                                                    assignedEmployeeIds: updated
+                                                                                });
+                                                                            }}
+                                                                            className="flex items-center gap-2"
+                                                                        >
+                                                                            <div className={`flex h-4 w-4 items-center justify-center rounded-sm border border-primary ${activeTask.assignedEmployeeIds?.includes(emp.id) ? 'bg-primary text-primary-foreground' : 'opacity-50'}`}>
+                                                                                {activeTask.assignedEmployeeIds?.includes(emp.id) && <Check className="h-3 w-3" />}
+                                                                            </div>
+                                                                            <Avatar className="w-6 h-6">
+                                                                                <AvatarImage src={emp.photoUrl} />
+                                                                                <AvatarFallback className="text-[8px] font-bold">{emp.firstName?.[0]}</AvatarFallback>
+                                                                            </Avatar>
+                                                                            <span className="text-xs font-bold">{emp.firstName} {emp.lastName}</span>
+                                                                        </CommandItem>
+                                                                    ))}
+                                                            </CommandGroup>
+                                                        </CommandList>
+                                                    </Command>
+                                                </PopoverContent>
+                                            </Popover>
+                                        </div>
                                         <div className="flex flex-wrap gap-3">
-                                            {selectedTask.assignedEmployeeIds && selectedTask.assignedEmployeeIds.length > 0 ? (
-                                                selectedTask.assignedEmployeeIds.map((id: string) => {
+                                            {activeTask.assignedEmployeeIds && activeTask.assignedEmployeeIds.length > 0 ? (
+                                                activeTask.assignedEmployeeIds.map((id: string) => {
                                                     const emp = employees.find(e => e.id === id);
                                                     return (
                                                         <div key={id} className="flex items-center gap-2 bg-white dark:bg-slate-800 border p-1 pr-3 rounded-full shadow-sm">
                                                             <Avatar className="w-6 h-6">
                                                                 <AvatarImage src={emp?.photoUrl} />
-                                                                <AvatarFallback className="text-[10px]">
+                                                                <AvatarFallback className="text-[10px] font-bold">
                                                                     {emp?.firstName?.[0] || 'E'}
                                                                 </AvatarFallback>
                                                             </Avatar>
@@ -1096,19 +1195,19 @@ const TaskManager = () => {
                                     </div>
                                     <div className="col-span-2 mt-2">
                                         <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-1">Description</p>
-                                        <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">{selectedTask.description || 'No description provided.'}</p>
+                                        <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">{activeTask.description || 'No description provided.'}</p>
                                     </div>
-                                    {selectedTask.images && selectedTask.images.length > 0 && (
+                                    {activeTask.images && activeTask.images.length > 0 && (
                                         <div className="col-span-2 mt-4">
                                             <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-2">Attachments</p>
                                             <div className="flex flex-wrap gap-2">
-                                                {selectedTask.images.map((img: string, i: number) => (
+                                                {activeTask.images.map((img: string, i: number) => (
                                                     <img
                                                         key={i}
                                                         src={img}
                                                         alt="Attachment"
                                                         className="w-24 h-24 object-cover rounded-lg border shadow-sm hover:scale-105 transition-transform cursor-pointer"
-                                                        onClick={() => window.open(img, '_blank')}
+                                                        onClick={() => setPreviewImage(img)}
                                                     />
                                                 ))}
                                             </div>
@@ -1259,11 +1358,7 @@ const TaskManager = () => {
                                                     variant="ghost"
                                                     size="icon"
                                                     className="h-7 w-7 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                                    onClick={() => {
-                                                        if (confirm('Delete team?')) {
-                                                            firebase.database().ref(`root/nexus_hr/teams/${team.id}`).remove();
-                                                        }
-                                                    }}
+                                                    onClick={() => handleDeleteTeam(team.id)}
                                                 >
                                                     <Trash2 className="w-3.5 h-3.5" />
                                                 </Button>
@@ -1285,6 +1380,48 @@ const TaskManager = () => {
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+                {/* DELETE TASK CONFIRMATION DIALOG */}
+                <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+                    <DialogContent className="sm:max-w-[400px]">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2 text-red-600">
+                                <Trash2 className="w-5 h-5" />
+                                Confirm Deletion
+                            </DialogTitle>
+                            <DialogDescription>
+                                Are you sure you want to delete this task? This action cannot be undone.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter className="gap-2 sm:gap-0">
+                            <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>Cancel</Button>
+                            <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={confirmDeleteTask}>
+                                Delete Task
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* DELETE TEAM CONFIRMATION DIALOG */}
+                <Dialog open={isTeamDeleteModalOpen} onOpenChange={setIsTeamDeleteModalOpen}>
+                    <DialogContent className="sm:max-w-[400px]">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2 text-red-600">
+                                <Trash2 className="w-5 h-5" />
+                                Delete Team
+                            </DialogTitle>
+                            <DialogDescription>
+                                Are you sure you want to delete this team? All team data will be removed.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter className="gap-2 sm:gap-0">
+                            <Button variant="outline" onClick={() => setIsTeamDeleteModalOpen(false)}>Cancel</Button>
+                            <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={confirmDeleteTeam}>
+                                Delete Team
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
                 {/* COMPLETION NOTE DIALOG */}
                 <Dialog open={isCompletionModalOpen} onOpenChange={setIsCompletionModalOpen}>
                     <DialogContent className="sm:max-w-[450px]">
@@ -1314,6 +1451,40 @@ const TaskManager = () => {
                                 Finish & Mark Completed
                             </Button>
                         </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* IMAGE PREVIEW MODAL */}
+                <Dialog open={!!previewImage} onOpenChange={(open) => !open && setPreviewImage(null)}>
+                    <DialogContent className="sm:max-w-[90vw] sm:max-h-[90vh] p-0 overflow-hidden bg-transparent border-none shadow-none flex items-center justify-center">
+                        <div className="relative group max-w-full max-h-full">
+                            <img
+                                src={previewImage || ''}
+                                alt="Attachment Preview"
+                                className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl transition-all duration-300"
+                            />
+                            <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button
+                                    className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/20"
+                                    onClick={() => {
+                                        const link = document.createElement('a');
+                                        link.href = previewImage || '';
+                                        link.download = `attachment-${Date.now()}.jpg`;
+                                        link.click();
+                                    }}
+                                >
+                                    Download
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/20"
+                                    onClick={() => setPreviewImage(null)}
+                                >
+                                    <X className="w-5 h-5" />
+                                </Button>
+                            </div>
+                        </div>
                     </DialogContent>
                 </Dialog>
             </div>
