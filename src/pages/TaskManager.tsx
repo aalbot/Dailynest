@@ -223,6 +223,8 @@ const TaskManager = () => {
     const [completionNote, setCompletionNote] = useState("");
     const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
     const [tempStatus, setTempStatus] = useState<string | null>(null);
+    const [isAssignPopoverOpen, setIsAssignPopoverOpen] = useState(false);
+    const [isTesterPopoverOpen, setIsTesterPopoverOpen] = useState(false);
 
     // Team Creation State
     const [newTeam, setNewTeam] = useState({
@@ -702,7 +704,7 @@ const TaskManager = () => {
                                     <>
                                         <div className="space-y-2">
                                             <Label>Assign Members</Label>
-                                            <Popover>
+                                            <Popover open={isAssignPopoverOpen} onOpenChange={setIsAssignPopoverOpen}>
                                                 <PopoverTrigger asChild>
                                                     <Button variant="outline" className="w-full justify-between h-10 border-slate-200 dark:border-slate-800">
                                                         <span className="text-slate-500 font-normal">Search and assign members...</span>
@@ -710,6 +712,17 @@ const TaskManager = () => {
                                                     </Button>
                                                 </PopoverTrigger>
                                                 <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                                                    <div className="flex items-center justify-between p-2 border-b bg-slate-50 dark:bg-slate-900">
+                                                        <span className="text-[10px] font-bold uppercase text-slate-500 ml-1">Assign Members</span>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-6 w-6 text-slate-400 hover:text-slate-600"
+                                                            onClick={() => setIsAssignPopoverOpen(false)}
+                                                        >
+                                                            <X className="w-3.5 h-3.5" />
+                                                        </Button>
+                                                    </div>
                                                     <Command>
                                                         <CommandInput placeholder="Search employee name..." />
                                                         <CommandList>
@@ -774,7 +787,7 @@ const TaskManager = () => {
 
                                         <div className="space-y-2">
                                             <Label>Select Tester</Label>
-                                            <Popover>
+                                            <Popover open={isTesterPopoverOpen} onOpenChange={setIsTesterPopoverOpen}>
                                                 <PopoverTrigger asChild>
                                                     <Button variant="outline" className="w-full justify-between h-10 border-slate-200 dark:border-slate-800">
                                                         <span className="text-slate-500 font-normal">
@@ -784,6 +797,17 @@ const TaskManager = () => {
                                                     </Button>
                                                 </PopoverTrigger>
                                                 <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                                                    <div className="flex items-center justify-between p-2 border-b bg-slate-50 dark:bg-slate-900">
+                                                        <span className="text-[10px] font-bold uppercase text-slate-500 ml-1">Select Tester</span>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-6 w-6 text-slate-400 hover:text-slate-600"
+                                                            onClick={() => setIsTesterPopoverOpen(false)}
+                                                        >
+                                                            <X className="w-3.5 h-3.5" />
+                                                        </Button>
+                                                    </div>
                                                     <Command>
                                                         <CommandInput placeholder="Search employee name..." />
                                                         <CommandList>
