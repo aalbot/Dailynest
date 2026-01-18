@@ -238,6 +238,7 @@ const TaskManager = () => {
     const [commentText, setCommentText] = useState("");
     const [selectedCommenterId, setSelectedCommenterId] = useState<string>("");
     const [isCommenterPopoverOpen, setIsCommenterPopoverOpen] = useState(false);
+    const [commenterSearch, setCommenterSearch] = useState("");
 
     const activeTask = tasks.find(t => t.id === selectedTask?.id) || selectedTask;
 
@@ -822,7 +823,7 @@ const TaskManager = () => {
                                                     </div>
                                                     <Command>
                                                         <CommandInput placeholder="Search employee name..." />
-                                                        <CommandList>
+                                                        <CommandList className="max-h-[300px] overflow-y-auto">
                                                             <CommandEmpty>No employee found.</CommandEmpty>
                                                             <CommandGroup>
                                                                 {employees
@@ -907,7 +908,7 @@ const TaskManager = () => {
                                                     </div>
                                                     <Command>
                                                         <CommandInput placeholder="Search employee name..." />
-                                                        <CommandList>
+                                                        <CommandList className="max-h-[300px] overflow-y-auto">
                                                             <CommandEmpty>No employee found.</CommandEmpty>
                                                             <CommandGroup>
                                                                 {employees
@@ -1241,7 +1242,7 @@ const TaskManager = () => {
                                                 <Popover open={isReassignOpen} onOpenChange={setIsReassignOpen}>
                                                     <PopoverTrigger asChild>
                                                         <Button variant="ghost" size="sm" className="h-6 px-2 hover:bg-slate-50 text-[10px] font-black text-indigo-600 rounded-full">
-                                                            EDIT
+                                                            RE-ASSIGN
                                                         </Button>
                                                     </PopoverTrigger>
                                                     <PopoverContent className="w-[300px] p-0 shadow-2xl rounded-3xl border-slate-100 overflow-hidden" align="end">
@@ -1249,60 +1250,59 @@ const TaskManager = () => {
                                                             <span className="text-xs font-black uppercase text-slate-500 tracking-widest">Team Workspace</span>
                                                             <Button variant="secondary" size="sm" className="h-8 rounded-xl text-xs font-bold" onClick={() => setIsReassignOpen(false)}>Close</Button>
                                                         </div>
-                                                        <Command>
-                                                            <CommandInput placeholder="Search member..." className="h-12" />
-                                                            <CommandList className="max-h-[300px]">
-                                                                <CommandEmpty>No results found.</CommandEmpty>
-                                                                <CommandGroup>
-                                                                    {employees.filter(emp => teams.find(t => t.id === activeTask.teamId)?.memberIds?.includes(emp.id)).map(emp => (
-                                                                        <CommandItem
-                                                                            key={emp.id}
-                                                                            onSelect={() => {
-                                                                                const current = activeTask.assignedEmployeeIds || [];
-                                                                                const updated = current.includes(emp.id) ? current.filter(id => id !== emp.id) : [...current, emp.id];
-                                                                                firebase.database().ref(`root/nexus_hr/tasks/${activeTask.id}`).update({ assignedEmployeeIds: updated });
-                                                                            }}
-                                                                            className="flex items-center gap-3 p-3 cursor-pointer hover:bg-slate-50"
-                                                                        >
-                                                                            <div className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all ${activeTask.assignedEmployeeIds?.includes(emp.id) ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'}`}>
-                                                                                {activeTask.assignedEmployeeIds?.includes(emp.id) && <Check className="w-3.5 h-3.5" />}
-                                                                            </div>
-                                                                            <Avatar className="w-9 h-9 border-2 border-white shadow-sm">
-                                                                                <AvatarImage src={emp.photoUrl} />
-                                                                                <AvatarFallback className="text-[10px] font-black">{emp.firstName?.[0]}</AvatarFallback>
-                                                                            </Avatar>
-                                                                            <div className="flex flex-col">
-                                                                                <span className="text-sm font-black text-slate-700">{emp.firstName} {emp.lastName}</span>
-                                                                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">{emp.role}</span>
-                                                                            </div>
-                                                                        </CommandItem>
-                                                                    ))}
-                                                                </CommandGroup>
-                                                            </CommandList>
-                                                        </Command>
+                                                        <div className="flex flex-col" onWheel={(e) => e.stopPropagation()}>
+                                                            <Command className="bg-transparent">
+                                                                <CommandInput placeholder="Search member..." className="h-12 shrink-0" />
+                                                                <CommandList className="max-h-[300px] overflow-y-auto custom-scrollbar-thick">
+                                                                    <CommandEmpty>No results found.</CommandEmpty>
+                                                                    <CommandGroup>
+                                                                        {employees.filter(emp => teams.find(t => t.id === activeTask.teamId)?.memberIds?.includes(emp.id)).map(emp => (
+                                                                            <CommandItem
+                                                                                key={emp.id}
+                                                                                onSelect={() => {
+                                                                                    const current = activeTask.assignedEmployeeIds || [];
+                                                                                    const updated = current.includes(emp.id) ? current.filter(id => id !== emp.id) : [...current, emp.id];
+                                                                                    firebase.database().ref(`root/nexus_hr/tasks/${activeTask.id}`).update({ assignedEmployeeIds: updated });
+                                                                                }}
+                                                                                className="flex items-center gap-3 p-3 cursor-pointer hover:bg-slate-50"
+                                                                            >
+                                                                                <div className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all ${activeTask.assignedEmployeeIds?.includes(emp.id) ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'}`}>
+                                                                                    {activeTask.assignedEmployeeIds?.includes(emp.id) && <Check className="w-3.5 h-3.5" />}
+                                                                                </div>
+                                                                                <Avatar className="w-9 h-9 border-2 border-white shadow-sm">
+                                                                                    <AvatarImage src={emp.photoUrl} />
+                                                                                    <AvatarFallback className="text-[10px] font-black">{emp.firstName?.[0]}</AvatarFallback>
+                                                                                </Avatar>
+                                                                                <div className="flex flex-col">
+                                                                                    <span className="text-sm font-black text-slate-700">{emp.firstName} {emp.lastName}</span>
+                                                                                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">{emp.role}</span>
+                                                                                </div>
+                                                                            </CommandItem>
+                                                                        ))}
+                                                                    </CommandGroup>
+                                                                </CommandList>
+                                                            </Command>
+                                                        </div>
                                                     </PopoverContent>
                                                 </Popover>
                                             </div>
-                                            <div className="flex -space-x-3 items-center pt-1 px-1">
-                                                {activeTask.assignedEmployeeIds?.slice(0, 4).map((id: string) => {
-                                                    const emp = employees.find(e => e.id === id);
-                                                    return (
-                                                        <div key={id} className="relative group">
-                                                            <Avatar className="w-10 h-10 border-4 border-white dark:border-slate-950 shadow-md ring-1 ring-slate-100 dark:ring-slate-800 transition-transform group-hover:-translate-y-1">
-                                                                <AvatarImage src={emp?.photoUrl} />
-                                                                <AvatarFallback className="bg-slate-50 text-[10px] font-black text-slate-600">
-                                                                    {emp?.firstName?.[0]}
-                                                                </AvatarFallback>
-                                                            </Avatar>
-                                                        </div>
-                                                    );
-                                                })}
-                                                {activeTask.assignedEmployeeIds?.length > 4 && (
-                                                    <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-900 border-4 border-white dark:border-slate-950 flex items-center justify-center text-[10px] font-black text-slate-500 shadow-md relative z-10">
-                                                        +{activeTask.assignedEmployeeIds.length - 4}
-                                                    </div>
-                                                )}
-                                                {!activeTask.assignedEmployeeIds?.length && (
+                                            <div className="flex flex-wrap gap-2 pt-1 px-1">
+                                                {activeTask.assignedEmployeeIds && activeTask.assignedEmployeeIds.length > 0 ? (
+                                                    activeTask.assignedEmployeeIds.map((id: string) => {
+                                                        const emp = employees.find(e => e.id === id);
+                                                        return (
+                                                            <div key={id} className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-1 pr-3 rounded-full hover:bg-white transition-colors duration-200 shadow-sm/5">
+                                                                <Avatar className="w-7 h-7 border-2 border-white dark:border-slate-800 shadow-sm">
+                                                                    <AvatarImage src={emp?.photoUrl} />
+                                                                    <AvatarFallback className="text-[10px] font-black">{emp?.firstName?.[0]}</AvatarFallback>
+                                                                </Avatar>
+                                                                <span className="text-xs font-black text-slate-700 dark:text-slate-300 leading-none">
+                                                                    {emp ? emp.firstName : 'Unknown'}
+                                                                </span>
+                                                            </div>
+                                                        );
+                                                    })
+                                                ) : (
                                                     <span className="text-[11px] text-slate-400 font-bold italic">No one assigned</span>
                                                 )}
                                             </div>
@@ -1352,32 +1352,85 @@ const TaskManager = () => {
                                                                 <ChevronDown className="w-3 h-3 ml-2 opacity-50" />
                                                             </Button>
                                                         </PopoverTrigger>
-                                                        <PopoverContent className="w-[260px] p-0 rounded-3xl overflow-hidden shadow-2xl border-slate-100" align="start">
-                                                            <Command>
-                                                                <CommandInput placeholder="Who is speaking?" className="h-12" />
-                                                                <CommandList className="max-h-[280px]">
-                                                                    <CommandEmpty>No one found.</CommandEmpty>
-                                                                    <CommandGroup>
-                                                                        {employees.filter(emp => emp.role !== 'Ride').map(emp => (
-                                                                            <CommandItem
-                                                                                key={emp.id}
-                                                                                onSelect={() => { setSelectedCommenterId(emp.id); setIsCommenterPopoverOpen(false); }}
-                                                                                className="flex items-center gap-3 p-3 cursor-pointer"
-                                                                            >
-                                                                                <Avatar className="w-8 h-8">
-                                                                                    <AvatarImage src={emp.photoUrl} />
-                                                                                    <AvatarFallback className="text-[10px] font-black">{emp.firstName?.[0]}</AvatarFallback>
-                                                                                </Avatar>
-                                                                                <div className="flex flex-col">
-                                                                                    <span className="text-sm font-black text-slate-700">{emp.firstName} {emp.lastName}</span>
-                                                                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{emp.role}</span>
+                                                        <PopoverContent className="w-[300px] p-0 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] border-none ring-1 ring-slate-100 dark:ring-slate-800 flex flex-col" align="start">
+                                                            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-slate-900 dark:to-slate-900 p-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                                                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Identify Yourself</span>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="p-3 border-b border-slate-50 dark:border-slate-800 shrink-0">
+                                                                <div className="relative">
+                                                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                                                    <Input
+                                                                        placeholder="Search by name..."
+                                                                        value={commenterSearch}
+                                                                        onChange={(e) => setCommenterSearch(e.target.value)}
+                                                                        className="h-10 pl-9 bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl text-xs placeholder:text-slate-400 focus-visible:ring-1 focus-visible:ring-indigo-500"
+                                                                    />
+                                                                </div>
+                                                            </div>
+
+                                                            <div
+                                                                className="w-full p-2 custom-scrollbar-thick"
+                                                                style={{ height: '320px', overflowY: 'scroll', touchAction: 'pan-y' }}
+                                                                onWheel={(e) => e.stopPropagation()}
+                                                            >
+                                                                {employees
+                                                                    .filter(emp => emp.role !== 'Ride')
+                                                                    .filter(emp => {
+                                                                        if (!commenterSearch) return true;
+                                                                        const full = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+                                                                        return full.includes(commenterSearch.toLowerCase());
+                                                                    })
+                                                                    .length === 0 ? (
+                                                                    <div className="py-10 text-center">
+                                                                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">No results</span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="space-y-1">
+                                                                        {employees
+                                                                            .filter(emp => emp.role !== 'Ride')
+                                                                            .filter(emp => {
+                                                                                if (!commenterSearch) return true;
+                                                                                const full = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+                                                                                return full.includes(commenterSearch.toLowerCase());
+                                                                            })
+                                                                            .map(emp => (
+                                                                                <div
+                                                                                    key={emp.id}
+                                                                                    onClick={() => {
+                                                                                        setSelectedCommenterId(emp.id);
+                                                                                        setIsCommenterPopoverOpen(false);
+                                                                                        setCommenterSearch("");
+                                                                                    }}
+                                                                                    className={`flex items-center gap-3 p-2.5 cursor-pointer rounded-2xl transition-all duration-200 group hover:bg-slate-50 dark:hover:bg-slate-800/50 ${selectedCommenterId === emp.id ? 'bg-indigo-50 dark:bg-indigo-500/10' : ''}`}
+                                                                                >
+                                                                                    <div className="relative shrink-0">
+                                                                                        <Avatar className="w-10 h-10 border-2 border-white dark:border-slate-800 shadow-sm group-hover:scale-110 transition-transform">
+                                                                                            <AvatarImage src={emp.photoUrl} />
+                                                                                            <AvatarFallback className="text-[11px] font-black bg-indigo-100 text-indigo-600">{emp.firstName?.[0]}</AvatarFallback>
+                                                                                        </Avatar>
+                                                                                        {selectedCommenterId === emp.id && (
+                                                                                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-indigo-600 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center shadow-lg">
+                                                                                                <Check className="w-2.5 h-2.5 text-white" />
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                    <div className="flex flex-col min-w-0 flex-1">
+                                                                                        <span className={`text-sm font-black truncate group-hover:text-indigo-600 transition-colors ${selectedCommenterId === emp.id ? 'text-indigo-600' : 'text-slate-700 dark:text-slate-200'}`}>
+                                                                                            {emp.firstName} {emp.lastName}
+                                                                                        </span>
+                                                                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight truncate">
+                                                                                            {emp.role}
+                                                                                        </span>
+                                                                                    </div>
                                                                                 </div>
-                                                                                {selectedCommenterId === emp.id && <Check className="ml-auto w-4 h-4 text-indigo-600" />}
-                                                                            </CommandItem>
-                                                                        ))}
-                                                                    </CommandGroup>
-                                                                </CommandList>
-                                                            </Command>
+                                                                            ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </PopoverContent>
                                                     </Popover>
 
@@ -1494,7 +1547,7 @@ const TaskManager = () => {
                                     <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
                                         <Command>
                                             <CommandInput placeholder="Search employee name..." />
-                                            <CommandList>
+                                            <CommandList className="max-h-[300px] overflow-y-auto">
                                                 <CommandEmpty>No employee found.</CommandEmpty>
                                                 <CommandGroup>
                                                     {employees
@@ -1781,7 +1834,7 @@ const TaskManager = () => {
                                             <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
                                                 <Command>
                                                     <CommandInput placeholder="Search employee..." />
-                                                    <CommandList>
+                                                    <CommandList className="max-h-[300px] overflow-y-auto">
                                                         <CommandEmpty>No employee found.</CommandEmpty>
                                                         <CommandGroup>
                                                             {employees
