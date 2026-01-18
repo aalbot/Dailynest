@@ -30,7 +30,10 @@ import {
     UserPlus,
     Lock,
     Pencil,
-    Check
+    Check,
+    Send,
+    UserCircle,
+    Calendar
 } from 'lucide-react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -1060,75 +1063,89 @@ const TaskManager = () => {
                 <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
                     <SheetContent className="w-full sm:max-w-xl overflow-y-auto pt-10">
                         {activeTask && (
-                            <div className="flex flex-col h-full">
-                                <div className="pb-6 border-b border-slate-100 dark:border-slate-800">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <Badge variant="outline" className="font-mono">{activeTask.id}</Badge>
-                                            <Badge className={
-                                                activeTask.status === 'Completed' ? 'bg-emerald-100 text-emerald-800' :
-                                                    activeTask.status === 'In Progress' ? 'bg-indigo-100 text-indigo-800' :
-                                                        activeTask.status === 'Testing' ? 'bg-purple-100 text-purple-800' :
-                                                            'bg-amber-100 text-amber-800'
-                                            }>
-                                                {activeTask.status}
-                                            </Badge>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="text-slate-400 hover:text-indigo-600 h-8 w-8"
-                                                onClick={() => {
-                                                    setEditTaskData({ ...activeTask });
-                                                    setIsEditOpen(true);
-                                                }}
-                                            >
-                                                <Pencil className="w-4 h-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="text-slate-400 hover:text-red-500 h-8 w-8"
-                                                onClick={() => handleDeleteTask(activeTask.id)}
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
-                                        </div>
+                            <div className="flex flex-col h-full -mx-6 -mt-10 overflow-hidden">
+                                {/* Modern Header */}
+                                <div className="relative pt-12 pb-6 px-6 bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 text-white shadow-lg shrink-0">
+                                    <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+                                        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[150%] bg-white rounded-[100%] blur-3xl rotate-12" />
+                                        <div className="absolute bottom-[-50%] right-[-10%] w-[50%] h-[150%] bg-indigo-200 rounded-[100%] blur-3xl" />
                                     </div>
-                                    <h1 className="text-2xl font-bold mb-1">{activeTask.title}</h1>
+
+                                    <div className="relative z-10">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-2">
+                                                <Badge variant="outline" className="font-mono bg-white/10 border-white/20 text-indigo-50 backdrop-blur-md">
+                                                    {activeTask.id}
+                                                </Badge>
+                                                <Badge className={
+                                                    activeTask.status === 'Completed' ? 'bg-emerald-400/20 text-emerald-100 border-emerald-400/30' :
+                                                        activeTask.status === 'In Progress' ? 'bg-indigo-400/20 text-indigo-100 border-indigo-400/30' :
+                                                            activeTask.status === 'Testing' ? 'bg-purple-400/20 text-purple-100 border-purple-400/30' :
+                                                                'bg-white/20 text-white border-white/30'
+                                                }>
+                                                    {activeTask.status}
+                                                </Badge>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8 rounded-full"
+                                                    onClick={() => {
+                                                        setEditTaskData({ ...activeTask });
+                                                        setIsEditOpen(true);
+                                                    }}
+                                                >
+                                                    <Pencil className="w-4 h-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="text-white/70 hover:text-red-300 hover:bg-red-400/10 h-8 w-8 rounded-full"
+                                                    onClick={() => handleDeleteTask(activeTask.id)}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                        <h1 className="text-2xl font-black leading-tight tracking-tight drop-shadow-md">
+                                            {activeTask.title}
+                                        </h1>
+                                    </div>
                                 </div>
 
-                                <div className="py-6 space-y-6">
-                                    {/* Description at the top */}
-                                    <div className="bg-indigo-50/30 dark:bg-indigo-950/20 p-4 rounded-xl border border-indigo-100/50 dark:border-indigo-900/30">
-                                        <p className="text-xs text-indigo-600 dark:text-indigo-400 uppercase tracking-widest font-bold mb-2 flex items-center gap-2">
-                                            <FileText className="w-3 h-3" />
+                                {/* Main Content scrollable area */}
+                                <div className="flex-1 overflow-y-auto bg-white dark:bg-slate-950 p-6 space-y-6">
+                                    {/* Description Block */}
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-2 text-[11px] uppercase font-black text-slate-400 tracking-[0.2em] px-1">
+                                            <FileText className="w-3.5 h-3.5 text-indigo-500" />
                                             Description
-                                        </p>
-                                        <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+                                        </div>
+                                        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-5 rounded-2xl shadow-sm/5 text-[15px] leading-relaxed text-slate-600 dark:text-slate-300">
                                             {activeTask.description || 'No description provided.'}
-                                        </p>
+                                        </div>
                                     </div>
-                                    {/* Attachments Section moved to the top */}
+
+                                    {/* Attachments Section */}
                                     {activeTask.images && activeTask.images.length > 0 && (
-                                        <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-                                            <p className="text-xs text-slate-500 uppercase tracking-widest font-bold mb-3 flex items-center gap-2">
-                                                <Camera className="w-3 h-3" />
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-2 text-[11px] uppercase font-black text-slate-400 tracking-[0.2em] px-1">
+                                                <Camera className="w-3.5 h-3.5 text-indigo-500" />
                                                 Attachments ({activeTask.images.length})
-                                            </p>
-                                            <div className="flex flex-wrap gap-3">
+                                            </div>
+                                            <div className="flex gap-3 overflow-x-auto pb-4 -mx-1 px-1 custom-scrollbar">
                                                 {activeTask.images.map((img: string, i: number) => (
-                                                    <div key={i} className="group relative">
+                                                    <div key={i} className="group relative shrink-0">
                                                         <img
                                                             src={img}
                                                             alt="Attachment"
-                                                            className="w-20 h-20 object-cover rounded-lg border-2 border-white dark:border-slate-800 shadow-sm transition-all hover:scale-105 cursor-pointer"
+                                                            className="w-28 h-28 object-cover rounded-2xl border-2 border-white dark:border-slate-800 shadow-md transition-all hover:scale-105 cursor-pointer ring-1 ring-slate-200 dark:ring-slate-800"
                                                             onClick={() => setPreviewImage(img)}
                                                         />
-                                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 rounded-lg transition-opacity flex items-center justify-center pointer-events-none">
-                                                            <div className="bg-white/90 p-1 rounded-full">
-                                                                <Search className="w-3 h-3 text-slate-900" />
+                                                        <div className="absolute inset-0 bg-indigo-600/10 opacity-0 group-hover:opacity-100 rounded-2xl transition-all flex items-center justify-center pointer-events-none backdrop-blur-[1px]">
+                                                            <div className="bg-white/95 p-2 rounded-xl shadow-xl transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+                                                                <Search className="w-4 h-4 text-indigo-600" />
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1137,279 +1154,297 @@ const TaskManager = () => {
                                         </div>
                                     )}
 
-                                    {/* Action Status Block */}
-                                    <div className="bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl p-4">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="text-xs font-bold uppercase text-slate-500 mb-1">Current Status</p>
-                                                <Badge className={
-                                                    activeTask.status === 'Completed' ? 'bg-emerald-100 text-emerald-800' :
-                                                        activeTask.status === 'In Progress' ? 'bg-indigo-100 text-indigo-800' :
-                                                            activeTask.status === 'Testing' ? 'bg-purple-100 text-purple-800' :
-                                                                activeTask.status === 'On Hold' ? 'bg-amber-100 text-amber-800' :
-                                                                    'bg-slate-100 text-slate-800'
-                                                }>
-                                                    {activeTask.status}
-                                                </Badge>
-                                            </div>
-                                            <div className="flex flex-col gap-2">
-                                                <Label className="text-[10px] uppercase font-bold text-slate-400">Update To</Label>
+                                    {/* Process Block: Status, Priority, Due Date */}
+                                    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm">
+                                        <div className="grid grid-cols-2">
+                                            {/* Status Trigger */}
+                                            <div className="p-4 border-r border-slate-100 dark:border-slate-800 bg-slate-50/30">
+                                                <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-2 block">Current Phase</label>
                                                 <Select
                                                     value={activeTask.status}
                                                     onValueChange={(val) => handleStatusUpdate(activeTask.id, val)}
                                                 >
-                                                    <SelectTrigger className="w-[140px] h-9">
-                                                        <SelectValue />
+                                                    <SelectTrigger className="w-full h-10 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl shadow-sm text-xs font-bold">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className={`w-2 h-2 rounded-full ${activeTask.status === 'Completed' ? 'bg-emerald-500' :
+                                                                activeTask.status === 'In Progress' ? 'bg-indigo-500' :
+                                                                    'bg-amber-500'
+                                                                }`} />
+                                                            <SelectValue />
+                                                        </div>
                                                     </SelectTrigger>
-                                                    <SelectContent>
+                                                    <SelectContent className="rounded-xl">
                                                         <SelectItem value="Pending">Pending</SelectItem>
                                                         <SelectItem value="In Progress">In Progress</SelectItem>
                                                         <SelectItem value="On Hold">On Hold</SelectItem>
                                                         <SelectItem value="Testing">In Testing</SelectItem>
-                                                        <SelectItem value="Completed">{activeTask.status === 'Testing' ? 'Pass & Complete' : 'Mark Completed'}</SelectItem>
+                                                        <SelectItem value="Completed">Completed</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                             </div>
-                                        </div>
-                                    </div>
 
-                                    {/* Task Attributes */}
-                                    <div className="grid grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-                                        <div>
-                                            <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-1">Priority</p>
-                                            <p className="font-medium">{activeTask.priority}</p>
-                                        </div>
-                                    </div>
-
-                                    {activeTask.completionNote && (
-                                        <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900 rounded-xl p-4">
-                                            <p className="text-xs font-bold uppercase text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-2">
-                                                <FileText className="w-3 h-3" />
-                                                Completion Note
-                                            </p>
-                                            <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed italic">"{activeTask.completionNote}"</p>
-                                        </div>
-                                    )}
-                                    <div>
-                                        <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-1">Due Date</p>
-                                        <p className="font-medium">{activeTask.dueDate || 'None'}</p>
-                                    </div>
-                                    {activeTask.testerId && (
-                                        <div className="col-span-2 mt-2">
-                                            <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-2">Assigned Tester</p>
-                                            <div className="flex items-center gap-2 bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800 p-1 pr-3 rounded-full shadow-sm w-fit">
-                                                <Avatar className="w-6 h-6">
-                                                    <AvatarImage src={employees.find(e => e.id === activeTask.testerId)?.photoUrl} />
-                                                    <AvatarFallback className="text-[10px] text-purple-700">
-                                                        {employees.find(e => e.id === activeTask.testerId)?.firstName?.[0] || 'T'}
-                                                    </AvatarFallback>
-                                                </Avatar>
-                                                <span className="text-xs font-medium text-purple-700 dark:text-purple-300">
-                                                    {(() => {
-                                                        const tester = employees.find(e => e.id === activeTask.testerId);
-                                                        return tester ? `${tester.firstName} ${tester.lastName}` : 'Unknown Tester';
-                                                    })()}
-                                                </span>
+                                            {/* Priority/Date Display */}
+                                            <div className="p-4 flex flex-col justify-between">
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <span className="text-[10px] uppercase font-black text-slate-400 tracking-widest block mb-1">Priority</span>
+                                                        <Badge className={
+                                                            activeTask.priority === 'High' ? 'bg-red-50 text-red-600 border-red-100' :
+                                                                activeTask.priority === 'Normal' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
+                                                                    'bg-slate-50 text-slate-600 border-slate-100'
+                                                        }>
+                                                            {activeTask.priority}
+                                                        </Badge>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <span className="text-[10px] uppercase font-black text-slate-400 tracking-widest block mb-1">Due</span>
+                                                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                                                            {activeTask.dueDate || 'None'}
+                                                        </span>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
-                                    )}
-                                    <div className="col-span-2 mt-2">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold">Assigned To</p>
-                                            <Popover open={isReassignOpen} onOpenChange={setIsReassignOpen}>
-                                                <PopoverTrigger asChild>
-                                                    <Button variant="ghost" size="sm" className="h-7 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-2 gap-1.5 rounded-full">
-                                                        <UserPlus className="w-3.5 h-3.5" />
-                                                        <span className="text-[10px] font-bold">REASSIGN</span>
-                                                    </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-[300px] p-0" align="end">
-                                                    <div className="flex items-center justify-between p-2 border-b bg-slate-50 dark:bg-slate-900">
-                                                        <span className="text-[10px] font-bold uppercase text-slate-500 ml-1">Reassign Task</span>
-                                                        <Button variant="secondary" size="sm" className="h-7 px-3 text-[11px] font-bold" onClick={() => setIsReassignOpen(false)}>Done</Button>
+                                    </div>
+
+                                    {/* Team Assignment Metadata */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        {/* Assigned Tester */}
+                                        <div className="space-y-3">
+                                            <span className="text-[10px] uppercase font-black text-slate-400 tracking-widest block px-1">Assigned Tester</span>
+                                            {activeTask.testerId ? (
+                                                <div className="flex items-center gap-3 bg-purple-50/50 dark:bg-purple-900/10 p-3 rounded-2xl border border-purple-100/30 dark:border-purple-800/20 group">
+                                                    <Avatar className="w-10 h-10 border-2 border-white dark:border-slate-800 shadow-md">
+                                                        <AvatarImage src={employees.find(e => e.id === activeTask.testerId)?.photoUrl} />
+                                                        <AvatarFallback className="bg-purple-100 text-purple-700 text-xs font-black">
+                                                            {employees.find(e => e.id === activeTask.testerId)?.firstName?.[0]}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-black text-slate-800 dark:text-slate-200 leading-tight">
+                                                            {employees.find(e => e.id === activeTask.testerId)?.firstName}
+                                                        </span>
+                                                        <span className="text-[10px] text-purple-600/70 font-bold uppercase tracking-tighter">QA / TESTING</span>
                                                     </div>
-                                                    <Command>
-                                                        <CommandInput placeholder="Search team member..." />
-                                                        <CommandList>
-                                                            <CommandEmpty>No member found.</CommandEmpty>
-                                                            <CommandGroup>
-                                                                {employees
-                                                                    .filter(emp => {
-                                                                        const team = teams.find(t => t.id === activeTask.teamId);
-                                                                        return team?.memberIds?.includes(emp.id);
-                                                                    })
-                                                                    .map(emp => (
+                                                </div>
+                                            ) : (
+                                                <div className="h-14 flex items-center justify-center border-2 border-dashed border-slate-100 rounded-2xl text-[11px] text-slate-400 font-bold">
+                                                    Unassigned
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Team Members */}
+                                        <div className="space-y-3">
+                                            <div className="flex items-center justify-between px-1">
+                                                <span className="text-[10px] uppercase font-black text-slate-400 tracking-widest">Assigned To</span>
+                                                <Popover open={isReassignOpen} onOpenChange={setIsReassignOpen}>
+                                                    <PopoverTrigger asChild>
+                                                        <Button variant="ghost" size="sm" className="h-6 px-2 hover:bg-slate-50 text-[10px] font-black text-indigo-600 rounded-full">
+                                                            EDIT
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-[300px] p-0 shadow-2xl rounded-3xl border-slate-100 overflow-hidden" align="end">
+                                                        <div className="p-4 border-b bg-slate-50 dark:bg-slate-900 flex items-center justify-between">
+                                                            <span className="text-xs font-black uppercase text-slate-500 tracking-widest">Team Workspace</span>
+                                                            <Button variant="secondary" size="sm" className="h-8 rounded-xl text-xs font-bold" onClick={() => setIsReassignOpen(false)}>Close</Button>
+                                                        </div>
+                                                        <Command>
+                                                            <CommandInput placeholder="Search member..." className="h-12" />
+                                                            <CommandList className="max-h-[300px]">
+                                                                <CommandEmpty>No results found.</CommandEmpty>
+                                                                <CommandGroup>
+                                                                    {employees.filter(emp => teams.find(t => t.id === activeTask.teamId)?.memberIds?.includes(emp.id)).map(emp => (
                                                                         <CommandItem
                                                                             key={emp.id}
                                                                             onSelect={() => {
                                                                                 const current = activeTask.assignedEmployeeIds || [];
-                                                                                const updated = current.includes(emp.id)
-                                                                                    ? current.filter(id => id !== emp.id)
-                                                                                    : [...current, emp.id];
-                                                                                firebase.database().ref(`root/nexus_hr/tasks/${activeTask.id}`).update({
-                                                                                    assignedEmployeeIds: updated
-                                                                                });
+                                                                                const updated = current.includes(emp.id) ? current.filter(id => id !== emp.id) : [...current, emp.id];
+                                                                                firebase.database().ref(`root/nexus_hr/tasks/${activeTask.id}`).update({ assignedEmployeeIds: updated });
                                                                             }}
-                                                                            className="flex items-center gap-2"
+                                                                            className="flex items-center gap-3 p-3 cursor-pointer hover:bg-slate-50"
                                                                         >
-                                                                            <div className={`flex h-4 w-4 items-center justify-center rounded-sm border border-primary ${activeTask.assignedEmployeeIds?.includes(emp.id) ? 'bg-primary text-primary-foreground' : 'opacity-50'}`}>
-                                                                                {activeTask.assignedEmployeeIds?.includes(emp.id) && <Check className="h-3 w-3" />}
+                                                                            <div className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all ${activeTask.assignedEmployeeIds?.includes(emp.id) ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'}`}>
+                                                                                {activeTask.assignedEmployeeIds?.includes(emp.id) && <Check className="w-3.5 h-3.5" />}
                                                                             </div>
-                                                                            <Avatar className="w-6 h-6">
+                                                                            <Avatar className="w-9 h-9 border-2 border-white shadow-sm">
                                                                                 <AvatarImage src={emp.photoUrl} />
-                                                                                <AvatarFallback className="text-[8px] font-bold">{emp.firstName?.[0]}</AvatarFallback>
+                                                                                <AvatarFallback className="text-[10px] font-black">{emp.firstName?.[0]}</AvatarFallback>
                                                                             </Avatar>
-                                                                            <span className="text-xs font-bold">{emp.firstName} {emp.lastName}</span>
+                                                                            <div className="flex flex-col">
+                                                                                <span className="text-sm font-black text-slate-700">{emp.firstName} {emp.lastName}</span>
+                                                                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">{emp.role}</span>
+                                                                            </div>
                                                                         </CommandItem>
                                                                     ))}
-                                                            </CommandGroup>
-                                                        </CommandList>
-                                                    </Command>
-                                                </PopoverContent>
-                                            </Popover>
-                                        </div>
-                                        <div className="flex flex-wrap gap-3">
-                                            {activeTask.assignedEmployeeIds && activeTask.assignedEmployeeIds.length > 0 ? (
-                                                activeTask.assignedEmployeeIds.map((id: string) => {
+                                                                </CommandGroup>
+                                                            </CommandList>
+                                                        </Command>
+                                                    </PopoverContent>
+                                                </Popover>
+                                            </div>
+                                            <div className="flex -space-x-3 items-center pt-1 px-1">
+                                                {activeTask.assignedEmployeeIds?.slice(0, 4).map((id: string) => {
                                                     const emp = employees.find(e => e.id === id);
                                                     return (
-                                                        <div key={id} className="flex items-center gap-2 bg-white dark:bg-slate-800 border p-1 pr-3 rounded-full shadow-sm">
-                                                            <Avatar className="w-6 h-6">
+                                                        <div key={id} className="relative group">
+                                                            <Avatar className="w-10 h-10 border-4 border-white dark:border-slate-950 shadow-md ring-1 ring-slate-100 dark:ring-slate-800 transition-transform group-hover:-translate-y-1">
                                                                 <AvatarImage src={emp?.photoUrl} />
-                                                                <AvatarFallback className="text-[10px] font-bold">
-                                                                    {emp?.firstName?.[0] || 'E'}
+                                                                <AvatarFallback className="bg-slate-50 text-[10px] font-black text-slate-600">
+                                                                    {emp?.firstName?.[0]}
                                                                 </AvatarFallback>
                                                             </Avatar>
-                                                            <span className="text-xs font-medium">
-                                                                {emp ? `${emp.firstName} ${emp.lastName}` : 'Unknown'}
-                                                            </span>
                                                         </div>
                                                     );
-                                                })
-                                            ) : (
-                                                <span className="text-sm text-slate-500 italic">No employees assigned</span>
-                                            )}
+                                                })}
+                                                {activeTask.assignedEmployeeIds?.length > 4 && (
+                                                    <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-900 border-4 border-white dark:border-slate-950 flex items-center justify-center text-[10px] font-black text-slate-500 shadow-md relative z-10">
+                                                        +{activeTask.assignedEmployeeIds.length - 4}
+                                                    </div>
+                                                )}
+                                                {!activeTask.assignedEmployeeIds?.length && (
+                                                    <span className="text-[11px] text-slate-400 font-bold italic">No one assigned</span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="col-span-2 mt-2">
-                                        <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-3">Discussion</p>
 
-                                        <div className="space-y-4">
-                                            {/* Commenter Selection */}
-                                            <div className="flex flex-col gap-2">
-                                                <Label className="text-[10px] uppercase font-bold text-slate-400">Addressed By</Label>
-                                                <div className="flex gap-2">
+                                    {/* Discussion Section */}
+                                    <div className="space-y-4 pt-4">
+                                        <div className="flex items-center justify-between px-1">
+                                            <div className="flex items-center gap-2 text-[11px] uppercase font-black text-slate-400 tracking-[0.2em]">
+                                                <MessageSquare className="w-3.5 h-3.5 text-indigo-500" />
+                                                Discussion
+                                            </div>
+                                            <Badge variant="outline" className="text-[9px] font-black tracking-widest bg-slate-50 h-5 border-slate-100 text-slate-400">
+                                                {activeTask.comments ? Object.keys(activeTask.comments).length : 0} FEEDBACKS
+                                            </Badge>
+                                        </div>
+
+                                        {/* Integrated Comment Composer */}
+                                        <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200/60 dark:border-slate-800 rounded-[2rem] p-3 shadow-inner">
+                                            <div className="flex flex-col gap-3">
+                                                <div className="flex items-center gap-2">
                                                     <Popover open={isCommenterPopoverOpen} onOpenChange={setIsCommenterPopoverOpen}>
                                                         <PopoverTrigger asChild>
                                                             <Button
-                                                                variant="outline"
-                                                                className="w-full justify-between h-10 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                                                                variant="ghost"
+                                                                className="h-10 px-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:bg-slate-50 shadow-sm"
                                                             >
-                                                                <div className="flex items-center gap-2 truncate">
-                                                                    {selectedCommenterId ? (
-                                                                        <>
-                                                                            <Avatar className="w-5 h-5">
-                                                                                <AvatarImage src={employees.find(e => e.id === selectedCommenterId)?.photoUrl} />
-                                                                                <AvatarFallback className="text-[8px] font-bold">
-                                                                                    {employees.find(e => e.id === selectedCommenterId)?.firstName?.[0]}
-                                                                                </AvatarFallback>
-                                                                            </Avatar>
-                                                                            <span className="text-xs font-medium">
-                                                                                {employees.find(e => e.id === selectedCommenterId)?.firstName} {employees.find(e => e.id === selectedCommenterId)?.lastName}
-                                                                            </span>
-                                                                        </>
-                                                                    ) : (
-                                                                        <span className="text-xs text-slate-400 font-normal">Select employee...</span>
-                                                                    )}
-                                                                </div>
-                                                                <ChevronDown className="w-4 h-4 opacity-50 shrink-0" />
+                                                                {selectedCommenterId ? (
+                                                                    <div className="flex items-center gap-2 max-w-[120px]">
+                                                                        <Avatar className="w-6 h-6 border border-white">
+                                                                            <AvatarImage src={employees.find(e => e.id === selectedCommenterId)?.photoUrl} />
+                                                                            <AvatarFallback className="text-[8px] font-black">
+                                                                                {employees.find(e => e.id === selectedCommenterId)?.firstName?.[0]}
+                                                                            </AvatarFallback>
+                                                                        </Avatar>
+                                                                        <span className="text-[11px] font-black truncate text-indigo-600">
+                                                                            {employees.find(e => e.id === selectedCommenterId)?.firstName}
+                                                                        </span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="flex items-center gap-2 text-slate-400">
+                                                                        <UserCircle className="w-4 h-4" />
+                                                                        <span className="text-[11px] font-bold">Select Author</span>
+                                                                    </div>
+                                                                )}
+                                                                <ChevronDown className="w-3 h-3 ml-2 opacity-50" />
                                                             </Button>
                                                         </PopoverTrigger>
-                                                        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                                                        <PopoverContent className="w-[260px] p-0 rounded-3xl overflow-hidden shadow-2xl border-slate-100" align="start">
                                                             <Command>
-                                                                <CommandInput placeholder="Search employee..." />
-                                                                <CommandList className="max-h-[300px] overflow-y-auto">
-                                                                    <CommandEmpty>No employee found.</CommandEmpty>
+                                                                <CommandInput placeholder="Who is speaking?" className="h-12" />
+                                                                <CommandList className="max-h-[280px]">
+                                                                    <CommandEmpty>No one found.</CommandEmpty>
                                                                     <CommandGroup>
-                                                                        {employees
-                                                                            .filter(emp => emp.role !== 'Ride' && emp.department !== 'Logistics')
-                                                                            .map(emp => (
-                                                                                <CommandItem
-                                                                                    key={emp.id}
-                                                                                    onSelect={() => {
-                                                                                        setSelectedCommenterId(emp.id);
-                                                                                        setIsCommenterPopoverOpen(false);
-                                                                                    }}
-                                                                                    className="flex items-center gap-2 cursor-pointer"
-                                                                                >
-                                                                                    <Avatar className="w-6 h-6">
-                                                                                        <AvatarImage src={emp.photoUrl} />
-                                                                                        <AvatarFallback className="text-[8px] font-bold">{emp.firstName?.[0]}</AvatarFallback>
-                                                                                    </Avatar>
-                                                                                    <div className="flex flex-col">
-                                                                                        <span className="text-xs font-bold">{emp.firstName} {emp.lastName}</span>
-                                                                                        <span className="text-[10px] text-slate-500">{emp.role}</span>
-                                                                                    </div>
-                                                                                    {selectedCommenterId === emp.id && <Check className="ml-auto h-4 w-4 text-indigo-600" />}
-                                                                                </CommandItem>
-                                                                            ))}
+                                                                        {employees.filter(emp => emp.role !== 'Ride').map(emp => (
+                                                                            <CommandItem
+                                                                                key={emp.id}
+                                                                                onSelect={() => { setSelectedCommenterId(emp.id); setIsCommenterPopoverOpen(false); }}
+                                                                                className="flex items-center gap-3 p-3 cursor-pointer"
+                                                                            >
+                                                                                <Avatar className="w-8 h-8">
+                                                                                    <AvatarImage src={emp.photoUrl} />
+                                                                                    <AvatarFallback className="text-[10px] font-black">{emp.firstName?.[0]}</AvatarFallback>
+                                                                                </Avatar>
+                                                                                <div className="flex flex-col">
+                                                                                    <span className="text-sm font-black text-slate-700">{emp.firstName} {emp.lastName}</span>
+                                                                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{emp.role}</span>
+                                                                                </div>
+                                                                                {selectedCommenterId === emp.id && <Check className="ml-auto w-4 h-4 text-indigo-600" />}
+                                                                            </CommandItem>
+                                                                        ))}
                                                                     </CommandGroup>
                                                                 </CommandList>
                                                             </Command>
                                                         </PopoverContent>
                                                     </Popover>
+
+                                                    <div className="flex-1 relative">
+                                                        <Input
+                                                            placeholder="Say something meaningful..."
+                                                            value={commentText}
+                                                            onChange={(e) => setCommentText(e.target.value)}
+                                                            onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
+                                                            className="h-10 bg-transparent border-none focus-visible:ring-0 shadow-none text-sm placeholder:text-slate-400 font-medium"
+                                                        />
+                                                    </div>
+
+                                                    <Button
+                                                        size="icon"
+                                                        onClick={handleAddComment}
+                                                        disabled={!commentText.trim() || !selectedCommenterId}
+                                                        className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-[1.2rem] h-10 w-10 shrink-0 shadow-lg shadow-indigo-100 dark:shadow-none transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+                                                    >
+                                                        <Send className="w-4 h-4" />
+                                                    </Button>
                                                 </div>
                                             </div>
+                                        </div>
 
-                                            {/* Comment Input */}
-                                            <div className="flex gap-2">
-                                                <Input
-                                                    placeholder="Add a comment..."
-                                                    value={commentText}
-                                                    onChange={(e) => setCommentText(e.target.value)}
-                                                    onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
-                                                    className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 h-10"
-                                                />
-                                                <Button
-                                                    size="icon"
-                                                    onClick={handleAddComment}
-                                                    className="bg-indigo-600 hover:bg-indigo-700 shrink-0 h-10 w-10 shadow-md shadow-indigo-200 dark:shadow-none transition-all active:scale-95"
-                                                >
-                                                    <MessageSquare className="w-4 h-4" />
-                                                </Button>
-                                            </div>
-
-                                            {/* Comments List */}
-                                            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                                                {activeTask.comments ? (
-                                                    Object.values(activeTask.comments)
-                                                        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                                                        .map((comment: any) => (
-                                                            <div key={comment.id} className="bg-white dark:bg-slate-800/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800 shadow-sm animate-in fade-in slide-in-from-top-1 duration-300">
-                                                                <div className="flex items-center gap-2 mb-2">
-                                                                    <Avatar className="w-5 h-5">
-                                                                        <AvatarImage src={employees.find(e => e.id === comment.authorId)?.photoUrl} />
-                                                                        <AvatarFallback className="text-[8px] font-bold bg-indigo-50 text-indigo-600">
-                                                                            {comment.author?.[0]}
-                                                                        </AvatarFallback>
-                                                                    </Avatar>
-                                                                    <div className="flex flex-col">
-                                                                        <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase leading-none">{comment.author}</span>
-                                                                        <span className="text-[8px] text-slate-400 font-medium">
-                                                                            {new Date(comment.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                                <p className="text-sm text-slate-700 dark:text-slate-300 pl-7 leading-relaxed">{comment.text}</p>
+                                        {/* Discussion List */}
+                                        <div className="space-y-6 pb-20 mt-4 h-auto">
+                                            {activeTask.comments ? (
+                                                Object.values(activeTask.comments)
+                                                    .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                                                    .map((comment: any) => (
+                                                        <div key={comment.id} className="relative flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                                            <div className="flex flex-col items-center shrink-0">
+                                                                <Avatar className="w-10 h-10 border-4 border-white dark:border-slate-950 shadow-md ring-1 ring-slate-100 dark:ring-slate-800 z-10">
+                                                                    <AvatarImage src={employees.find(e => e.id === comment.authorId)?.photoUrl} />
+                                                                    <AvatarFallback className="bg-indigo-50 text-indigo-600 text-[10px] font-black">
+                                                                        {comment.author?.[0]}
+                                                                    </AvatarFallback>
+                                                                </Avatar>
+                                                                <div className="w-[2px] flex-1 bg-slate-100 dark:bg-slate-800 mt-2 mb-[-24px] rounded-full opacity-50" />
                                                             </div>
-                                                        ))
-                                                ) : (
-                                                    <div className="text-center py-6 border-2 border-dashed rounded-lg border-slate-100 dark:border-slate-800">
-                                                        <MessageSquare className="w-6 h-6 text-slate-300 mx-auto mb-1 opacity-50" />
-                                                        <p className="text-[10px] text-slate-400 font-medium">No comments yet</p>
+
+                                                            <div className="flex flex-col gap-1 pb-6 w-full">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-tighter">
+                                                                        {comment.author}
+                                                                    </span>
+                                                                    <span className="w-1 h-1 bg-slate-300 rounded-full" />
+                                                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                                                                        {new Date(comment.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-2xl rounded-tl-none border border-slate-100/50 dark:border-slate-800/50 text-sm text-slate-600 dark:text-slate-300 leading-relaxed shadow-sm/5">
+                                                                    {comment.text}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                            ) : (
+                                                <div className="text-center py-16 bg-slate-50/50 dark:bg-slate-900/30 rounded-[3rem] border-2 border-dashed border-slate-100 dark:border-slate-800">
+                                                    <div className="w-16 h-16 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                                                        <MessageSquare className="w-8 h-8 text-slate-200" />
                                                     </div>
-                                                )}
-                                            </div>
+                                                    <h3 className="text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest">Quiet Room</h3>
+                                                    <p className="text-[11px] text-slate-400 font-bold mt-1">No feedback loops recorded yet.</p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
