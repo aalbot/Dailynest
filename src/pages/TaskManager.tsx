@@ -230,6 +230,11 @@ const TaskManager = () => {
     const [itemToDelete, setItemToDelete] = useState<any>(null);
     const [isReassignOpen, setIsReassignOpen] = useState(false);
     const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [isEditOpen, setIsEditOpen] = useState(false);
+    const [editTaskData, setEditTaskData] = useState<any>(null);
+    const [commentText, setCommentText] = useState("");
+    const [selectedCommenterId, setSelectedCommenterId] = useState<string>("");
+    const [isCommenterPopoverOpen, setIsCommenterPopoverOpen] = useState(false);
 
     const activeTask = tasks.find(t => t.id === selectedTask?.id) || selectedTask;
 
@@ -475,6 +480,49 @@ const TaskManager = () => {
                 setTempStatus(null);
                 setIsDetailOpen(false);
             });
+    };
+
+    const handleAddComment = () => {
+        if (!commentText.trim() || !activeTask) return;
+        if (!selectedCommenterId) {
+            toast({ title: "Error", description: "Please select a commenter", variant: "destructive" });
+            return;
+        }
+
+        const employee = employees.find(e => e.id === selectedCommenterId);
+        const authorName = employee ? `${employee.firstName} ${employee.lastName}` : "Unknown";
+
+        const commentId = 'COM-' + Date.now();
+        const newComment = {
+            id: commentId,
+            text: commentText,
+            author: authorName,
+            authorId: selectedCommenterId,
+            createdAt: new Date().toISOString()
+        };
+
+        firebase.database().ref(`root/nexus_hr/tasks/${activeTask.id}/comments/${commentId}`).set(newComment)
+            .then(() => {
+                setCommentText("");
+                setSelectedCommenterId("");
+                toast({ title: "Comment added" });
+            });
+    };
+
+    const handleUpdateTask = () => {
+        if (!editTaskData) return;
+        firebase.database().ref(`root/nexus_hr/tasks/${editTaskData.id}`).update({
+            title: editTaskData.title,
+            description: editTaskData.description,
+            priority: editTaskData.priority,
+            dueDate: editTaskData.dueDate,
+            testerId: editTaskData.testerId,
+            assignedEmployeeIds: editTaskData.assignedEmployeeIds
+        }).then(() => {
+            setIsEditOpen(false);
+            toast({ title: "Task updated" });
+            // Update active task reference if needed (though it's derived from tasks array)
+        });
     };
 
     const [filterStatus, setFilterStatus] = useState<string>("All");
@@ -1026,19 +1074,69 @@ const TaskManager = () => {
                                                 {activeTask.status}
                                             </Badge>
                                         </div>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="text-slate-400 hover:text-red-500 h-8 w-8"
-                                            onClick={() => handleDeleteTask(activeTask.id)}
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </Button>
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="text-slate-400 hover:text-indigo-600 h-8 w-8"
+                                                onClick={() => {
+                                                    setEditTaskData({ ...activeTask });
+                                                    setIsEditOpen(true);
+                                                }}
+                                            >
+                                                <Pencil className="w-4 h-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="text-slate-400 hover:text-red-500 h-8 w-8"
+                                                onClick={() => handleDeleteTask(activeTask.id)}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        </div>
                                     </div>
                                     <h1 className="text-2xl font-bold mb-1">{activeTask.title}</h1>
                                 </div>
 
                                 <div className="py-6 space-y-6">
+                                    {/* Description at the top */}
+                                    <div className="bg-indigo-50/30 dark:bg-indigo-950/20 p-4 rounded-xl border border-indigo-100/50 dark:border-indigo-900/30">
+                                        <p className="text-xs text-indigo-600 dark:text-indigo-400 uppercase tracking-widest font-bold mb-2 flex items-center gap-2">
+                                            <FileText className="w-3 h-3" />
+                                            Description
+                                        </p>
+                                        <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+                                            {activeTask.description || 'No description provided.'}
+                                        </p>
+                                    </div>
+                                    {/* Attachments Section moved to the top */}
+                                    {activeTask.images && activeTask.images.length > 0 && (
+                                        <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                                            <p className="text-xs text-slate-500 uppercase tracking-widest font-bold mb-3 flex items-center gap-2">
+                                                <Camera className="w-3 h-3" />
+                                                Attachments ({activeTask.images.length})
+                                            </p>
+                                            <div className="flex flex-wrap gap-3">
+                                                {activeTask.images.map((img: string, i: number) => (
+                                                    <div key={i} className="group relative">
+                                                        <img
+                                                            src={img}
+                                                            alt="Attachment"
+                                                            className="w-20 h-20 object-cover rounded-lg border-2 border-white dark:border-slate-800 shadow-sm transition-all hover:scale-105 cursor-pointer"
+                                                            onClick={() => setPreviewImage(img)}
+                                                        />
+                                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 rounded-lg transition-opacity flex items-center justify-center pointer-events-none">
+                                                            <div className="bg-white/90 p-1 rounded-full">
+                                                                <Search className="w-3 h-3 text-slate-900" />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Action Status Block */}
                                     <div className="bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl p-4">
                                         <div className="flex items-center justify-between">
@@ -1194,25 +1292,126 @@ const TaskManager = () => {
                                         </div>
                                     </div>
                                     <div className="col-span-2 mt-2">
-                                        <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-1">Description</p>
-                                        <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">{activeTask.description || 'No description provided.'}</p>
-                                    </div>
-                                    {activeTask.images && activeTask.images.length > 0 && (
-                                        <div className="col-span-2 mt-4">
-                                            <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-2">Attachments</p>
-                                            <div className="flex flex-wrap gap-2">
-                                                {activeTask.images.map((img: string, i: number) => (
-                                                    <img
-                                                        key={i}
-                                                        src={img}
-                                                        alt="Attachment"
-                                                        className="w-24 h-24 object-cover rounded-lg border shadow-sm hover:scale-105 transition-transform cursor-pointer"
-                                                        onClick={() => setPreviewImage(img)}
-                                                    />
-                                                ))}
+                                        <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-3">Discussion</p>
+
+                                        <div className="space-y-4">
+                                            {/* Commenter Selection */}
+                                            <div className="flex flex-col gap-2">
+                                                <Label className="text-[10px] uppercase font-bold text-slate-400">Addressed By</Label>
+                                                <div className="flex gap-2">
+                                                    <Popover open={isCommenterPopoverOpen} onOpenChange={setIsCommenterPopoverOpen}>
+                                                        <PopoverTrigger asChild>
+                                                            <Button
+                                                                variant="outline"
+                                                                className="w-full justify-between h-10 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                                                            >
+                                                                <div className="flex items-center gap-2 truncate">
+                                                                    {selectedCommenterId ? (
+                                                                        <>
+                                                                            <Avatar className="w-5 h-5">
+                                                                                <AvatarImage src={employees.find(e => e.id === selectedCommenterId)?.photoUrl} />
+                                                                                <AvatarFallback className="text-[8px] font-bold">
+                                                                                    {employees.find(e => e.id === selectedCommenterId)?.firstName?.[0]}
+                                                                                </AvatarFallback>
+                                                                            </Avatar>
+                                                                            <span className="text-xs font-medium">
+                                                                                {employees.find(e => e.id === selectedCommenterId)?.firstName} {employees.find(e => e.id === selectedCommenterId)?.lastName}
+                                                                            </span>
+                                                                        </>
+                                                                    ) : (
+                                                                        <span className="text-xs text-slate-400 font-normal">Select employee...</span>
+                                                                    )}
+                                                                </div>
+                                                                <ChevronDown className="w-4 h-4 opacity-50 shrink-0" />
+                                                            </Button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                                                            <Command>
+                                                                <CommandInput placeholder="Search employee..." />
+                                                                <CommandList className="max-h-[300px] overflow-y-auto">
+                                                                    <CommandEmpty>No employee found.</CommandEmpty>
+                                                                    <CommandGroup>
+                                                                        {employees
+                                                                            .filter(emp => emp.role !== 'Ride' && emp.department !== 'Logistics')
+                                                                            .map(emp => (
+                                                                                <CommandItem
+                                                                                    key={emp.id}
+                                                                                    onSelect={() => {
+                                                                                        setSelectedCommenterId(emp.id);
+                                                                                        setIsCommenterPopoverOpen(false);
+                                                                                    }}
+                                                                                    className="flex items-center gap-2 cursor-pointer"
+                                                                                >
+                                                                                    <Avatar className="w-6 h-6">
+                                                                                        <AvatarImage src={emp.photoUrl} />
+                                                                                        <AvatarFallback className="text-[8px] font-bold">{emp.firstName?.[0]}</AvatarFallback>
+                                                                                    </Avatar>
+                                                                                    <div className="flex flex-col">
+                                                                                        <span className="text-xs font-bold">{emp.firstName} {emp.lastName}</span>
+                                                                                        <span className="text-[10px] text-slate-500">{emp.role}</span>
+                                                                                    </div>
+                                                                                    {selectedCommenterId === emp.id && <Check className="ml-auto h-4 w-4 text-indigo-600" />}
+                                                                                </CommandItem>
+                                                                            ))}
+                                                                    </CommandGroup>
+                                                                </CommandList>
+                                                            </Command>
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                </div>
+                                            </div>
+
+                                            {/* Comment Input */}
+                                            <div className="flex gap-2">
+                                                <Input
+                                                    placeholder="Add a comment..."
+                                                    value={commentText}
+                                                    onChange={(e) => setCommentText(e.target.value)}
+                                                    onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
+                                                    className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 h-10"
+                                                />
+                                                <Button
+                                                    size="icon"
+                                                    onClick={handleAddComment}
+                                                    className="bg-indigo-600 hover:bg-indigo-700 shrink-0 h-10 w-10 shadow-md shadow-indigo-200 dark:shadow-none transition-all active:scale-95"
+                                                >
+                                                    <MessageSquare className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+
+                                            {/* Comments List */}
+                                            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                                                {activeTask.comments ? (
+                                                    Object.values(activeTask.comments)
+                                                        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                                                        .map((comment: any) => (
+                                                            <div key={comment.id} className="bg-white dark:bg-slate-800/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800 shadow-sm animate-in fade-in slide-in-from-top-1 duration-300">
+                                                                <div className="flex items-center gap-2 mb-2">
+                                                                    <Avatar className="w-5 h-5">
+                                                                        <AvatarImage src={employees.find(e => e.id === comment.authorId)?.photoUrl} />
+                                                                        <AvatarFallback className="text-[8px] font-bold bg-indigo-50 text-indigo-600">
+                                                                            {comment.author?.[0]}
+                                                                        </AvatarFallback>
+                                                                    </Avatar>
+                                                                    <div className="flex flex-col">
+                                                                        <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase leading-none">{comment.author}</span>
+                                                                        <span className="text-[8px] text-slate-400 font-medium">
+                                                                            {new Date(comment.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                                <p className="text-sm text-slate-700 dark:text-slate-300 pl-7 leading-relaxed">{comment.text}</p>
+                                                            </div>
+                                                        ))
+                                                ) : (
+                                                    <div className="text-center py-6 border-2 border-dashed rounded-lg border-slate-100 dark:border-slate-800">
+                                                        <MessageSquare className="w-6 h-6 text-slate-300 mx-auto mb-1 opacity-50" />
+                                                        <p className="text-[10px] text-slate-400 font-medium">No comments yet</p>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
-                                    )}
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -1485,6 +1684,129 @@ const TaskManager = () => {
                                 </Button>
                             </div>
                         </div>
+                    </DialogContent>
+                </Dialog>
+
+                {/* EDIT TASK DIALOG */}
+                <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+                    <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>Edit Task</DialogTitle>
+                            <DialogDescription>Modify task details and assignments.</DialogDescription>
+                        </DialogHeader>
+                        {editTaskData && (
+                            <div className="space-y-6 py-4">
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label>Title</Label>
+                                        <Input
+                                            value={editTaskData.title}
+                                            onChange={e => setEditTaskData({ ...editTaskData, title: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Description</Label>
+                                        <textarea
+                                            className="w-full min-h-[100px] p-3 rounded-md border border-slate-200 dark:border-slate-800 bg-transparent text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                                            value={editTaskData.description}
+                                            onChange={e => setEditTaskData({ ...editTaskData, description: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label>Priority</Label>
+                                            <Select value={editTaskData.priority} onValueChange={v => setEditTaskData({ ...editTaskData, priority: v })}>
+                                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Normal">Normal</SelectItem>
+                                                    <SelectItem value="High">High</SelectItem>
+                                                    <SelectItem value="Urgent">Urgent</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Due Date</Label>
+                                            <Input
+                                                type="date"
+                                                value={editTaskData.dueDate}
+                                                onChange={e => setEditTaskData({ ...editTaskData, dueDate: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label>Assigned Members</Label>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button variant="outline" className="w-full justify-between h-10 border-slate-200 dark:border-slate-800">
+                                                    <span className="text-slate-500 font-normal">Manage members...</span>
+                                                    <Search className="w-4 h-4 opacity-50" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                                                <Command>
+                                                    <CommandInput placeholder="Search employee..." />
+                                                    <CommandList>
+                                                        <CommandEmpty>No employee found.</CommandEmpty>
+                                                        <CommandGroup>
+                                                            {employees
+                                                                .filter(emp => {
+                                                                    const team = teams.find(t => t.id === editTaskData.teamId);
+                                                                    return team?.memberIds?.includes(emp.id);
+                                                                })
+                                                                .map(emp => (
+                                                                    <CommandItem
+                                                                        key={emp.id}
+                                                                        onSelect={() => {
+                                                                            const current = editTaskData.assignedEmployeeIds || [];
+                                                                            const updated = current.includes(emp.id)
+                                                                                ? current.filter((id: string) => id !== emp.id)
+                                                                                : [...current, emp.id];
+                                                                            setEditTaskData({ ...editTaskData, assignedEmployeeIds: updated });
+                                                                        }}
+                                                                        className="flex items-center gap-2"
+                                                                    >
+                                                                        <div className={`flex h-4 w-4 items-center justify-center rounded-sm border border-primary ${editTaskData.assignedEmployeeIds?.includes(emp.id) ? 'bg-primary text-primary-foreground' : 'opacity-50'}`}>
+                                                                            {editTaskData.assignedEmployeeIds?.includes(emp.id) && <Check className="h-3 w-3" />}
+                                                                        </div>
+                                                                        <Avatar className="w-6 h-6">
+                                                                            <AvatarImage src={emp.photoUrl} />
+                                                                            <AvatarFallback className="text-[8px]">{emp.firstName?.[0]}</AvatarFallback>
+                                                                        </Avatar>
+                                                                        <span className="text-xs font-bold">{emp.firstName} {emp.lastName}</span>
+                                                                    </CommandItem>
+                                                                ))}
+                                                        </CommandGroup>
+                                                    </CommandList>
+                                                </Command>
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label>Tester</Label>
+                                        <Select value={editTaskData.testerId} onValueChange={v => setEditTaskData({ ...editTaskData, testerId: v })}>
+                                            <SelectTrigger><SelectValue placeholder="Select tester" /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">No Tester</SelectItem>
+                                                {employees
+                                                    .filter(emp => {
+                                                        const team = teams.find(t => t.id === editTaskData.teamId);
+                                                        return team?.memberIds?.includes(emp.id);
+                                                    })
+                                                    .map(emp => (
+                                                        <SelectItem key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</SelectItem>
+                                                    ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+                            <Button onClick={handleUpdateTask} className="bg-indigo-600 hover:bg-indigo-700 text-white">Save Changes</Button>
+                        </DialogFooter>
                     </DialogContent>
                 </Dialog>
             </div>
