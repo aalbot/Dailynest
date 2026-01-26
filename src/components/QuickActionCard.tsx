@@ -1,10 +1,11 @@
-import { Search, Moon, Sun, Settings, LogOut, ClipboardList, Truck, User, Users, ChevronRight } from "lucide-react";
+import { Search, Moon, Sun, Settings, LogOut, ClipboardList, Truck, User, Users, ChevronRight, LogIn, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { useNavigate, Link } from "react-router-dom";
 import firebase from "firebase/compat/app";
 import "firebase/compat/database";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useState, useEffect } from "react";
 
 const QuickActionCard = ({
     onSearch,
@@ -19,6 +20,141 @@ const QuickActionCard = ({
 }) => {
     const navigate = useNavigate();
     const { isDark, toggleTheme } = useTheme();
+    const [currentStaff, setCurrentStaff] = useState<any>(null);
+    const [attendance, setAttendance] = useState<any[]>([]);
+    const [liveTimer, setLiveTimer] = useState("00:00:00");
+
+    const staffId = sessionStorage.getItem("staff_id");
+
+    useEffect(() => {
+        if (!staffId) return;
+
+        const db = firebase.database();
+        const staffRef = db.ref(`root/staff/${staffId}`);
+        const attendanceRef = db.ref("root/nexus_hr/attendance");
+
+        staffRef.on("value", (snapshot) => {
+            setCurrentStaff(snapshot.val());
+        });
+
+        attendanceRef.on("value", (snapshot) => {
+            const data = snapshot.val();
+            if (data) setAttendance(Object.values(data));
+        });
+
+        return () => {
+            staffRef.off();
+            attendanceRef.off();
+        };
+    }, [staffId]);
+
+    useEffect(() => {
+        let interval: any;
+        const updateTimer = () => {
+            if (!currentStaff) return;
+
+            const today = new Date().toISOString().split('T')[0];
+            const recordsToday = attendance.filter(a =>
+                a.employeeId === currentStaff.employeeId &&
+                a.dateString === today
+            );
+
+            // Sum up completed sessions
+            let totalSeconds = recordsToday.reduce((acc, curr) => {
+                return acc + (parseFloat(curr.totalHours || "0") * 3600);
+            }, 0);
+
+            // Add current session if active
+            if (currentStaff.checkedIn && currentStaff.lastCheckIn) {
+                const startTime = new Date(currentStaff.lastCheckIn).getTime();
+                const now = new Date().getTime();
+                totalSeconds += Math.floor((now - startTime) / 1000);
+            }
+
+            const h = Math.floor(totalSeconds / 3600);
+            const m = Math.floor((totalSeconds % 3600) / 60);
+            const s = Math.floor(totalSeconds % 60);
+
+            setLiveTimer(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+        };
+
+        updateTimer();
+        interval = setInterval(updateTimer, 1000);
+
+        return () => clearInterval(interval);
+    }, [currentStaff, attendance]);
+
+    const handleCheckIn = async () => {
+        if (!currentStaff?.employeeId) {
+            toast.error("Account not linked to HR records. Contact Admin.");
+            return;
+        }
+
+        const now = new Date();
+        const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+        const date = now.toISOString().split('T')[0];
+
+        try {
+            const db = firebase.database();
+            const attId = 'ATT-' + Date.now() + Math.random().toString(36).substr(2, 9);
+            const record = {
+                id: attId,
+                employeeId: currentStaff.employeeId,
+                dateString: date,
+                status: "Present",
+                checkInTime: time,
+                createdAt: firebase.database.ServerValue.TIMESTAMP
+            };
+
+            await db.ref(`root/nexus_hr/attendance/${attId}`).set(record);
+            await db.ref(`root/staff/${staffId}`).update({
+                checkedIn: true,
+                currentAttendanceId: attId,
+                lastCheckIn: now.toISOString()
+            });
+
+            toast.success(`Checked in at ${time}`);
+        } catch (error) {
+            toast.error("Check-in failed");
+        }
+    };
+
+    const handleCheckOut = async () => {
+        if (!currentStaff?.currentAttendanceId) return;
+
+        const now = new Date();
+        const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+
+        try {
+            const db = firebase.database();
+            const attSnapshot = await db.ref(`root/nexus_hr/attendance/${currentStaff.currentAttendanceId}`).once('value');
+            const attData = attSnapshot.val();
+
+            let totalHours = "0.00";
+            if (attData && attData.checkInTime) {
+                const [inH, inM] = attData.checkInTime.split(':').map(Number);
+                const inDate = new Date();
+                inDate.setHours(inH, inM, 0);
+                const diffMs = now.getTime() - inDate.getTime();
+                totalHours = (diffMs / (1000 * 60 * 60)).toFixed(2);
+            }
+
+            await db.ref(`root/nexus_hr/attendance/${currentStaff.currentAttendanceId}`).update({
+                checkOutTime: time,
+                totalHours: totalHours
+            });
+
+            await db.ref(`root/staff/${staffId}`).update({
+                checkedIn: false,
+                currentAttendanceId: null,
+                lastCheckOut: now.toISOString()
+            });
+
+            toast.success(`Checked out at ${time}. Total: ${totalHours} hrs`);
+        } catch (error) {
+            toast.error("Check-out failed");
+        }
+    };
 
     return (
         <Card className="h-full border-white/40 dark:border-white/10 shadow-xl bg-white/70 dark:bg-slate-900/40 backdrop-blur-xl transition-colors duration-500 overflow-hidden flex flex-col">
@@ -61,9 +197,42 @@ const QuickActionCard = ({
                                         {isManaging ? "Done Editing" : "Manage Apps"}
                                     </span>
                                 </div>
-                                {!isManaging && <ChevronRight size={16} className="text-slate-400 group-hover:translate-x-1 transition-transform" />}
+                                <ChevronRight size={16} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
                             </button>
                         </>
+                    )}
+                    {userRole === "staff" && (
+                        <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/20 space-y-4 mb-2">
+                            <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${currentStaff?.checkedIn ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                                    {currentStaff?.checkedIn ? 'On Duty' : 'Off Duty'}
+                                </span>
+                                {liveTimer !== "00:00:00" && (
+                                    <span className={`text-[10px] font-black font-mono px-2 py-0.5 rounded-full border ml-auto ${currentStaff?.checkedIn ? 'bg-indigo-500/10 text-indigo-600 border-indigo-500/10' : 'bg-slate-100 text-slate-400 border-slate-200'}`}>
+                                        {liveTimer}
+                                    </span>
+                                )}
+                            </div>
+
+                            {currentStaff?.checkedIn ? (
+                                <button
+                                    onClick={handleCheckOut}
+                                    className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-red-500 text-white font-bold text-sm shadow-lg shadow-red-500/20 active:scale-95 transition-all"
+                                >
+                                    <LogOut size={18} />
+                                    Check Out
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={handleCheckIn}
+                                    className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-emerald-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
+                                >
+                                    <LogIn size={18} />
+                                    Check In
+                                </button>
+                            )}
+                        </div>
                     )}
 
                     <button
@@ -114,7 +283,7 @@ const QuickActionCard = ({
                     </button>
                 </div>
             </CardContent>
-        </Card>
+        </Card >
     );
 };
 

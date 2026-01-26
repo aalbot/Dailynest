@@ -213,12 +213,22 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         const onBroadcast = (snapshot: any) => {
             const data = snapshot.val();
             if (data) {
-                addNotification({
-                    id: snapshot.key || Date.now().toString(),
-                    title: data.title,
-                    message: data.message,
-                    type: data.type || 'info'
-                });
+                const targetIds = data.targetEmployeeIds;
+                const currentEmpId = sessionStorage.getItem("employee_id");
+                const role = sessionStorage.getItem("user_role");
+
+                // Show if:
+                // 1. User is admin
+                // 2. Notification is a global broadcast (no targetIds)
+                // 3. User's employeeId is in targetIds
+                if (role === 'admin' || !targetIds || (currentEmpId && targetIds.includes(currentEmpId))) {
+                    addNotification({
+                        id: snapshot.key || Date.now().toString(),
+                        title: data.title,
+                        message: data.message,
+                        type: data.type || 'info'
+                    });
+                }
             }
         };
 

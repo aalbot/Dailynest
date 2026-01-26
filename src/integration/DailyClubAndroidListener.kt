@@ -37,10 +37,17 @@ class NotificationListener(private val context: Context) {
                     val timestamp = snapshot.child("timestamp").getValue(Long::class.java) ?: 0L
 
                     // Filter: Only show notifications created AFTER the listener started
-                    // (Allowing a 2-second buffer for clock skew)
+                    // AND targeted to this employee (if targeting is specified)
+                    val targetIds = snapshot.child("targetEmployeeIds").children.mapNotNull { it.getValue(String::class.java) }
+                    
+                    // In a real app, this ID would be fetched from SharedPrefs or a Session object
+                    val currentEmployeeId = "" // placeholder
+
                     if (timestamp > (startTime - 2000)) {
                         if (title != null && message != null) {
-                            showNotification(title, message)
+                            if (targetIds.isEmpty() || targetIds.contains(currentEmployeeId)) {
+                                showNotification(title, message)
+                            }
                         }
                     }
                 } catch (e: Exception) {

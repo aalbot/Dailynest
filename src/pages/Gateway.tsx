@@ -72,6 +72,8 @@ const Gateway = () => {
                     sessionStorage.clear();
                     sessionStorage.setItem("staff_auth", "true");
                     sessionStorage.setItem("user_role", "staff");
+                    sessionStorage.setItem("staff_id", matchedStaff.id);
+                    sessionStorage.setItem("employee_id", matchedStaff.employeeId || "");
                     sessionStorage.setItem("staff_name", matchedStaff.name);
                     sessionStorage.setItem("allowed_apps", JSON.stringify(matchedStaff.allowedApps || []));
                     navigate("/apps");

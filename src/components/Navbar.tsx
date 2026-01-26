@@ -23,7 +23,9 @@ import {
   User,
   Users,
   Sparkles,
-  TrendingUp
+  TrendingUp,
+  LogIn,
+  Clock
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useNotification } from "@/contexts/NotificationContext";
@@ -64,22 +66,137 @@ const Navbar = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const navigate = useNavigate();
 
+  // Staff specific states
+  const [currentStaff, setCurrentStaff] = useState<any>(null);
+  const [staffPhoto, setStaffPhoto] = useState<string | null>(null);
+  const [attendance, setAttendance] = useState<any[]>([]);
+  const [liveTimer, setLiveTimer] = useState("00:00:00");
+
   const [customApps, setCustomApps] = useState<any[]>([]);
+
+  const staffId = sessionStorage.getItem("staff_id");
 
   useEffect(() => {
     const db = firebase.database();
     const appsRef = db.ref("root/apps");
-    const onValueChange = (snapshot: any) => {
+    appsRef.on("value", (snapshot) => {
       const data = snapshot.val();
-      if (data) {
-        setCustomApps(Object.values(data));
-      } else {
-        setCustomApps([]);
-      }
+      setCustomApps(data ? Object.values(data) : []);
+    });
+
+    // Staff & Attendance Listener
+    let staffRef: firebase.database.Reference | null = null;
+    let empRef: firebase.database.Reference | null = null;
+    const attRef = db.ref("root/nexus_hr/attendance");
+
+    if (staffId) {
+      staffRef = db.ref(`root/staff/${staffId}`);
+      staffRef.on("value", (snapshot) => {
+        const staff = snapshot.val();
+        setCurrentStaff(staff);
+        if (staff?.employeeId) {
+          empRef = db.ref(`root/nexus_hr/employees/${staff.employeeId}`);
+          empRef.on("value", (empSnap) => {
+            setStaffPhoto(empSnap.val()?.photoUrl || null);
+          });
+        }
+      });
+    }
+
+    attRef.on("value", (snapshot) => {
+      const data = snapshot.val();
+      setAttendance(data ? Object.values(data) : []);
+    });
+
+    return () => {
+      appsRef.off();
+      if (staffRef) staffRef.off();
+      if (empRef) empRef.off();
+      attRef.off();
     };
-    appsRef.on("value", onValueChange);
-    return () => appsRef.off("value", onValueChange);
-  }, []);
+  }, [staffId]);
+
+  // Live Timer Logic
+  useEffect(() => {
+    let interval: any;
+    const updateTimer = () => {
+      if (!currentStaff) return;
+
+      const today = new Date().toISOString().split('T')[0];
+      const recordsToday = attendance.filter(a =>
+        a.employeeId === currentStaff.employeeId &&
+        a.dateString === today
+      );
+
+      // Sum up completed sessions
+      let totalSeconds = recordsToday.reduce((acc, curr) => {
+        return acc + (parseFloat(curr.totalHours || "0") * 3600);
+      }, 0);
+
+      // Add current session if active
+      if (currentStaff.checkedIn && currentStaff.lastCheckIn) {
+        const startTime = new Date(currentStaff.lastCheckIn).getTime();
+        const now = new Date().getTime();
+        totalSeconds += Math.floor((now - startTime) / 1000);
+      }
+
+      const h = Math.floor(totalSeconds / 3600);
+      const m = Math.floor((totalSeconds % 3600) / 60);
+      const s = Math.floor(totalSeconds % 60);
+      setLiveTimer(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+    };
+    updateTimer();
+    interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [currentStaff, attendance]);
+
+  const handleCheckIn = async () => {
+    if (!currentStaff?.employeeId) {
+      toast.error("Account not linked to HR records.");
+      return;
+    }
+    const now = new Date();
+    const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    const date = now.toISOString().split('T')[0];
+    try {
+      const db = firebase.database();
+      const attId = 'ATT-' + Date.now() + Math.random().toString(36).substr(2, 9);
+      await db.ref(`root/nexus_hr/attendance/${attId}`).set({
+        id: attId,
+        employeeId: currentStaff.employeeId,
+        dateString: date,
+        status: "Present",
+        checkInTime: time,
+        createdAt: firebase.database.ServerValue.TIMESTAMP
+      });
+      await db.ref(`root/staff/${staffId}`).update({
+        checkedIn: true,
+        currentAttendanceId: attId,
+        lastCheckIn: now.toISOString()
+      });
+      toast.success(`Checked in at ${time}`);
+    } catch (error) { toast.error("Check-in failed"); }
+  };
+
+  const handleCheckOut = async () => {
+    if (!currentStaff?.currentAttendanceId) return;
+    const now = new Date();
+    const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    try {
+      const db = firebase.database();
+      const attSnapshot = await db.ref(`root/nexus_hr/attendance/${currentStaff.currentAttendanceId}`).once('value');
+      const attData = attSnapshot.val();
+      let totalHours = "0.00";
+      if (attData?.checkInTime) {
+        const [inH, inM] = attData.checkInTime.split(':').map(Number);
+        const inDate = new Date(); inDate.setHours(inH, inM, 0);
+        totalHours = ((now.getTime() - inDate.getTime()) / (1000 * 60 * 60)).toFixed(2);
+      }
+      await db.ref(`root/nexus_hr/attendance/${currentStaff.currentAttendanceId}`).update({ checkOutTime: time, totalHours: totalHours });
+      await db.ref(`root/staff/${staffId}`).update({ checkedIn: false, currentAttendanceId: null, lastCheckOut: now.toISOString() });
+      toast.success(`Checked out. Total: ${totalHours} hrs`);
+    } catch (error) { toast.error("Check-out failed"); }
+  };
 
   const allAppsRaw = [
     ...defaultAppItems.map(app => ({ ...app, openInNewTab: false })),
@@ -369,17 +486,69 @@ const Navbar = () => {
             <div className="relative" ref={profileRef}>
               <button
                 onClick={() => setProfileOpen(!profileOpen)}
-                className="ml-1 w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold hover:shadow-md transition-shadow uppercase tracking-tighter"
+                className="ml-1 w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold hover:shadow-md transition-shadow uppercase tracking-tighter overflow-hidden border-2 border-white dark:border-slate-800 relative"
               >
-                {initials}
+                {staffPhoto ? (
+                  <img src={staffPhoto} alt={displayName} className="w-full h-full object-cover" />
+                ) : (
+                  initials
+                )}
+                {userRole === 'staff' && (
+                  <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white dark:border-slate-900 transition-colors duration-500 ${currentStaff?.checkedIn ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                    {currentStaff?.checkedIn && <div className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-75" />}
+                  </div>
+                )}
               </button>
 
               {profileOpen && (
                 <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-2 animate-in fade-in zoom-in-95 origin-top-right z-50 overflow-hidden">
-                  <div className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 mb-2">
-                    <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{displayName}</p>
-                    <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-widest">{userEmail}</p>
+                  <div className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 mb-2 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 overflow-hidden shrink-0 border border-indigo-100 dark:border-indigo-800">
+                      {staffPhoto ? <img src={staffPhoto} className="w-full h-full object-cover" /> : initials}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{displayName}</p>
+                      <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-widest">{userRole}</p>
+                    </div>
                   </div>
+
+                  {userRole === 'staff' && (
+                    <div className="px-2 py-2 border-b border-slate-100 dark:border-slate-800 mb-2">
+                      <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${currentStaff?.checkedIn ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                              {currentStaff?.checkedIn ? 'On Duty' : 'Off Duty'}
+                            </span>
+                          </div>
+                          {liveTimer !== "00:00:00" && (
+                            <span className={`text-[10px] font-black font-mono px-2 py-0.5 rounded-full border ${currentStaff?.checkedIn ? 'text-indigo-600 dark:text-indigo-400 border-indigo-500/10 bg-indigo-500/5' : 'text-slate-400 border-slate-200 bg-slate-50'}`}>
+                              {liveTimer}
+                            </span>
+                          )}
+                        </div>
+
+                        {currentStaff?.checkedIn ? (
+                          <button
+                            onClick={handleCheckOut}
+                            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-red-500 text-white font-bold text-xs shadow-md shadow-red-500/10 active:scale-95 transition-all"
+                          >
+                            <LogOut size={14} />
+                            Check Out
+                          </button>
+                        ) : (
+                          <button
+                            onClick={handleCheckIn}
+                            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-emerald-600 text-white font-bold text-xs shadow-md shadow-emerald-500/10 active:scale-95 transition-all"
+                          >
+                            <LogIn size={14} />
+                            Check In
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-1">
                     <button
@@ -424,7 +593,7 @@ const Navbar = () => {
         </div>
       </div>
       <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
-    </nav>
+    </nav >
   );
 };
 

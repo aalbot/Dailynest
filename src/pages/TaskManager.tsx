@@ -284,6 +284,20 @@ const TaskManager = () => {
         return () => limitedTasksQuery.off('value', onValueChange);
     }, []);
 
+    const sendTaskNotification = (targetIds: string[], title: string, message: string) => {
+        if (!targetIds || targetIds.length === 0) return;
+        const db = firebase.database();
+        const notificationId = 'NOTIF-' + Date.now() + Math.random().toString(36).substr(2, 5);
+        db.ref(`root/notifications/${notificationId}`).set({
+            id: notificationId,
+            title,
+            message,
+            timestamp: Date.now(),
+            targetEmployeeIds: targetIds,
+            type: 'info'
+        });
+    };
+
     const handleCreateTeam = () => {
         if (!newTeam.name || !newTeam.department) {
             toast({ title: "Error", description: "Team name and department are required", variant: "destructive" });
@@ -395,6 +409,16 @@ const TaskManager = () => {
         });
 
         Promise.all(promises).then(() => {
+            // Send notifications to all assigned employees
+            if (newTask.assignedEmployeeIds.length > 0) {
+                const staffNames = newTask.assignedEmployeeIds.map(id => employees.find(e => e.id === id)?.firstName).filter(Boolean).join(", ");
+                sendTaskNotification(
+                    newTask.assignedEmployeeIds,
+                    "New Task Assigned",
+                    `You have been assigned ${validTasks.length} new task(s): ${validTasks[0].title}${validTasks.length > 1 ? '...' : ''}`
+                );
+            }
+
             setIsCreateOpen(false);
             setNewTask({
                 priority: 'Normal',
@@ -523,9 +547,21 @@ const TaskManager = () => {
             testerId: editTaskData.testerId,
             assignedEmployeeIds: editTaskData.assignedEmployeeIds
         }).then(() => {
+            // Send notification to newly assigned members
+            const oldAssignees = activeTask?.assignedEmployeeIds || [];
+            const newAssignees = editTaskData.assignedEmployeeIds || [];
+            const newlyAdded = newAssignees.filter((id: string) => !oldAssignees.includes(id));
+
+            if (newlyAdded.length > 0) {
+                sendTaskNotification(
+                    newlyAdded,
+                    "Task Assigned to You",
+                    `Task "${editTaskData.title}" has been assigned to you.`
+                );
+            }
+
             setIsEditOpen(false);
             toast({ title: "Task updated" });
-            // Update active task reference if needed (though it's derived from tasks array)
         });
     };
 

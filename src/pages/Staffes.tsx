@@ -27,7 +27,10 @@ import {
     Grid3X3,
     Bell,
     Trash2,
-    Edit
+    Edit,
+    Briefcase,
+    LogIn,
+    LogOut
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -35,6 +38,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import firebase from "firebase/compat/app";
 import "firebase/compat/database";
 import { toast } from "sonner";
@@ -61,16 +65,25 @@ const initialAppsList = [
 const Staffes = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [staffMembers, setStaffMembers] = useState<any[]>([]);
+    const [employees, setEmployees] = useState<any[]>([]);
+    const [attendance, setAttendance] = useState<any[]>([]);
     const [customApps, setCustomApps] = useState<any[]>([]);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [currentTime, setCurrentTime] = useState(new Date());
+
+    useEffect(() => {
+        const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+        return () => clearInterval(timer);
+    }, []);
 
     const [newStaff, setNewStaff] = useState({
         name: "",
         role: "Staff",
         username: "",
         password: "",
+        employeeId: "",
         allowedApps: [] as string[]
     });
     const [isEditing, setIsEditing] = useState(false);
@@ -101,9 +114,29 @@ const Staffes = () => {
             }
         });
 
+        // Listen for employees
+        const empRef = db.ref("root/nexus_hr/employees");
+        empRef.on("value", (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                setEmployees(Object.values(data));
+            } else {
+                setEmployees([]);
+            }
+        });
+
+        // Listen for attendance
+        const attendanceRef = db.ref("root/nexus_hr/attendance");
+        attendanceRef.on("value", (snapshot) => {
+            const data = snapshot.val();
+            if (data) setAttendance(Object.values(data));
+        });
+
         return () => {
             staffRef.off();
             appsRef.off();
+            empRef.off();
+            attendanceRef.off();
         };
     }, []);
 
@@ -114,6 +147,7 @@ const Staffes = () => {
             role: staff.role,
             username: staff.username,
             password: staff.password,
+            employeeId: staff.employeeId || "",
             allowedApps: staff.allowedApps || []
         });
         setEditStaffId(staff.id);
@@ -127,6 +161,7 @@ const Staffes = () => {
             role: "Staff",
             username: "",
             password: "",
+            employeeId: "",
             allowedApps: []
         });
         setIsEditing(false);
@@ -198,6 +233,8 @@ const Staffes = () => {
         }
     };
 
+    // Manual attendance functions removed - handled via Quick Actions/Profile
+
     const filteredStaff = useMemo(() => staffMembers.filter(s =>
         s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -246,14 +283,17 @@ const Staffes = () => {
                     </Card>
 
                     <Card className="bg-white dark:bg-slate-900 border-none shadow-sm h-full rounded-2xl overflow-hidden">
-                        <CardContent className="p-6 flex items-center gap-4 border-l-4 border-emerald-500">
-                            <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                                <ShieldCheck className="w-6 h-6" />
+                        <CardContent className="p-6 flex items-center gap-4 border-l-4 border-indigo-500">
+                            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black">
+                                <div className="relative">
+                                    <Users className="w-6 h-6" />
+                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900 animate-pulse" />
+                                </div>
                             </div>
                             <div>
-                                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Active</p>
+                                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Currently In</p>
                                 <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                                    {staffMembers.filter(s => s.status === "Active").length}
+                                    {staffMembers.filter(s => s.checkedIn).length}
                                 </p>
                             </div>
                         </CardContent>
@@ -261,13 +301,18 @@ const Staffes = () => {
 
                     <Card className="bg-white dark:bg-slate-900 border-none shadow-sm h-full rounded-2xl overflow-hidden">
                         <CardContent className="p-6 flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-600 dark:text-violet-400">
+                            <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
                                 <Clock className="w-6 h-6" />
                             </div>
                             <div>
-                                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Latest Join</p>
-                                <p className="text-lg font-bold text-slate-900 dark:text-white">
-                                    {staffMembers.length > 0 ? staffMembers[staffMembers.length - 1].name.split(' ')[0] : 'N/A'}
+                                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Man-Hours</p>
+                                <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                                    {(() => {
+                                        const today = new Date().toISOString().split('T')[0];
+                                        const todayLaps = attendance.filter(a => a.dateString === today);
+                                        const completed = todayLaps.reduce((acc, curr) => acc + parseFloat(curr.totalHours || "0"), 0);
+                                        return completed.toFixed(1);
+                                    })()}h
                                 </p>
                             </div>
                         </CardContent>
@@ -301,7 +346,8 @@ const Staffes = () => {
                                         <th className="px-6 py-4">Staff Member</th>
                                         <th className="px-6 py-4">Username</th>
                                         <th className="px-6 py-4">Role</th>
-                                        <th className="px-6 py-4">Join Date</th>
+                                        <th className="px-6 py-4">Status</th>
+                                        <th className="px-6 py-4">Working Hours</th>
                                         <th className="px-6 py-4 text-center">Actions</th>
                                     </tr>
                                 </thead>
@@ -323,15 +369,74 @@ const Staffes = () => {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300 font-mono italic">@{staff.username}</td>
-                                            <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">
+                                            <td className="px-6 py-4">
                                                 <Badge variant="outline" className="rounded-lg border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-normal">
                                                     {staff.role}
                                                 </Badge>
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-slate-500 font-medium">
-                                                {new Date(staff.joinDate).toLocaleDateString()}
+                                            <td className="px-6 py-4">
+                                                {staff.checkedIn ? (
+                                                    <div className="flex flex-col gap-1">
+                                                        <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full px-3 py-1 flex items-center gap-1.5 w-fit">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                                                            Currently In
+                                                        </Badge>
+                                                        <span className="text-[10px] text-slate-400 font-medium ml-1">
+                                                            In since {new Date(staff.lastCheckIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col gap-1 text-slate-400">
+                                                        <Badge variant="outline" className="text-slate-400 bg-slate-50 border-slate-200">
+                                                            Off-duty
+                                                        </Badge>
+                                                        {staff.lastCheckOut && (
+                                                            <span className="text-[10px] font-medium ml-1 text-slate-300">
+                                                                Last seen {new Date(staff.lastCheckOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4">
+                                                {(() => {
+                                                    const today = new Date().toISOString().split('T')[0];
+                                                    const recordsToday = attendance.filter(a =>
+                                                        a.employeeId === staff.employeeId &&
+                                                        a.dateString === today
+                                                    );
+
+                                                    // Sum up completed sessions
+                                                    let totalSeconds = recordsToday.reduce((acc, curr) => {
+                                                        return acc + (parseFloat(curr.totalHours || "0") * 3600);
+                                                    }, 0);
+
+                                                    // Add current session if active
+                                                    if (staff.checkedIn && staff.lastCheckIn) {
+                                                        const startTime = new Date(staff.lastCheckIn).getTime();
+                                                        const diff = Math.floor((currentTime.getTime() - startTime) / 1000);
+                                                        totalSeconds += Math.max(0, diff);
+                                                    }
+
+                                                    if (totalSeconds === 0) return <span className="text-slate-300">No logs today</span>;
+
+                                                    const h = Math.floor(totalSeconds / 3600);
+                                                    const m = Math.floor((totalSeconds % 3600) / 60);
+                                                    const s = Math.floor(totalSeconds % 60);
+
+                                                    return (
+                                                        <div className="flex flex-col">
+                                                            <span className={`text-sm font-bold ${staff.checkedIn ? 'text-indigo-600 animate-pulse' : 'text-slate-700'}`}>
+                                                                {h}h {m}m {s}s
+                                                            </span>
+                                                            <span className="text-[10px] text-slate-400">
+                                                                {staff.checkedIn ? 'Active Session' : 'Daily Total'}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
                                                 <div className="flex justify-center gap-1.5">
                                                     <Button
                                                         variant="ghost"
@@ -382,7 +487,46 @@ const Staffes = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-6">
                         {/* Profile Info */}
                         <div className="space-y-6">
-                            <div className="space-y-4">
+                            {!isEditing && (
+                                <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                        <Briefcase className="w-3.5 h-3.5" />
+                                        Employee Selection
+                                    </h3>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-semibold ml-1">Select from HR Records (Optional)</Label>
+                                        <Select
+                                            onValueChange={(val) => {
+                                                const emp = employees.find(e => e.id === val);
+                                                if (emp) {
+                                                    setNewStaff({
+                                                        ...newStaff,
+                                                        employeeId: val,
+                                                        name: `${emp.firstName} ${emp.lastName}`,
+                                                        role: emp.role || newStaff.role
+                                                    });
+                                                }
+                                            }}
+                                        >
+                                            <SelectTrigger className="rounded-2xl h-12 bg-slate-50 dark:bg-slate-800 border-none">
+                                                <SelectValue placeholder="Choose an employee..." />
+                                            </SelectTrigger>
+                                            <SelectContent className="rounded-2xl border-none shadow-2xl">
+                                                {employees
+                                                    .filter(emp => emp.role !== 'Ride' && emp.department !== 'Logistics')
+                                                    .map((emp) => (
+                                                        <SelectItem key={emp.id} value={emp.id} className="rounded-xl">
+                                                            {emp.firstName} {emp.lastName} ({emp.role})
+                                                        </SelectItem>
+                                                    ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <p className="text-[10px] text-slate-400 italic px-1">Selecting an employee will auto-fill name and role.</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
                                 <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                     <Users className="w-3.5 h-3.5" />
                                     Identity Details
