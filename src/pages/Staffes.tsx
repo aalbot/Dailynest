@@ -1,24 +1,14 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import BackButton from "@/components/BackButton";
 import {
     Users,
     Clock,
-    Calendar,
-    ShieldCheck,
-    Search,
-    Filter,
-    UserPlus,
-    ArrowRight,
-    Lock,
-    Eye,
-    EyeOff,
-    Check,
-    Package,
     TrendingUp,
     LayoutDashboard,
     ClipboardList,
     Truck,
+    Package,
     ShoppingBag,
     Building2,
     Crown,
@@ -28,9 +18,14 @@ import {
     Bell,
     Trash2,
     Edit,
+    Search,
+    UserPlus,
     Briefcase,
-    LogIn,
-    LogOut
+    Lock,
+    Eye,
+    EyeOff,
+    Check,
+    ShieldCheck
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,16 +34,44 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import firebase from "firebase/compat/app";
-import "firebase/compat/database";
 import { toast } from "sonner";
+import { dataProvider } from "@/data";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+/* =====================================================
+   ACTION REQUEST (LOCAL, FRAMEWORK-COMPATIBLE)
+   ===================================================== */
 
-// Re-using the same list as AppGrid for consistency
+type ActionResult<T = any> = {
+    status: "success" | "cancelled" | "error";
+    data?: T;
+    feedback?: string;
+};
+
+type ActionResolver = (result: ActionResult) => void;
+
+const actionRequestBus = {
+    resolver: null as ActionResolver | null,
+
+    request() {
+        return new Promise<ActionResult>((resolve) => {
+            actionRequestBus.resolver = resolve;
+        });
+    },
+
+    resolve(result: ActionResult) {
+        actionRequestBus.resolver?.(result);
+        actionRequestBus.resolver = null;
+    }
+};
+
+/* =====================================================
+   CONSTANTS
+   ===================================================== */
+
 const initialAppsList = [
     { id: "dashboard", label: "Dashboard", path: "/dashboard", icon: TrendingUp },
     { id: "employee-management", label: "Employee Management", path: "/employee-management", icon: Users },
     { id: "overview", label: "Report", path: "/overview", icon: LayoutDashboard },
-
     { id: "orders", label: "Orders", path: "/orders", icon: ClipboardList },
     { id: "delivery", label: "Delivery", path: "/delivery", icon: Truck },
     { id: "stock-entry", label: "Stocks", path: "/stock-entry", icon: Package },
@@ -59,267 +82,415 @@ const initialAppsList = [
     { id: "keyword-entry", label: "SEO", path: "/keyword-entry", icon: Keyboard },
     { id: "tasks", label: "Task Manager", path: "/tasks", icon: Grid3X3 },
     { id: "notifications", label: "Notification", path: "/notifications", icon: Bell },
-    { id: "staffes", label: "Staff", path: "/staffes", icon: Users },
+    { id: "staffes", label: "Onboard", path: "/staffes", icon: Users },
 ];
-
-const Staffes = () => {
-    const [searchTerm, setSearchTerm] = useState("");
-    const [staffMembers, setStaffMembers] = useState<any[]>([]);
-    const [employees, setEmployees] = useState<any[]>([]);
-    const [attendance, setAttendance] = useState<any[]>([]);
-    const [customApps, setCustomApps] = useState<any[]>([]);
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [currentTime, setCurrentTime] = useState(new Date());
-
-    useEffect(() => {
-        const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-        return () => clearInterval(timer);
-    }, []);
-
-    const [newStaff, setNewStaff] = useState({
-        name: "",
-        role: "Staff",
-        username: "",
-        password: "",
-        employeeId: "",
-        allowedApps: [] as string[]
-    });
-    const [isEditing, setIsEditing] = useState(false);
-    const [editStaffId, setEditStaffId] = useState<string | null>(null);
-
-    useEffect(() => {
-        const db = firebase.database();
-
-        // Listen for staff
-        const staffRef = db.ref("root/staff");
-        staffRef.on("value", (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                setStaffMembers(Object.values(data));
-            } else {
-                setStaffMembers([]);
-            }
-        });
-
-        // Listen for custom apps
-        const appsRef = db.ref("root/apps");
-        appsRef.on("value", (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                setCustomApps(Object.values(data));
-            } else {
-                setCustomApps([]);
-            }
-        });
-
-        // Listen for employees
-        const empRef = db.ref("root/nexus_hr/employees");
-        empRef.on("value", (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                setEmployees(Object.values(data));
-            } else {
-                setEmployees([]);
-            }
-        });
-
-        // Listen for attendance
-        const attendanceRef = db.ref("root/nexus_hr/attendance");
-        attendanceRef.on("value", (snapshot) => {
-            const data = snapshot.val();
-            if (data) setAttendance(Object.values(data));
-        });
-
-        return () => {
-            staffRef.off();
-            appsRef.off();
-            empRef.off();
-            attendanceRef.off();
-        };
-    }, []);
+// Import the logger
+import { logger } from "@/data/utils/LogManager";
 
 
-    const handleEditClick = (staff: any) => {
-        setNewStaff({
-            name: staff.name,
-            role: staff.role,
-            username: staff.username,
-            password: staff.password,
-            employeeId: staff.employeeId || "",
-            allowedApps: staff.allowedApps || []
-        });
-        setEditStaffId(staff.id);
-        setIsEditing(true);
-        setIsAddModalOpen(true);
-    };
 
-    const resetForm = () => {
-        setNewStaff({
+/* =====================================================
+   DATA LAYER
+   ===================================================== */
+
+type Staff = {
+    id: string;
+    name: string;
+    role: string;
+    username: string;
+    password: string;
+    employeeId?: string;
+    allowedApps: string[];
+    checkedIn?: boolean;
+    lastCheckIn?: string;
+    lastCheckOut?: string;
+    status?: string;
+    joinDate?: string;
+};
+
+type PageData = {
+    staffMembers: Staff[];
+    employees: any[];
+    attendance: any[];
+    customApps: any[];
+    searchTerm: string;
+    isAddModalOpen: boolean;
+    showPassword: boolean;
+    loading: boolean;
+    currentTime: Date;
+    form: Partial<Staff>;
+    isEditing: boolean;
+};
+
+function createData(): PageData {
+    return {
+        staffMembers: [],
+        employees: [],
+        attendance: [],
+        customApps: [],
+        searchTerm: "",
+        isAddModalOpen: false,
+        showPassword: false,
+        loading: false,
+        currentTime: new Date(),
+        form: {
             name: "",
             role: "Staff",
             username: "",
             password: "",
             employeeId: "",
             allowedApps: []
-        });
-        setIsEditing(false);
-        setEditStaffId(null);
+        },
+        isEditing: false
     };
+}
 
-    const allAvailableApps = useMemo(() => [
-        ...initialAppsList,
-        ...customApps.map(app => ({
-            id: app.id,
-            label: app.name,
-            path: app.path,
-            icon: Package // Default icon for custom apps in list
-        }))
-    ], [customApps]);
+/* =====================================================
+   LOGIC LAYER
+   ===================================================== */
 
-    const toggleAppPermission = (appPath: string) => {
-        setNewStaff(prev => ({
-            ...prev,
-            allowedApps: prev.allowedApps.includes(appPath)
-                ? prev.allowedApps.filter(p => p !== appPath)
-                : [...prev.allowedApps, appPath]
-        }));
-    };
+type Event =
+    | { type: "CREATE_VIEW" }
+    | { type: "DISMISS" }
+    | { type: "TICK" }
+    | { type: "SET_SEARCH"; value: string }
+    | { type: "OPEN_ADD" }
+    | { type: "CLOSE_ADD" }
+    | { type: "EDIT"; staff: Staff }
+    | { type: "DELETE"; id: string }
+    | { type: "SAVE" }
+    | { type: "UPDATE_FORM"; patch: Partial<Staff> }
+    | { type: "TOGGLE_APP"; path: string }
+    | { type: "TOGGLE_PASSWORD" };
 
-    const handleAddStaff = async () => {
-        if (!newStaff.name || !newStaff.username || !newStaff.password) {
+function Logic(data: PageData, render: () => void) {
+    let unsubs: (() => void)[] = [];
+
+    function dispatch(e: Event) {
+        if (e.type !== "TICK") {
+            logger.info("Logic", `Dispatching Action: ${e.type}`, e);
+        }
+
+        switch (e.type) {
+            case "CREATE_VIEW": return onCreate();
+            case "DISMISS": return onDismiss();
+            case "TICK": data.currentTime = new Date(); return render();
+            case "SET_SEARCH": data.searchTerm = e.value; return render();
+            case "OPEN_ADD":
+                logger.info("Logic", "Opening Add Modal (Action Request)");
+                data.form = { name: "", role: "Staff", username: "", password: "", employeeId: "", allowedApps: [] };
+                data.isEditing = false;
+                data.isAddModalOpen = true;
+                return render();
+
+            case "CLOSE_ADD":
+                logger.info("Logic", "Action Cancelled");
+                data.isAddModalOpen = false;
+
+                actionRequestBus.resolve({
+                    status: "cancelled",
+                    feedback: "User cancelled staff action"
+                });
+
+                return render();
+
+            case "EDIT":
+                logger.info("Logic", "Editing Staff (Action Request)", e.staff);
+                data.form = { ...e.staff };
+                data.isEditing = true;
+                data.isAddModalOpen = true;
+                return render();
+
+            case "DELETE": return remove(e.id);
+            case "SAVE": return save();
+            case "UPDATE_FORM":
+                data.form = { ...data.form, ...e.patch };
+                return render();
+            case "TOGGLE_APP": return toggleApp(e.path);
+            case "TOGGLE_PASSWORD": data.showPassword = !data.showPassword; return render();
+        }
+    }
+
+    function onCreate() {
+        logger.info("Logic", "onCreate: Subscribing to data providers...");
+        unsubs.push(
+            dataProvider.observe("staff", {}).subscribe(v => {
+                logger.info("Logic", "Data Received: 'staff'", Object.keys(v || {}).length + " records");
+                data.staffMembers = Object.values(v || {});
+                render();
+            }),
+            dataProvider.observe("apps", {}).subscribe(v => {
+                logger.info("Logic", "Data Received: 'apps'", Object.keys(v || {}).length + " records");
+                data.customApps = Object.values(v || {});
+                render();
+            }),
+            dataProvider.observe("nexus_hr/employees", {}).subscribe(v => {
+                logger.info("Logic", "Data Received: 'nexus_hr/employees'", Object.keys(v || {}).length + " records");
+                data.employees = Object.values(v || {});
+                render();
+            }),
+            dataProvider.observe("nexus_hr/attendance", {}).subscribe(v => {
+                logger.info("Logic", "Data Received: 'nexus_hr/attendance'", Object.keys(v || {}).length + " records");
+                data.attendance = Object.values(v || {});
+                render();
+            })
+        );
+    }
+
+    function onDismiss() {
+        logger.info("Logic", "onDismiss: Cleaning up subscriptions");
+        unsubs.forEach(u => u());
+    }
+
+    async function remove(id: string) {
+        logger.info("Logic", `Attempting to delete staff: ${id}`);
+        if (!confirm("Are you sure you want to delete this staff member?")) {
+            logger.info("Logic", "Delete cancelled by user");
+            return;
+        }
+        try {
+            await dataProvider.remove(`staff/${id}`);
+            logger.info("Logic", "Delete Success");
+            toast.success("Staff member removed");
+        } catch (error) {
+            logger.error("Logic", "Delete Failed", error);
+            toast.error("Failed to remove staff member");
+        }
+    }
+
+    async function save() {
+        logger.info("Logic", "Save triggered");
+        const f = data.form;
+        if (!f.name || !f.username || !f.password) {
+            logger.warn("Logic", "Validation failed", f);
             toast.error("Please fill in all required fields");
             return;
         }
 
-        setLoading(true);
+        data.loading = true;
+        render();
+
         try {
-            const db = firebase.database();
-            if (isEditing && editStaffId) {
-                await db.ref(`root/staff/${editStaffId}`).update({
-                    ...newStaff
-                });
-                toast.success("Staff profile updated");
-            } else {
-                const staffRef = db.ref("root/staff").push();
-                await staffRef.set({
-                    id: staffRef.key,
-                    ...newStaff,
-                    status: "Active",
-                    joinDate: new Date().toISOString()
-                });
-                toast.success("Staff member added successfully");
-            }
+            const id = data.isEditing ? f.id! : dataProvider.generateKey("staff");
+            const payload = {
+                ...f,
+                id,
+                status: f.status || "Active",
+                joinDate: f.joinDate || new Date().toISOString(),
+                allowedApps: f.allowedApps || []
+            };
 
-            setIsAddModalOpen(false);
-            resetForm();
+            logger.info("Logic", "Writing payload to DB", payload);
+            await dataProvider.update("staff", { [id]: payload });
+            logger.info("Logic", "Save Success");
+            toast.success(data.isEditing ? "Staff profile updated" : "Staff member added successfully");
+            data.isAddModalOpen = false;
+            actionRequestBus.resolve({
+                status: "success",
+                data: payload,
+                feedback: data.isEditing ? "Staff updated" : "Staff created"
+            });
+            render();
         } catch (error) {
-            console.error(error);
-            toast.error(isEditing ? "Failed to update staff" : "Failed to add staff member");
+            logger.error("Logic", "Save Failed", error);
+            toast.error("Failed to save staff");
         } finally {
-            setLoading(false);
+            data.loading = false;
+            render();
+        }
+    }
+
+    function toggleApp(path: string) {
+        logger.info("Logic", `Toggle App: ${path}`);
+        const list = data.form.allowedApps || [];
+        data.form.allowedApps = list.includes(path)
+            ? list.filter(p => p !== path)
+            : [...list, path];
+        render();
+    }
+
+    return { dispatch, data };
+}
+
+/* =====================================================
+   UI LAYER
+   ===================================================== */
+type UIProps = {
+    data: PageData;
+    logic: any;
+};
+
+// Helper for UI Action Logging
+function logUIEvent(action: string, payload?: any) {
+    console.log(`[UI Action] ${action}`, payload || "");
+}
+
+function useUIActions(logic: any) {
+    return {
+        onAddStaffClick() {
+            logUIEvent("onAddStaffClick");
+            logic.dispatch({ type: "OPEN_ADD" });
+        },
+
+        onSearchChange(value: string) {
+            logUIEvent("onSearchChange", value);
+            logic.dispatch({ type: "SET_SEARCH", value });
+        },
+
+        onEditStaff(staff: any) {
+            logUIEvent("onEditStaff", staff.id);
+            logic.dispatch({ type: "EDIT", staff });
+        },
+
+        onDeleteStaff(id: string) {
+            logUIEvent("onDeleteStaff", id);
+            logic.dispatch({ type: "DELETE", id });
+        },
+
+        onCloseModal() {
+            logUIEvent("onCloseModal");
+            logic.dispatch({ type: "CLOSE_ADD" });
+        },
+
+        onSaveStaff() {
+            logUIEvent("onSaveStaff");
+            logic.dispatch({ type: "SAVE" });
+        },
+
+        onTogglePassword() {
+            logUIEvent("onTogglePassword");
+            logic.dispatch({ type: "TOGGLE_PASSWORD" });
+        },
+
+        onToggleApp(path: string) {
+            logUIEvent("onToggleApp", path);
+            logic.dispatch({ type: "TOGGLE_APP", path });
+        },
+
+        onFormPatch(patch: any) {
+            // logUIEvent("onFormPatch", patch); // Optional: can be noisy
+            logic.dispatch({ type: "UPDATE_FORM", patch });
         }
     };
+}
+function renderPageHeader(actions: any) {
+    return (
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+            <div className="flex items-center gap-4">
+                <BackButton />
+                <div>
+                    <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Onboard</h1>
+                    <p className="text-slate-500 dark:text-slate-400 mt-1">Manage and view internal staff directory</p>
+                </div>
+            </div>
 
-    const handleDeleteStaff = async (id: string) => {
-        if (window.confirm("Are you sure you want to delete this staff member?")) {
-            try {
-                await firebase.database().ref(`root/staff/${id}`).remove();
-                toast.success("Staff member removed");
-            } catch (error) {
-                toast.error("Failed to remove staff member");
-            }
-        }
-    };
+            <Button onClick={actions.onAddStaffClick}>
+                <UserPlus className="w-4 h-4 mr-2" />
+                Add Staff
+            </Button>
+        </div>
+    );
+}
 
-    // Manual attendance functions removed - handled via Quick Actions/Profile
+function StatsGrid({ data }: { data: PageData }) {
+    const totalStaff = data.staffMembers.length;
+    const currentlyIn = data.staffMembers.filter(s => s.checkedIn).length;
 
-    const filteredStaff = useMemo(() => staffMembers.filter(s =>
-        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.username.toLowerCase().includes(searchTerm.toLowerCase())
-    ), [staffMembers, searchTerm]);
+    return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+            <Card className="bg-white dark:bg-slate-900 border-none shadow-sm h-full rounded-2xl overflow-hidden">
+                <CardContent className="p-6 flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                        <Users className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Staff</p>
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white">{totalStaff}</p>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card className="bg-white dark:bg-slate-900 border-none shadow-sm h-full rounded-2xl overflow-hidden">
+                <CardContent className="p-6 flex items-center gap-4 border-l-4 border-indigo-500">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black">
+                        <div className="relative">
+                            <Users className="w-6 h-6" />
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900 animate-pulse" />
+                        </div>
+                    </div>
+                    <div>
+                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Currently In</p>
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white">{currentlyIn}</p>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card className="bg-white dark:bg-slate-900 border-none shadow-sm h-full rounded-2xl overflow-hidden">
+                <CardContent className="p-6 flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                        <Clock className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Man-Hours</p>
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                            {(() => {
+                                const today = new Date().toISOString().split('T')[0];
+                                const todayLaps = data.attendance.filter(a => a.dateString === today);
+                                const completed = todayLaps.reduce((acc, curr) => acc + parseFloat(curr.totalHours || "0"), 0);
+
+                                // Add live sessions
+                                const liveSecs = data.staffMembers
+                                    .filter(s => s.checkedIn && s.lastCheckIn)
+                                    .reduce((acc, s) => {
+                                        const start = new Date(s.lastCheckIn!).getTime();
+                                        return acc + Math.max(0, (data.currentTime.getTime() - start) / 1000);
+                                    }, 0);
+
+                                return (completed + (liveSecs / 3600)).toFixed(1);
+                            })()}h
+                        </p>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+function useDerivedUIData(data: PageData) {
+    const filteredStaff = useMemo(() => {
+        // console.log("[UI] Computing filtered staff..."); // Optional perf log
+        return data.staffMembers.filter(s =>
+            s.name?.toLowerCase().includes(data.searchTerm.toLowerCase()) ||
+            s.role?.toLowerCase().includes(data.searchTerm.toLowerCase()) ||
+            s.username?.toLowerCase().includes(data.searchTerm.toLowerCase())
+        );
+    }, [data.staffMembers, data.searchTerm]);
+
+    const availableApps = useMemo(() => {
+        return [
+            ...initialAppsList,
+            ...data.customApps.map(app => ({
+                id: app.id,
+                label: app.name,
+                path: app.path,
+                icon: Package
+            }))
+        ];
+    }, [data.customApps]);
+
+    return { filteredStaff, availableApps };
+}
+export function UI({ data, logic }: UIProps) {
+    const actions = useUIActions(logic);
+    const { filteredStaff, availableApps } = useDerivedUIData(data);
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
             <Navbar />
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                    <div className="flex items-center gap-4">
-                        <BackButton />
-                        <div>
-                            <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                                Staffes
-                            </h1>
-                            <p className="text-slate-500 dark:text-slate-400 mt-1">Manage and view internal staff directory</p>
-                        </div>
-                    </div>
+                {renderPageHeader(actions)}
 
-                    <div className="flex items-center gap-3">
-                        <Button
-                            onClick={() => setIsAddModalOpen(true)}
-                            className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20 px-6"
-                        >
-                            <UserPlus className="w-4 h-4 mr-2" />
-                            Add Staff
-                        </Button>
-                    </div>
-                </div>
-
-                {/* Stats Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                    <Card className="bg-white dark:bg-slate-900 border-none shadow-sm h-full rounded-2xl overflow-hidden">
-                        <CardContent className="p-6 flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                                <Users className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Staff</p>
-                                <p className="text-2xl font-bold text-slate-900 dark:text-white">{staffMembers.length}</p>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-white dark:bg-slate-900 border-none shadow-sm h-full rounded-2xl overflow-hidden">
-                        <CardContent className="p-6 flex items-center gap-4 border-l-4 border-indigo-500">
-                            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black">
-                                <div className="relative">
-                                    <Users className="w-6 h-6" />
-                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900 animate-pulse" />
-                                </div>
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Currently In</p>
-                                <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                                    {staffMembers.filter(s => s.checkedIn).length}
-                                </p>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-white dark:bg-slate-900 border-none shadow-sm h-full rounded-2xl overflow-hidden">
-                        <CardContent className="p-6 flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                                <Clock className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Man-Hours</p>
-                                <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                                    {(() => {
-                                        const today = new Date().toISOString().split('T')[0];
-                                        const todayLaps = attendance.filter(a => a.dateString === today);
-                                        const completed = todayLaps.reduce((acc, curr) => acc + parseFloat(curr.totalHours || "0"), 0);
-                                        return completed.toFixed(1);
-                                    })()}h
-                                </p>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-
-                </div>
+                <StatsGrid data={data} />
 
                 {/* Content Section */}
                 <Card className="bg-white dark:bg-slate-900 border-none shadow-sm rounded-2xl overflow-hidden">
@@ -330,180 +501,187 @@ const Staffes = () => {
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                                 <Input
                                     placeholder="Search staff..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    value={data.searchTerm}
+                                    onChange={(e) => actions.onSearchChange(e.target.value)}
                                     className="pl-10 h-10 bg-slate-50 dark:bg-slate-800 border-none rounded-xl"
                                 />
                             </div>
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead>
-                                    <tr className="bg-slate-50/50 dark:bg-slate-800/30 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
-                                        <th className="px-6 py-4">ID</th>
-                                        <th className="px-6 py-4">Staff Member</th>
-                                        <th className="px-6 py-4">Username</th>
-                                        <th className="px-6 py-4">Role</th>
-                                        <th className="px-6 py-4">Status</th>
-                                        <th className="px-6 py-4">Working Hours</th>
-                                        <th className="px-6 py-4 text-center">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                    {filteredStaff.map((staff) => (
-                                        <tr key={staff.id} className="group hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                                            <td className="px-6 py-4 text-sm font-mono text-slate-500">{staff.id?.slice(-4)}</td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-9 h-9 rounded-full bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-xs border border-indigo-100 dark:border-indigo-800">
-                                                        {staff.name.split(' ').map(n => n[0]).join('')}
-                                                    </div>
-                                                    <div className="flex flex-col">
-                                                        <span className="font-semibold text-slate-900 dark:text-slate-100">{staff.name}</span>
-                                                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-tighter">
-                                                            {staff.allowedApps?.length || 0} Apps Authorized
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300 font-mono italic">@{staff.username}</td>
-                                            <td className="px-6 py-4">
-                                                <Badge variant="outline" className="rounded-lg border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-normal">
-                                                    {staff.role}
-                                                </Badge>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                {staff.checkedIn ? (
-                                                    <div className="flex flex-col gap-1">
-                                                        <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full px-3 py-1 flex items-center gap-1.5 w-fit">
-                                                            <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                                                            Currently In
-                                                        </Badge>
-                                                        <span className="text-[10px] text-slate-400 font-medium ml-1">
-                                                            In since {new Date(staff.lastCheckIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                        </span>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex flex-col gap-1 text-slate-400">
-                                                        <Badge variant="outline" className="text-slate-400 bg-slate-50 border-slate-200">
-                                                            Off-duty
-                                                        </Badge>
-                                                        {staff.lastCheckOut && (
-                                                            <span className="text-[10px] font-medium ml-1 text-slate-300">
-                                                                Last seen {new Date(staff.lastCheckOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                {(() => {
-                                                    const today = new Date().toISOString().split('T')[0];
-                                                    const recordsToday = attendance.filter(a =>
-                                                        a.employeeId === staff.employeeId &&
-                                                        a.dateString === today
-                                                    );
-
-                                                    // Sum up completed sessions
-                                                    let totalSeconds = recordsToday.reduce((acc, curr) => {
-                                                        return acc + (parseFloat(curr.totalHours || "0") * 3600);
-                                                    }, 0);
-
-                                                    // Add current session if active
-                                                    if (staff.checkedIn && staff.lastCheckIn) {
-                                                        const startTime = new Date(staff.lastCheckIn).getTime();
-                                                        const diff = Math.floor((currentTime.getTime() - startTime) / 1000);
-                                                        totalSeconds += Math.max(0, diff);
-                                                    }
-
-                                                    if (totalSeconds === 0) return <span className="text-slate-300">No logs today</span>;
-
-                                                    const h = Math.floor(totalSeconds / 3600);
-                                                    const m = Math.floor((totalSeconds % 3600) / 60);
-                                                    const s = Math.floor(totalSeconds % 60);
-
-                                                    return (
-                                                        <div className="flex flex-col">
-                                                            <span className={`text-sm font-bold ${staff.checkedIn ? 'text-indigo-600 animate-pulse' : 'text-slate-700'}`}>
-                                                                {h}h {m}m {s}s
-                                                            </span>
-                                                            <span className="text-[10px] text-slate-400">
-                                                                {staff.checkedIn ? 'Active Session' : 'Daily Total'}
-                                                            </span>
-                                                        </div>
-                                                    );
-                                                })()}
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <div className="flex justify-center gap-1.5">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() => handleEditClick(staff)}
-                                                        className="rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/10"
-                                                    >
-                                                        <Edit className="w-4 h-4" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() => handleDeleteStaff(staff.id)}
-                                                        className="rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {filteredStaff.length === 0 && (
-                            <div className="py-20 text-center text-slate-400">
-                                <Users className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                                <p>No staff members found matching your search.</p>
-                            </div>
-                        )}
+                        {/* Staff Table */}
+                        <StaffTable
+                            staff={filteredStaff}
+                            attendance={data.attendance}
+                            currentTime={data.currentTime}
+                            onEdit={actions.onEditStaff}
+                            onDelete={actions.onDeleteStaff}
+                        />
                     </CardContent>
                 </Card>
+
+                {/* Modal */}
+                <StaffModal
+                    data={data}
+                    apps={availableApps}
+                    actions={actions}
+                />
             </main>
+        </div>
+    );
+}
 
-            {/* Add Staff Modal */}
-            <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-                <DialogContent className="sm:max-w-3xl bg-white dark:bg-slate-900 border-none shadow-2xl rounded-3xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader className="p-2">
-                        <DialogTitle className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white">
-                                {isEditing ? <Edit className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
-                            </div>
-                            {isEditing ? "Edit Staff Account" : "Create New Staff Account"}
+/* =====================================================
+   PAGE ENTRY
+   ===================================================== */
+
+/* =====================================================
+   COMPONENTS
+   ===================================================== */
+
+interface StaffTableProps {
+    staff: Staff[];
+    attendance: any[];
+    currentTime: Date;
+    onEdit: (staff: Staff) => void;
+    onDelete: (id: string) => void;
+}
+
+const StaffTable = ({ staff, attendance, currentTime, onEdit, onDelete }: StaffTableProps) => {
+    return (
+        <div className="overflow-x-auto">
+            <table className="w-full text-left">
+                <thead>
+                    <tr className="bg-slate-50/50 dark:bg-slate-800/30 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
+                        <th className="px-6 py-4">Staff Member</th>
+                        <th className="px-6 py-4">Username</th>
+                        <th className="px-6 py-4">Role</th>
+                        <th className="px-6 py-4">Status</th>
+                        <th className="px-6 py-4">Working Hours</th>
+                        <th className="px-6 py-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {staff.length === 0 ? (
+                        <tr>
+                            <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                                No staff members found
+                            </td>
+                        </tr>
+                    ) : (
+                        staff.map((s) => (
+                            <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors group">
+                                <td className="px-6 py-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                                            <Users size={20} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-900 dark:text-white">{s.name}</p>
+                                            <p className="text-[10px] text-slate-500 uppercase tracking-widest">{s.employeeId || 'System ID'}</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <span className="text-sm font-mono text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">
+                                        @{s.username}
+                                    </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <Badge variant="outline" className="rounded-lg border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-medium">
+                                        {s.role}
+                                    </Badge>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`w-2 h-2 rounded-full ${s.checkedIn ? "bg-emerald-500 animate-pulse" : "bg-slate-300 dark:bg-slate-700"}`} />
+                                        <span className={`text-xs font-bold ${s.checkedIn ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500"}`}>
+                                            {s.checkedIn ? "Currently In" : "Offline"}
+                                        </span>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <div className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                                        {(() => {
+                                            const today = new Date().toISOString().split('T')[0];
+                                            const todayLaps = attendance.filter(a => a.staffId === s.id && a.dateString === today);
+                                            let totalSeconds = todayLaps.reduce((acc, curr) => acc + (parseFloat(curr.totalHours || "0") * 3600), 0);
+
+                                            // Add live session
+                                            if (s.checkedIn && s.lastCheckIn) {
+                                                const start = new Date(s.lastCheckIn).getTime();
+                                                totalSeconds += Math.max(0, (currentTime.getTime() - start) / 1000);
+                                            }
+
+                                            if (totalSeconds === 0) return <span className="text-slate-300">No logs today</span>;
+
+                                            const h = Math.floor(totalSeconds / 3600);
+                                            const m = Math.floor((totalSeconds % 3600) / 60);
+                                            const ss = Math.floor(totalSeconds % 60);
+
+                                            return `${h}h ${m}m ${ss}s`;
+                                        })()}
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                    <div className="flex items-center justify-end gap-2 transition-opacity">
+                                        <Button variant="ghost" size="icon" onClick={() => onEdit(s)} className="h-8 w-8 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-900/20">
+                                            <Edit className="w-4 h-4" />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" onClick={() => onDelete(s.id)} className="h-8 w-8 rounded-lg hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/20">
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                    </div>
+                                </td>
+                            </tr>
+                        ))
+                    )}
+                </tbody>
+            </table>
+        </div>
+    );
+};
+
+interface StaffModalProps {
+    data: PageData;
+    apps: any[];
+    actions: any;
+}
+
+const StaffModal = ({ data, apps, actions }: StaffModalProps) => {
+    return (
+        <Dialog open={data.isAddModalOpen} onOpenChange={actions.onCloseModal}>
+            <DialogContent className="max-w-3xl rounded-[32px] border-none shadow-2xl p-0 overflow-hidden dark:bg-slate-900">
+                <div className="bg-indigo-600 p-8 text-white relative overflow-hidden">
+                    <div className="relative z-10">
+                        <DialogTitle className="text-2xl font-black uppercase tracking-tighter">
+                            {data.isEditing ? 'Save Profile Changes' : 'Register New Staff'}
                         </DialogTitle>
-                    </DialogHeader>
+                        <p className="text-indigo-100 text-xs font-bold uppercase tracking-widest mt-1">Configure access and identity details</p>
+                    </div>
+                    <Crown className="absolute right-[-20px] top-[-20px] w-48 h-48 text-white/10 rotate-12" />
+                </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-6">
-                        {/* Profile Info */}
+                <div className="p-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-6">
-                            {!isEditing && (
-                                <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                            {/* Employee Linkage */}
+                            {!data.isEditing && (
+                                <div className="space-y-3">
                                     <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                         <Briefcase className="w-3.5 h-3.5" />
-                                        Employee Selection
+                                        Link Employee Profile
                                     </h3>
                                     <div className="space-y-2">
-                                        <Label className="text-xs font-semibold ml-1">Select from HR Records (Optional)</Label>
                                         <Select
+                                            value={data.form.employeeId}
                                             onValueChange={(val) => {
-                                                const emp = employees.find(e => e.id === val);
+                                                const emp = data.employees.find(e => e.id === val);
                                                 if (emp) {
-                                                    setNewStaff({
-                                                        ...newStaff,
+                                                    actions.onFormPatch({
                                                         employeeId: val,
                                                         name: `${emp.firstName} ${emp.lastName}`,
-                                                        role: emp.role || newStaff.role
+                                                        role: emp.role || data.form.role
                                                     });
                                                 }
                                             }}
@@ -512,7 +690,7 @@ const Staffes = () => {
                                                 <SelectValue placeholder="Choose an employee..." />
                                             </SelectTrigger>
                                             <SelectContent className="rounded-2xl border-none shadow-2xl">
-                                                {employees
+                                                {data.employees
                                                     .filter(emp => emp.role !== 'Ride' && emp.department !== 'Logistics')
                                                     .map((emp) => (
                                                         <SelectItem key={emp.id} value={emp.id} className="rounded-xl">
@@ -535,8 +713,8 @@ const Staffes = () => {
                                     <Label className="text-xs font-semibold ml-1">Full Name</Label>
                                     <Input
                                         placeholder="Enter staff name"
-                                        value={newStaff.name}
-                                        onChange={(e) => setNewStaff({ ...newStaff, name: e.target.value })}
+                                        value={data.form.name}
+                                        onChange={(e) => actions.onFormPatch({ name: e.target.value })}
                                         className="rounded-2xl h-12 bg-slate-50 dark:bg-slate-800 border-none"
                                     />
                                 </div>
@@ -544,8 +722,8 @@ const Staffes = () => {
                                     <Label className="text-xs font-semibold ml-1">Staff Role</Label>
                                     <Input
                                         placeholder="e.g. Sales Associate"
-                                        value={newStaff.role}
-                                        onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value })}
+                                        value={data.form.role}
+                                        onChange={(e) => actions.onFormPatch({ role: e.target.value })}
                                         className="rounded-2xl h-12 bg-slate-50 dark:bg-slate-800 border-none"
                                     />
                                 </div>
@@ -560,8 +738,8 @@ const Staffes = () => {
                                     <Label className="text-xs font-semibold ml-1">Username</Label>
                                     <Input
                                         placeholder="staff_username"
-                                        value={newStaff.username}
-                                        onChange={(e) => setNewStaff({ ...newStaff, username: e.target.value.toLowerCase().replace(/\s/g, '') })}
+                                        value={data.form.username}
+                                        onChange={(e) => actions.onFormPatch({ username: e.target.value.toLowerCase().replace(/\s/g, '') })}
                                         className="rounded-2xl h-12 bg-slate-50 dark:bg-slate-800 border-none font-mono"
                                     />
                                 </div>
@@ -569,17 +747,17 @@ const Staffes = () => {
                                     <Label className="text-xs font-semibold ml-1">Security Password</Label>
                                     <div className="relative">
                                         <Input
-                                            type={showPassword ? "text" : "password"}
+                                            type={data.showPassword ? "text" : "password"}
                                             placeholder="••••••••"
-                                            value={newStaff.password}
-                                            onChange={(e) => setNewStaff({ ...newStaff, password: e.target.value })}
+                                            value={data.form.password}
+                                            onChange={(e) => actions.onFormPatch({ password: e.target.value })}
                                             className="rounded-2xl h-12 bg-slate-50 dark:bg-slate-800 border-none pr-12"
                                         />
                                         <button
-                                            onClick={() => setShowPassword(!showPassword)}
+                                            onClick={actions.onTogglePassword}
                                             className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-indigo-600 transition-colors"
                                         >
-                                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            {data.showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                         </button>
                                     </div>
                                 </div>
@@ -593,22 +771,22 @@ const Staffes = () => {
                                 Authorized Applications
                             </h3>
                             <div className="bg-slate-50 dark:bg-slate-800 rounded-3xl p-4 h-[320px] overflow-y-auto space-y-2 custom-scrollbar border border-slate-100 dark:border-slate-700">
-                                {allAvailableApps.map((app) => (
+                                {apps.map((app) => (
                                     <div
                                         key={app.id}
-                                        onClick={() => toggleAppPermission(app.path)}
-                                        className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-all duration-300 border-2 ${newStaff.allowedApps.includes(app.path)
+                                        onClick={() => actions.onToggleApp(app.path)}
+                                        className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-all duration-300 border-2 ${data.form.allowedApps?.includes(app.path)
                                             ? 'bg-indigo-600 border-indigo-500 text-white shadow-md'
                                             : 'bg-white dark:bg-slate-900 border-transparent text-slate-600 dark:text-slate-400 hover:border-slate-200 dark:hover:border-slate-700'
                                             }`}
                                     >
                                         <div className="flex items-center gap-3">
-                                            <div className={`p-2 rounded-xl ${newStaff.allowedApps.includes(app.path) ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                                            <div className={`p-2 rounded-xl ${data.form.allowedApps?.includes(app.path) ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-800'}`}>
                                                 <app.icon size={16} />
                                             </div>
                                             <span className="text-sm font-bold">{app.label}</span>
                                         </div>
-                                        {newStaff.allowedApps.includes(app.path) && <Check className="w-4 h-4" />}
+                                        {data.form.allowedApps?.includes(app.path) && <Check className="w-4 h-4" />}
                                     </div>
                                 ))}
                             </div>
@@ -617,30 +795,69 @@ const Staffes = () => {
                             </p>
                         </div>
                     </div>
+                </div>
 
-                    <DialogFooter className="mt-8 gap-3">
-                        <Button
-                            variant="ghost"
-                            onClick={() => {
-                                setIsAddModalOpen(false);
-                                resetForm();
-                            }}
-                            className="rounded-2xl h-12 px-8 font-bold text-slate-500"
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleAddStaff}
-                            disabled={loading}
-                            className="rounded-2xl h-12 px-12 bg-indigo-600 hover:bg-indigo-700 text-white font-black shadow-xl shadow-indigo-600/30 grow md:grow-0"
-                        >
-                            {loading ? (isEditing ? "Updating..." : "Registering...") : (isEditing ? "Save Profile Changes" : "Assign & Register Staff")}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </div>
+                <DialogFooter className="p-8 pt-0 gap-3">
+                    <Button
+                        variant="ghost"
+                        onClick={actions.onCloseModal}
+                        className="rounded-2xl h-12 px-8 font-bold text-slate-500"
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={actions.onSaveStaff}
+                        disabled={data.loading}
+                        className="rounded-2xl h-12 px-12 bg-indigo-600 hover:bg-indigo-700 text-white font-black shadow-xl shadow-indigo-600/30 grow md:grow-0"
+                    >
+                        {data.loading ? (data.isEditing ? "Updating..." : "Registering...") : (data.isEditing ? "Save Profile Changes" : "Assign & Register Staff")}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 };
 
-export default Staffes;
+export default function Staffes() {
+    const [, rerender] = useState(0);
+    const dataRef = useRef<PageData>();
+    const logicRef = useRef<any>();
+
+    if (!dataRef.current) {
+        dataRef.current = createData();
+        logicRef.current = Logic(dataRef.current, () => rerender(x => x + 1));
+    }
+
+    useEffect(() => {
+        logger.info("Staffes", "Page Mounted");
+        logicRef.current.dispatch({ type: "CREATE_VIEW" });
+        const timer = setInterval(() => logicRef.current.dispatch({ type: "TICK" }), 1000);
+        return () => {
+            logger.info("Staffes", "Page Unmounting");
+            clearInterval(timer);
+            logicRef.current.dispatch({ type: "DISMISS" });
+        };
+    }, []);
+
+    return <UI data={dataRef.current!} logic={logicRef.current} />;
+}
+/* =====================================================
+   ACTION REQUEST ENTRY (CALLABLE FROM ANYWHERE)
+   ===================================================== */
+
+export async function requestStaffAction(
+    logic: any,
+    mode: "create" | "edit",
+    staff?: Staff
+): Promise<ActionResult<Staff>> {
+
+    if (mode === "create") {
+        logic.dispatch({ type: "OPEN_ADD" });
+    }
+
+    if (mode === "edit" && staff) {
+        logic.dispatch({ type: "EDIT", staff });
+    }
+
+    return actionRequestBus.request();
+}

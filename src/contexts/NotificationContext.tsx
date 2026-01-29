@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { firebase } from "@/lib/firebase";
+import { firebase, messaging, db as modularDb } from "@/lib/firebase";
+import { getToken, onMessage } from "firebase/messaging";
+import { ref, set } from "firebase/database";
 import { toast } from "sonner";
 import { adjustStockForOrder } from "@/utils/stockManagement";
 import { CONFIG } from "@/config";
@@ -21,6 +23,7 @@ interface NotificationContextType {
     markAsRead: (id: string) => void;
     markAllAsRead: () => void;
     clearNotifications: () => void;
+    requestPermission: () => Promise<boolean>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -236,6 +239,75 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return () => broadcastRef.off("child_added", onBroadcast);
     }, []);
 
+    const registerDevice = async () => {
+        if (!messaging) return;
+        const currentStaffId = sessionStorage.getItem("staff_id");
+        if (!currentStaffId) return;
+
+        try {
+            const token = await getToken(messaging, {
+                vapidKey: CONFIG.FCM.vapidKey
+            });
+
+            if (token) {
+                const tokenRef = ref(modularDb, `root/staff_tokens/${currentStaffId}/${token.replace(/[.$#[\]]/g, "_")}`);
+                await set(tokenRef, {
+                    token,
+                    lastUpdated: Date.now(),
+                    userAgent: navigator.userAgent
+                });
+                console.log("FCM Token registered:", token);
+            }
+        } catch (error) {
+            console.error("FCM Registration failed:", error);
+        }
+    };
+
+    const requestPermission = async (): Promise<boolean> => {
+        if (!('Notification' in window)) return false;
+
+        try {
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+                await registerDevice();
+                toast.success("Notifications enabled successfully!");
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error("Error requesting permission", error);
+            return false;
+        }
+    };
+
+    // 5. FCM Push Notification Setup
+    useEffect(() => {
+        if (!messaging) return;
+
+        const initFCM = async () => {
+            if (Notification.permission === 'granted') {
+                await registerDevice();
+            }
+        };
+
+        initFCM();
+
+        // Handle foreground messages
+        const unsubscribe = onMessage(messaging, (payload) => {
+            console.log("Foreground message received:", payload);
+            if (payload.notification) {
+                addNotification({
+                    id: payload.messageId || Date.now().toString(),
+                    title: payload.notification.title || "New Notification",
+                    message: payload.notification.body || "",
+                    type: 'info'
+                });
+            }
+        });
+
+        return () => unsubscribe();
+    }, [location.pathname]); // Re-check on nav, but mainly relies on staff_id presence
+
     const addNotification = (n: Omit<Notification, 'timestamp' | 'read'>) => {
         const id = n.id;
         if (hiddenNotificationsRef.current[id]) return;
@@ -251,9 +323,14 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const triggerNotificationEffects = (newNotification: Notification) => {
         if (location.pathname === '/' || location.pathname.startsWith('/delivery') || newNotification.type === 'stock') return;
 
+        const isDefaultPermission = Notification.permission === 'default';
+
         toast(newNotification.title, {
             description: newNotification.message,
-            action: {
+            action: isDefaultPermission ? {
+                label: "Enable Notifications",
+                onClick: () => requestPermission(),
+            } : {
                 label: "View",
                 onClick: () => {
                     if (newNotification.type === 'order') navigate('/orders');
@@ -289,7 +366,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const unreadCount = notifications.filter(n => !n.read).length;
 
     return (
-        <NotificationContext.Provider value={{ notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications }}>
+        <NotificationContext.Provider value={{ notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications, requestPermission }}>
             {children}
         </NotificationContext.Provider>
     );

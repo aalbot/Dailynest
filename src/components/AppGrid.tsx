@@ -19,6 +19,7 @@ import {
   Users,
   Grid3X3,
   Bell,
+  FlaskConical,
 } from "lucide-react";
 import AppIcon from "./AppIcon";
 import { AddAppModal } from "./AddAppModal";
@@ -52,7 +53,8 @@ const initialApps = [
   { icon: Keyboard, label: "SEO", colorClass: "app-icon-indigo", path: "/keyword-entry" },
   { icon: Grid3X3, label: "Task Manager", colorClass: "app-icon-violet", path: "/tasks" },
   { icon: Bell, label: "Notification", colorClass: "app-icon-red", path: "/notifications" },
-  { icon: Users, label: "Staff", colorClass: "app-icon-cyan", path: "/staffes" },
+  { icon: Users, label: "Onboard", colorClass: "app-icon-cyan", path: "/staffes" },
+  { icon: FlaskConical, label: "test", colorClass: "app-icon-orange", path: "/staff-test" },
 ];
 
 const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolean; searchQuery?: string }) => {

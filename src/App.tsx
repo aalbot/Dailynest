@@ -24,6 +24,7 @@ const EmployeeManagement = lazy(() => import("./pages/EmployeeManagement"));
 const TaskManager = lazy(() => import("./pages/TaskManager"));
 const NotificationManager = lazy(() => import("./pages/NotificationManager"));
 const Staffes = lazy(() => import("./pages/Staffes"));
+const StaffActionTestPage = lazy(() => import("./pages/StaffActionTestPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 import ScrollToTop from "./components/ScrollToTop";
@@ -82,6 +83,7 @@ const App = () => (
                 <Route path="/tasks" element={<TaskManager />} />
                 <Route path="/notifications" element={<NotificationManager />} />
                 <Route path="/staffes" element={<Staffes />} />
+                <Route path="/staff-test" element={<StaffActionTestPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>

@@ -14,7 +14,7 @@ export const CONFIG = {
         apiKey: "AIzaSyDj1gRVZ4lRJIM2v8c4pJxdyfEY6I1ZGEk"
     },
     FCM: {
-        vapidKey: "YOUR_VAPID_PUBLIC_KEY_HERE"
+        vapidKey: "BORUQ2p7jMkhKXyww597I0dBGQvgfocigWjbu0kJ1CSjF7J4J6pJJE8lti_JI7c0KLdZy7EDgNm3hNblJA6ne1U"
     },
     ASSETS: {
         notificationSound: "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"

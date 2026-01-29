@@ -3,6 +3,7 @@ import { getAnalytics } from "firebase/analytics";
 import { getDatabase } from "firebase/database";
 import { getAuth } from "firebase/auth";
 import { getStorage } from "firebase/storage";
+import { getMessaging } from "firebase/messaging";
 import firebase from "firebase/compat/app";
 import "firebase/compat/database";
 import "firebase/compat/auth";
@@ -19,6 +20,7 @@ const db = getDatabase(app);
 const auth = getAuth(app);
 const storage = getStorage(app);
 const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
+const messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
 
 // Initialize compat SDK (for backward compatibility with existing code)
 if (!firebase.apps.length) {
@@ -28,4 +30,4 @@ if (!firebase.apps.length) {
 const compatDb = firebase.database();
 const compatAuth = firebase.auth();
 
-export { app, db, auth, storage, analytics, firebase, compatDb, compatAuth };
+export { app, db, auth, storage, analytics, messaging, firebase, compatDb, compatAuth };
