@@ -9,6 +9,7 @@ import {
 import Navbar from "@/components/Navbar";
 import BackButton from "@/components/BackButton";
 import { toast, Toaster } from "sonner";
+import { useLang } from "@/contexts/LanguageContext";
 
 // Types
 interface Category {
@@ -50,6 +51,7 @@ const BackOffice = () => {
     // --- State ---
     const [activeTab, setActiveTab] = useState<Tab>('categories');
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const { getTranslation } = useLang();
 
     // Categories
     const [categories, setCategories] = useState<Category[]>([]);
@@ -139,7 +141,7 @@ const BackOffice = () => {
     };
 
     const saveCategory = async () => {
-        if (!cCode || !cName) return toast.error("Missing Code or Name");
+        if (!cCode || !cName) return toast.error(getTranslation("backOffice.categories.messages.missingFields"));
 
         try {
             let picUrl = cPicPreview;
@@ -156,7 +158,7 @@ const BackOffice = () => {
                 pic: picUrl
             });
 
-            toast.success("Category Saved!");
+            toast.success(getTranslation("backOffice.categories.messages.saveSuccess"));
             resetCatForm();
         } catch (e: any) {
             console.error(e);
@@ -165,10 +167,10 @@ const BackOffice = () => {
     };
 
     const deleteCategory = async (code: string) => {
-        if (!confirm('Delete this Category?')) return;
+        if (!confirm(getTranslation("backOffice.categories.messages.deleteConfirm"))) return;
         try {
             await firebase.database().ref(`root/category/${code}`).remove();
-            toast.success("Category Deleted");
+            toast.success(getTranslation("backOffice.categories.messages.deleteSuccess"));
         } catch (e: any) {
             toast.error(e.message);
         }
@@ -200,7 +202,7 @@ const BackOffice = () => {
     };
 
     const saveProduct = async () => {
-        if (!pCode || !pName || !pCategoryCode) return toast.error("Missing mandatory fields");
+        if (!pCode || !pName || !pCategoryCode) return toast.error(getTranslation("backOffice.products.messages.missingFields"));
 
         try {
             let picUrl = pPicPreview;
@@ -220,7 +222,7 @@ const BackOffice = () => {
                 pic: picUrl
             });
 
-            toast.success("Product Saved!");
+            toast.success(getTranslation("backOffice.products.messages.saveSuccess"));
             resetProdForm();
         } catch (e: any) {
             toast.error(e.message);
@@ -228,10 +230,10 @@ const BackOffice = () => {
     };
 
     const deleteProduct = async (code: string) => {
-        if (!confirm('Delete Product?')) return;
+        if (!confirm(getTranslation("backOffice.products.messages.deleteConfirm"))) return;
         try {
             await firebase.database().ref(`root/products/${code}`).remove();
-            toast.success("Product Deleted");
+            toast.success(getTranslation("backOffice.products.messages.deleteSuccess"));
         } catch (e: any) {
             toast.error(e.message);
         }
@@ -272,9 +274,9 @@ const BackOffice = () => {
 
 
                 <nav className="space-y-1">
-                    <NavItem id="categories" icon={LayoutGrid} label="Categories" />
-                    <NavItem id="products" icon={Package} label="Products" />
-                    <NavItem id="stock" icon={Box} label="Stock & Variants" />
+                    <NavItem id="categories" icon={LayoutGrid} label={getTranslation("backOffice.tabs.categories")} />
+                    <NavItem id="products" icon={Package} label={getTranslation("backOffice.tabs.products")} />
+                    <NavItem id="stock" icon={Box} label={getTranslation("backOffice.tabs.stock")} />
                 </nav>
             </aside>
 
@@ -301,9 +303,9 @@ const BackOffice = () => {
                                 <button onClick={() => setSidebarOpen(false)}><X /></button>
                             </div>
                             <nav className="space-y-2">
-                                <NavItem id="categories" icon={LayoutGrid} label="Categories" />
-                                <NavItem id="products" icon={Package} label="Products" />
-                                <NavItem id="stock" icon={Box} label="Stock & Variants" />
+                                <NavItem id="categories" icon={LayoutGrid} label={getTranslation("backOffice.tabs.categories")} />
+                                <NavItem id="products" icon={Package} label={getTranslation("backOffice.tabs.products")} />
+                                <NavItem id="stock" icon={Box} label={getTranslation("backOffice.tabs.stock")} />
                             </nav>
                         </div>
                     </div>
@@ -320,31 +322,31 @@ const BackOffice = () => {
                                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm sticky top-6">
                                     <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
                                         {editingCatKey ? <Edit2 size={18} className="text-indigo-500" /> : <Plus size={18} className="text-emerald-500" />}
-                                        {editingCatKey ? 'Edit Category' : 'New Category'}
+                                        {editingCatKey ? getTranslation("backOffice.categories.edit") : getTranslation("backOffice.categories.new")}
                                     </h2>
 
                                     <div className="space-y-4">
                                         <div>
-                                            <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Code (Key)</label>
+                                            <label className="block text-xs font-bold uppercase text-slate-400 mb-1">{getTranslation("backOffice.categories.form.code")}</label>
                                             <input
                                                 value={cCode}
                                                 onChange={e => setCCode(e.target.value)}
                                                 disabled={!!editingCatKey}
                                                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-all disabled:opacity-60"
-                                                placeholder="e.g. CAT001"
+                                                placeholder={getTranslation("backOffice.categories.form.codePlaceholder")}
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Name</label>
+                                            <label className="block text-xs font-bold uppercase text-slate-400 mb-1">{getTranslation("backOffice.categories.form.name")}</label>
                                             <input
                                                 value={cName}
                                                 onChange={e => setCName(e.target.value)}
                                                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                                placeholder="Display Name"
+                                                placeholder={getTranslation("backOffice.categories.form.namePlaceholder")}
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Priority (1-10)</label>
+                                            <label className="block text-xs font-bold uppercase text-slate-400 mb-1">{getTranslation("backOffice.categories.form.priority")}</label>
                                             <input
                                                 type="number"
                                                 value={cRatingKey}
@@ -371,18 +373,18 @@ const BackOffice = () => {
                                             ) : (
                                                 <>
                                                     <UploadCloud className="text-slate-400 mb-2" />
-                                                    <span className="text-xs text-slate-500">Click to upload icon</span>
+                                                    <span className="text-xs text-slate-500">{getTranslation("backOffice.categories.form.uploadIcon")}</span>
                                                 </>
                                             )}
                                         </div>
 
                                         <div className="flex gap-2 pt-2">
                                             <button onClick={saveCategory} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl font-bold transition-all active:scale-95 shadow-lg shadow-indigo-500/20">
-                                                Save
+                                                {getTranslation("common.save")}
                                             </button>
                                             {editingCatKey && (
                                                 <button onClick={resetCatForm} className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl font-semibold transition-all">
-                                                    Cancel
+                                                    {getTranslation("common.cancel")}
                                                 </button>
                                             )}
                                         </div>
@@ -425,20 +427,20 @@ const BackOffice = () => {
                                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm sticky top-6 max-h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar">
                                     <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
                                         {editingProdKey ? <Edit2 size={18} className="text-indigo-500" /> : <Plus size={18} className="text-emerald-500" />}
-                                        {editingProdKey ? 'Edit Product' : 'New Product'}
+                                        {editingProdKey ? getTranslation("backOffice.products.edit") : getTranslation("backOffice.products.new")}
                                     </h2>
 
                                     <div className="space-y-4">
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
-                                                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Code</label>
+                                                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">{getTranslation("backOffice.products.form.code")}</label>
                                                 <input
                                                     value={pCode} onChange={e => setPCode(e.target.value)} disabled={!!editingProdKey}
                                                     className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
                                                 />
                                             </div>
                                             <div>
-                                                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Stock</label>
+                                                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">{getTranslation("backOffice.products.form.stock")}</label>
                                                 <input
                                                     type="number" value={pStock} onChange={e => setPStock(Number(e.target.value))}
                                                     className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
@@ -447,26 +449,26 @@ const BackOffice = () => {
                                         </div>
 
                                         <div>
-                                            <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Name</label>
+                                            <label className="block text-xs font-bold uppercase text-slate-400 mb-1">{getTranslation("backOffice.products.form.name")}</label>
                                             <input value={pName} onChange={e => setPName(e.target.value)} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
-                                                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Category</label>
+                                                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">{getTranslation("backOffice.products.form.category")}</label>
                                                 <select value={pCategoryCode} onChange={e => setPCategoryCode(e.target.value)} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
-                                                    <option value="">Select...</option>
+                                                    <option value="">{getTranslation("backOffice.products.form.select")}</option>
                                                     {categories.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
                                                 </select>
                                             </div>
                                             <div>
-                                                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Color Info</label>
+                                                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">{getTranslation("backOffice.products.form.color")}</label>
                                                 <input value={pColor} onChange={e => setPColor(e.target.value)} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
                                             </div>
                                         </div>
 
                                         <div>
-                                            <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Details</label>
+                                            <label className="block text-xs font-bold uppercase text-slate-400 mb-1">{getTranslation("backOffice.products.form.details")}</label>
                                             <textarea value={pDetails} onChange={e => setPDetails(e.target.value)} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm h-20 resize-none" />
                                         </div>
 
@@ -477,8 +479,8 @@ const BackOffice = () => {
                                         </div>
 
                                         <div className="flex gap-2 pt-2">
-                                            <button onClick={saveProduct} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl font-bold transition-all active:scale-95 shadow-lg shadow-indigo-500/20">Save</button>
-                                            {editingProdKey && <button onClick={resetProdForm} className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl font-semibold transition-all">Cancel</button>}
+                                            <button onClick={saveProduct} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl font-bold transition-all active:scale-95 shadow-lg shadow-indigo-500/20">{getTranslation("common.save")}</button>
+                                            {editingProdKey && <button onClick={resetProdForm} className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl font-semibold transition-all">{getTranslation("common.cancel")}</button>}
                                         </div>
                                     </div>
                                 </div>
@@ -491,10 +493,10 @@ const BackOffice = () => {
                                     <div className="flex-1 flex gap-2">
                                         <div className="relative flex-1">
                                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                                            <input value={prodSearch} onChange={e => setProdSearch(e.target.value)} placeholder="Search Products..." className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500/20" />
+                                            <input value={prodSearch} onChange={e => setProdSearch(e.target.value)} placeholder={getTranslation("backOffice.products.search")} className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500/20" />
                                         </div>
                                         <select value={viewCat} onChange={e => setViewCat(e.target.value)} className="bg-slate-50 dark:bg-slate-800 rounded-lg px-3 py-2 text-sm outline-none border-none">
-                                            <option value="">All Categories</option>
+                                            <option value="">{getTranslation("backOffice.products.allCategories")}</option>
                                             {categories.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
                                         </select>
                                     </div>
@@ -527,9 +529,9 @@ const BackOffice = () => {
                     {activeTab === 'stock' && (
                         <div className="text-center py-20 text-slate-400">
                             <Box size={48} className="mx-auto mb-4 opacity-20" />
-                            <h2 className="text-xl font-bold mb-2">Stock Management</h2>
-                            <p>Please use the detailed Stock Entry page for advanced variant management.</p>
-                            <a href="/stock-entry" className="inline-block mt-4 text-indigo-600 font-semibold hover:underline">Go to Stock Entry &rarr;</a>
+                            <h2 className="text-xl font-bold mb-2">{getTranslation("backOffice.stock.title")}</h2>
+                            <p>{getTranslation("backOffice.stock.description")}</p>
+                            <a href="/stock-entry" className="inline-block mt-4 text-indigo-600 font-semibold hover:underline">{getTranslation("backOffice.stock.goLink")} &rarr;</a>
                         </div>
                     )}
 

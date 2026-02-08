@@ -1,0 +1,794 @@
+{
+    "en": {
+        "common": {
+            "appName": "DailyClub",
+            "portalName": "DailyClub Digital Ecosystem",
+            "languageName": "English (US)",
+            "allSystemsOperational": "All Systems Operational",
+            "checkIn": "Check In",
+            "checkOut": "Check Out",
+            "onDuty": "On Duty",
+            "offDuty": "Off Duty",
+            "actions": "Actions",
+            "save": "Save",
+            "cancel": "Cancel",
+            "delete": "Delete",
+            "edit": "Edit",
+            "submit": "Submit",
+            "loading": "Loading...",
+            "search": "Search",
+            "confirm": "Confirm",
+            "error": "Error",
+            "success": "Success",
+            "warning": "Warning",
+            "info": "Information",
+            "appNotFound": "App not found",
+            "back": "Back"
+        },
+        "apps": {
+            "dashboard": "Dashboard",
+            "employeeManagement": "Employee Management",
+            "overview": "Report",
+            "chat": "AI Chat",
+            "orders": "Orders",
+            "delivery": "Delivery",
+            "stocks": "Stocks",
+            "products": "Products",
+            "purchase": "Purchase",
+            "wallet": "Wallet",
+            "promotions": "Promotions",
+            "seo": "SEO",
+            "taskManager": "Task Manager",
+            "notifications": "Notification",
+            "staff": "Staff",
+            "test": "Test App"
+        },
+        "gateway": {
+            "badge": "Unified Access Control",
+            "title": "DailyClub",
+            "subtitle": "One ecosystem. Infinite possibilities. Infinite Access.",
+            "signupSubtitle": "Join our ecosystem. Waiting for your application.",
+            "copyright": "DailyClub Digital Ecosystem • All Systems Operational",
+            "login": {
+                "title": "Portal Access",
+                "description": "Enter your credentials to proceed into the system.",
+                "identityLabel": "Email Address",
+                "identityPlaceholder": "Email Address",
+                "passwordLabel": "Security Key",
+                "passwordPlaceholder": "••••••••",
+                "submitButton": "Authorized Entrance",
+                "verifying": "Verifying...",
+                "newHere": "New here?",
+                "registerLink": "Register Account",
+                "welcomeAdmin": "Welcome back, Commander!",
+                "welcomeUser": "Welcome, {name}!",
+                "invalidCredentials": "Invalid Username or Password",
+                "authFailed": "Authentication failed",
+                "missingCredentials": "Please enter credentials"
+            },
+            "signup": {
+                "title": "Member Signup",
+                "description": "Complete the form to request portal access.",
+                "roleTypeLabel": "Select Membership Type",
+                "roleStaffLabel": "DailyClub Staff",
+                "roleDeliveryLabel": "Delivery Partner",
+                "roleExternalLabel": "External User",
+                "nameLabel": "Full Name",
+                "namePlaceholder": "John Doe",
+                "emailLabel": "Email",
+                "emailPlaceholder": "mail@ex.com",
+                "phoneLabel": "Phone",
+                "phonePlaceholder": "9876543210",
+                "passwordLabel": "Password",
+                "confirmPasswordLabel": "Confirm",
+                "submitButton": "Apply for Membership",
+                "submitting": "Submitting...",
+                "backToLogin": "Back to Login",
+                "missingFields": "All fields are required",
+                "passwordMismatch": "Passwords do not match",
+                "signupSuccess": "Signup successful! Waiting for admin confirmation.",
+                "signupFailed": "Registration failed",
+                "adminNotifyTitle": "New Signup Request",
+                "adminNotifyMessage": "{name} has requested access as {role}."
+            }
+        },
+        "appGallery": {
+            "sidebar": {
+                "quickActions": "Quick Actions",
+                "manageStaff": "Manage Staff",
+                "manageApps": "Manage Apps",
+                "doneEditing": "Done Editing",
+                "darkMode": "Dark Mode",
+                "portalSettings": "Portal Settings",
+                "signOut": "Sign Out"
+            },
+            "searchPlaceholder": "Search apps...",
+            "pendingAccess": {
+                "title": "Waiting for access",
+                "description": "Welcome to the DailyClub portal! Your account verification is currently in progress. The administrator will review your application and grant access shortly.",
+                "statusBadge": "Status: Pending Verification",
+                "returnToLogin": "Return to login"
+            }
+        },
+        "searchBar": {
+            "placeholder": "Search for tools, reports, or data...",
+            "label": "Search"
+        },
+        "notificationWidget": {
+            "title": "Notifications",
+            "subtitle": "Recent updates & alerts",
+            "markAllRead": "Mark all as read",
+            "clearAll": "Clear all",
+            "noNotifications": "No new notifications."
+        },
+        "notificationCenter": {
+            "title": "Notification Center",
+            "subtitle": "Broadcast messages to all connected users.",
+            "composeTitle": "Compose Message",
+            "composeSubtitle": "Send a real-time alert to the team.",
+            "recentBroadcasts": "Recent Broadcasts",
+            "recentSubtitle": "History of sent notifications.",
+            "form": {
+                "title": "Title",
+                "titlePlaceholder": "e.g. System Maintenance",
+                "type": "Priority / Type",
+                "message": "Message",
+                "messagePlaceholder": "Your message here...",
+                "serverKey": "Firebase Legacy Server Key",
+                "serverKeyPlaceholder": "Paste Server Key",
+                "sendButton": "Send Broadcast"
+            },
+            "messages": {
+                "missingFields": "Please provide both title and message.",
+                "fcmError": "Failed to send Cloud Message. Check Server Key.",
+                "sendSuccess": "Notification Sent",
+                "sendSuccessDesc": "Broadcast pushed via DB & FCM.",
+                "deleteConfirm": "Are you sure you want to delete this broadcast?",
+                "noBroadcasts": "No recent broadcasts."
+            }
+        },
+        "manageApps": {
+            "createTitle": "Create App",
+            "editTitle": "Edit App",
+            "selectIcon": "Select Icon",
+            "selectColor": "Select Color",
+            "changeIcon": "Change Icon",
+            "appName": "App Name",
+            "appNamePlaceholder": "e.g. My Custom Page",
+            "contentType": "Content Type",
+            "urlLink": "URL Link",
+            "customHtml": "Custom HTML",
+            "destinationUrl": "Destination URL",
+            "uploadHtml": "Upload HTML File",
+            "fileSelected": "File Selected",
+            "dragDrop": "Click to upload or drag and drop",
+            "htmlOnly": "HTML files only",
+            "clickReplace": "Click to replace",
+            "fileSuccess": "File loaded successfully",
+            "openInNew": "Open in new page when clicked",
+            "searchIcons": "Search icons...",
+            "addApp": "Add App",
+            "deleteConfirm": "Are you absolutely sure?",
+            "deleteDesc": "This action cannot be undone. This will permanently delete your custom app.",
+            "editTooltip": "Edit App",
+            "deleteTooltip": "Delete App",
+            "noResults": "No matching apps found",
+            "noMatchingApps": "No apps matching \"{query}\""
+        },
+        "attendance": {
+            "noHrLink": "Account not linked to HR records. Contact Admin.",
+            "checkInSuccess": "Checked in at {time}",
+            "checkInFailed": "Check-in failed",
+            "checkOutSuccess": "Checked out at {time}. Total: {totalHours} hrs",
+            "checkOutFailed": "Check-out failed"
+        },
+        "feedback": {
+            "signedOut": "Signed out successfully"
+        },
+        "backOffice": {
+            "title": "DailyClub BackOffice",
+            "tabs": {
+                "categories": "Categories",
+                "products": "Products",
+                "stock": "Stock & Variants"
+            },
+            "categories": {
+                "new": "New Category",
+                "edit": "Edit Category",
+                "form": {
+                    "code": "Code (Key)",
+                    "codePlaceholder": "e.g. CAT001",
+                    "name": "Name",
+                    "namePlaceholder": "Display Name",
+                    "priority": "Priority (1-10)",
+                    "uploadIcon": "Click to upload icon"
+                },
+                "messages": {
+                    "missingFields": "Missing Code or Name",
+                    "saveSuccess": "Category Saved!",
+                    "deleteConfirm": "Delete this Category?",
+                    "deleteSuccess": "Category Deleted"
+                }
+            },
+            "products": {
+                "new": "New Product",
+                "edit": "Edit Product",
+                "search": "Search Products...",
+                "allCategories": "All Categories",
+                "form": {
+                    "code": "Code",
+                    "stock": "Stock",
+                    "name": "Name",
+                    "category": "Category",
+                    "color": "Color Info",
+                    "details": "Details",
+                    "select": "Select..."
+                },
+                "messages": {
+                    "missingFields": "Missing mandatory fields",
+                    "saveSuccess": "Product Saved!",
+                    "deleteConfirm": "Delete Product?",
+                    "deleteSuccess": "Product Deleted"
+                }
+            },
+            "stock": {
+                "title": "Stock Management",
+                "description": "Please use the detailed Stock Entry page for advanced variant management.",
+                "goLink": "Go to Stock Entry"
+            }
+        },
+        "navbar": {
+            "branding": "DailyClub",
+            "searchPlaceholder": "Search menus...",
+            "notificationsTitle": "Notifications",
+            "markAllRead": "Mark all as read",
+            "clearAll": "Clear all",
+            "noNotifications": "No new notifications",
+            "launcherTitle": "App Launcher",
+            "launcherSubtitle": "Quick Navigation",
+            "exploreGallery": "Explore Full Gallery",
+            "settings": "Settings",
+            "profileTitle": "Profile",
+            "signout": "Sign Out"
+        },
+        "settings": {
+            "title": "Portal Settings",
+            "tabs": {
+                "general": "General",
+                "appearance": "Appearance",
+                "notifications": "Notifications",
+                "usage": "Usage",
+                "account": "Account",
+                "security": "Security"
+            },
+            "general": {
+                "title": "General",
+                "subtitle": "Customize your portal experience and preferences",
+                "systemPreferences": "System Preferences",
+                "audioFeedback": "Audio Feedback",
+                "audioDesc": "Play interactive sounds for events and alerts",
+                "desktopMode": "Desktop Mode",
+                "desktopDesc": "Force professional desktop layout on large mobile devices",
+                "regional": "Regional",
+                "language": "Language Setting",
+                "languageDesc": "Choose your preferred system display language"
+            },
+            "appearance": {
+                "title": "Appearance",
+                "theme": "Interface Theme",
+                "light": "Light",
+                "dark": "Dark"
+            },
+            "footer": {
+                "discard": "Discard",
+                "apply": "Apply Changes"
+            }
+        }
+    },
+    "ar": {
+        "common": {
+            "appName": "ديلي كلوب",
+            "portalName": "نظام ديلي كلوب الرقمي",
+            "languageName": "العربية (Arabic)",
+            "allSystemsOperational": "جميع الأنظمة تعمل",
+            "checkIn": "تسجيل دخول",
+            "checkOut": "تسجيل خروج",
+            "onDuty": "في العمل",
+            "offDuty": "خارج العمل",
+            "actions": "إجراءات",
+            "save": "حفظ",
+            "cancel": "إلغاء",
+            "delete": "حذف",
+            "edit": "تعديل",
+            "submit": "إرسال",
+            "loading": "جاري التحميل...",
+            "search": "بحث",
+            "confirm": "تأكيد",
+            "error": "خطأ",
+            "success": "نجاح",
+            "warning": "تحذير",
+            "info": "معلومات",
+            "appNotFound": "التطبيق غير موجود",
+            "back": "رجوع"
+        },
+        "apps": {
+            "dashboard": "لوحة القيادة",
+            "employeeManagement": "إدارة الموظفين",
+            "overview": "التقارير",
+            "chat": "دردشة الذكاء الاصطناعي",
+            "orders": "الطلبات",
+            "delivery": "التوصيل",
+            "stocks": "المخزون",
+            "products": "المنتجات",
+            "purchase": "المشتريات",
+            "wallet": "المحفظة",
+            "promotions": "العروض",
+            "seo": "تحسين محركات البحث",
+            "taskManager": "إدارة المهام",
+            "notifications": "التنبيهات",
+            "staff": "الموظفين",
+            "test": "تطبيق تجريبي"
+        },
+        "gateway": {
+            "badge": "التحكم الموحد في الوصول",
+            "title": "ديلي كلوب",
+            "subtitle": "نظام واحد. إمكانيات غير محدودة. وصول غير محدود.",
+            "signupSubtitle": "انضم إلى نظامنا. في انتظار طلبك.",
+            "copyright": "نظام ديلي كلوب الرقمي • جميع الأنظمة تعمل",
+            "login": {
+                "title": "الوصول إلى البوابة",
+                "description": "أدخل بيانات اعتمادك للمتابعة في النظام.",
+                "identityLabel": "البريد الإلكتروني",
+                "identityPlaceholder": "البريد الإلكتروني",
+                "passwordLabel": "مفتاح الأمان",
+                "passwordPlaceholder": "••••••••",
+                "submitButton": "دخول مصرح به",
+                "verifying": "جاري التحقق...",
+                "newHere": "جديد هنا؟",
+                "registerLink": "تسجيل حساب",
+                "welcomeAdmin": "مرحباً بعودتك أيها القائد!",
+                "welcomeUser": "مرحباً، {name}!",
+                "invalidCredentials": "اسم المستخدم أو كلمة المرور غير صحيحة",
+                "authFailed": "فشل التحقق من الهوية",
+                "missingCredentials": "يرجى إدخال بيانات الاعتماد"
+            },
+            "signup": {
+                "title": "تسجيل عضو",
+                "description": "أكمل النموذج لطلب الوصول إلى البوابة.",
+                "roleTypeLabel": "اختر نوع العضوية",
+                "roleStaffLabel": "موظف ديلي كلوب",
+                "roleDeliveryLabel": "شريك توصيل",
+                "roleExternalLabel": "مستخدم خارجي",
+                "nameLabel": "الاسم الكامل",
+                "namePlaceholder": "فلان الفلاني",
+                "emailLabel": "البريد الإلكتروني",
+                "emailPlaceholder": "mail@ex.com",
+                "phoneLabel": "الهاتف",
+                "phonePlaceholder": "9876543210",
+                "passwordLabel": "كلمة المرور",
+                "confirmPasswordLabel": "تأكيد",
+                "submitButton": "طلب العضوية",
+                "submitting": "جاري الإرسال...",
+                "backToLogin": "العودة إلى تسجيل الدخول",
+                "missingFields": "جميع الحقول مطلوبة",
+                "passwordMismatch": "كلمات المرور غير متطابقة",
+                "signupSuccess": "تم التسجيل بنجاح! في انتظار تأكيد المسؤول.",
+                "signupFailed": "فشل التسجيل",
+                "adminNotifyTitle": "طلب تسجيل جديد",
+                "adminNotifyMessage": "طلب {name} الوصول كـ {role}."
+            }
+        },
+        "appGallery": {
+            "sidebar": {
+                "quickActions": "إجراءات سريعة",
+                "manageStaff": "إدارة الموظفين",
+                "manageApps": "إدارة التطبيقات",
+                "doneEditing": "تم التعديل",
+                "darkMode": "الوضع الداكن",
+                "portalSettings": "إعدادات البوابة",
+                "signOut": "تسجيل الخروج"
+            },
+            "searchPlaceholder": "بحث في التطبيقات...",
+            "pendingAccess": {
+                "title": "في انتظار الوصول",
+                "description": "مرحبًا بك في بوابة ديلي كلوب! التحقق من حسابك قيد المعالجة حاليًا. سيقوم المسؤول بمراجعة طلبك ومنح الوصول قريبًا.",
+                "statusBadge": "الحالة: في انتظار التحقق",
+                "returnToLogin": "العودة إلى تسجيل الدخول"
+            }
+        },
+        "searchBar": {
+            "placeholder": "البحث عن الأدوات أو التقارير أو البيانات...",
+            "label": "بحث"
+        },
+        "notificationWidget": {
+            "title": "التنبيهات",
+            "subtitle": "آخر التحديثات والتنبيهات",
+            "markAllRead": "تحديد الكل كمقروء",
+            "clearAll": "مسح الكل",
+            "noNotifications": "لا توجد تنبيهات جديدة."
+        },
+        "notificationCenter": {
+            "title": "مركز التنبيهات",
+            "subtitle": "بث الرسائل لجميع المستخدمين المتصلين.",
+            "composeTitle": "إنشاء رسالة",
+            "composeSubtitle": "إرسال تنبيه فوري للفريق.",
+            "recentBroadcasts": "البث الأخير",
+            "recentSubtitle": "سجل التنبيهات المرسلة.",
+            "form": {
+                "title": "العنوان",
+                "titlePlaceholder": "مثلاً: صيانة النظام",
+                "type": "الأولوية / النوع",
+                "message": "الرسالة",
+                "messagePlaceholder": "رسالتك هنا...",
+                "serverKey": "مفتاح خادم Firebase القديم",
+                "serverKeyPlaceholder": "الصق مفتاح الخادم",
+                "sendButton": "إرسال البث"
+            },
+            "messages": {
+                "missingFields": "يرجى تقديم كل من العنوان والرسالة.",
+                "fcmError": "فشل إرسال رسالة السحابة. تحقق من مفتاح الخادم.",
+                "sendSuccess": "تم إرسال التنبيه",
+                "sendSuccessDesc": "تم دفع البث عبر قاعدة البيانات و fcm.",
+                "deleteConfirm": "هل أنت متأكد أنك تريد حذف هذا البث؟",
+                "noBroadcasts": "لا يوجد بث أخير."
+            }
+        },
+        "manageApps": {
+            "createTitle": "إنشاء تطبيق",
+            "editTitle": "تعديل التطبيق",
+            "selectIcon": "اختر الأيقونة",
+            "selectColor": "اختر اللون",
+            "changeIcon": "تغيير الأيقونة",
+            "appName": "اسم التطبيق",
+            "appNamePlaceholder": "مثلا: صفحتي المخصصة",
+            "contentType": "نوع المحتوى",
+            "urlLink": "رابط URL",
+            "customHtml": "HTML مخصص",
+            "destinationUrl": "رابط الوجهة",
+            "uploadHtml": "رفع ملف HTML",
+            "fileSelected": "تم اختيار الملف",
+            "dragDrop": "انقر للرفع أو اسحب وأفلت",
+            "htmlOnly": "ملفات HTML فقط",
+            "clickReplace": "انقر للاستبدال",
+            "fileSuccess": "تم تحميل الملف بنجاح",
+            "openInNew": "فتح في صفحة جديدة عند النقر",
+            "searchIcons": "بحث عن أيقونات...",
+            "addApp": "إضافة تطبيق",
+            "deleteConfirm": "هل أنت متأكد تمامًا؟",
+            "deleteDesc": "لا يمكن التراجع عن هذا الإجراء. سيؤدي هذا إلى حذف تطبيقك المخصص نهائيًا.",
+            "editTooltip": "تعديل التطبيق",
+            "deleteTooltip": "حذف التطبيق",
+            "noResults": "لم يتم العثور على تطبيقات مطابقة",
+            "noMatchingApps": "لا توجد تطبيقات تطابق \"{query}\""
+        },
+        "attendance": {
+            "noHrLink": "الحساب غير مرتبط بسجلات الموارد البشرية. اتصل بالمسؤول.",
+            "checkInSuccess": "تم تسجيل الدخول في {time}",
+            "checkInFailed": "فشل تسجيل الدخول",
+            "checkOutSuccess": "تم تسجيل الخروج في {time}. المجموع: {totalHours} ساعة",
+            "checkOutFailed": "فشل تسجيل الخروج"
+        },
+        "feedback": {
+            "signedOut": "تم تسجيل الخروج بنجاح"
+        },
+        "backOffice": {
+            "title": "DailyClub إدارة المكتب الخلفي",
+            "tabs": {
+                "categories": "الفئات",
+                "products": "المنتجات",
+                "stock": "المخزون والأنواع"
+            },
+            "categories": {
+                "new": "فئة جديدة",
+                "edit": "تعديل الفئة",
+                "form": {
+                    "code": "الرمز (المفتاح)",
+                    "codePlaceholder": "مثلا: CAT001",
+                    "name": "الاسم",
+                    "namePlaceholder": "اسم العرض",
+                    "priority": "الأولوية (1-10)",
+                    "uploadIcon": "انقر لتحميل الأيقونة"
+                },
+                "messages": {
+                    "missingFields": "الرمز أو الاسم مفقود",
+                    "saveSuccess": "تم حفظ الفئة!",
+                    "deleteConfirm": "حذف هذه الفئة؟",
+                    "deleteSuccess": "تم حذف الفئة"
+                }
+            },
+            "products": {
+                "new": "منتج جديد",
+                "edit": "تعديل المنتج",
+                "search": "بحث عن المنتجات...",
+                "allCategories": "جميع الفئات",
+                "form": {
+                    "code": "الرمز",
+                    "stock": "المخزون",
+                    "name": "الاسم",
+                    "category": "الفئة",
+                    "color": "معلومات اللون",
+                    "details": "التفاصيل",
+                    "select": "اختر..."
+                },
+                "messages": {
+                    "missingFields": "الحقول الإلزامية مفقودة",
+                    "saveSuccess": "تم حفظ المنتج!",
+                    "deleteConfirm": "حذف المنتج؟",
+                    "deleteSuccess": "تم حذف المنتج"
+                }
+            },
+            "stock": {
+                "title": "إدارة المخزون",
+                "description": "يرجى استخدام صفحة إدخال المخزون المفصلة لإدارة الأنواع المتقدمة.",
+                "goLink": "الذهاب إلى إدخال المخزون"
+            }
+        },
+        "navbar": {
+            "branding": "ديلي كلوب",
+            "searchPlaceholder": "بحث في القوائم...",
+            "notificationsTitle": "التنبيهات",
+            "markAllRead": "تحديد الكل كمقروء",
+            "clearAll": "مسح الكل",
+            "noNotifications": "لا توجد تنبيهات جديدة",
+            "launcherTitle": "مشغل التطبيقات",
+            "launcherSubtitle": "تنقل سريع",
+            "exploreGallery": "استكشاف المعرض الكامل",
+            "settings": "الإعدادات",
+            "profileTitle": "الملف الشخصي",
+            "signout": "تسجيل الخروج"
+        },
+        "settings": {
+            "title": "إعدادات البوابة",
+            "tabs": {
+                "general": "عام",
+                "appearance": "المظهر",
+                "notifications": "التنبيهات",
+                "usage": "الاستخدام",
+                "account": "الحساب",
+                "security": "الأمان"
+            },
+            "general": {
+                "title": "عام",
+                "subtitle": "تخصيص تجربة البوابة وتفضيلاتك",
+                "systemPreferences": "تفضيلات النظام",
+                "audioFeedback": "التعليقات الصوتية",
+                "audioDesc": "تشغيل أصوات تفاعلية للأحداث والتنبيهات",
+                "desktopMode": "وضع سطح المكتب",
+                "desktopDesc": "فرض تخطيط سطح المكتب الاحترافي على الأجهزة المحمولة الكبيرة",
+                "regional": "إقليمي",
+                "language": "إعداد اللغة",
+                "languageDesc": "اختر لغة عرض النظام المفضلة لديك"
+            },
+            "appearance": {
+                "title": "المظهر",
+                "theme": "سمة الواجهة",
+                "light": "فاتح",
+                "dark": "داكن"
+            },
+            "footer": {
+                "discard": "تجاهل",
+                "apply": "تطبيق التغييرات"
+            }
+        }
+    },
+    "ml": {
+        "common": {
+            "appName": "ഡെയിലിക്ലബ്",
+            "portalName": "ഡെയിലിക്ലബ് ഡിജിറ്റൽ ഇക്കോസിസ്റ്റം",
+            "languageName": "മലയാളം (Malayalam)",
+            "allSystemsOperational": "എല്ലാ സിസ്റ്റങ്ങളും സാധാരണ നിലയിൽ",
+            "checkIn": "ചെക്ക് ഇൻ",
+            "checkOut": "ചെക്ക് ഔട്ട്",
+            "onDuty": "ഡ്യൂട്ടിയിൽ",
+            "offDuty": "ഡ്യൂട്ടിയില്ല",
+            "actions": "പ്രവർത്തനങ്ങൾ",
+            "save": "സേവ് ചെയ്യുക",
+            "cancel": "റദ്ദാക്കുക",
+            "delete": "ഡിലീറ്റ്",
+            "edit": "എഡിറ്റ്",
+            "submit": "സമർപ്പിക്കുക",
+            "loading": "ലോഡ് ചെയ്യുന്നു...",
+            "search": "തിരയുക",
+            "confirm": "സ്ഥിരീകരിക്കുക",
+            "error": "പിശക്",
+            "success": "വിജയം",
+            "warning": "മുന്നറിയിപ്പ്",
+            "info": "വിവരം",
+            "appNotFound": "ആപ്പ് കണ്ടെത്താനായില്ല",
+            "back": "പിന്നോട്ട്"
+        },
+        "apps": {
+            "dashboard": "ഡാഷ്ബോർഡ്",
+            "employeeManagement": "ജീവനക്കാരുടെ നിയന്ത്രണം",
+            "overview": "റിപ്പോർട്ട്",
+            "chat": "AI ചാറ്റ്",
+            "orders": "ഓർഡറുകൾ",
+            "delivery": "ഡെലിവറി",
+            "stocks": "സ്റ്റോക്ക്",
+            "products": "ഉൽപ്പന്നങ്ങൾ",
+            "purchase": "വാങ്ങൽ",
+            "wallet": "വാലറ്റ്",
+            "promotions": "പ്രമോഷനുകൾ",
+            "seo": "SEO",
+            "taskManager": "ടാസ്‌ക് മാനേജർ",
+            "notifications": "അറിയിപ്പുകൾ",
+            "staff": "സ്റ്റാഫ്",
+            "test": "ടെസ്റ്റ് ആപ്പ്"
+        },
+        "gateway": {
+            "badge": "യുണിഫൈഡ് ആക്‌സസ് കൺട്രോൾ",
+            "title": "ഡെയിലിക്ലബ്",
+            "subtitle": "ഒരു ഇക്കോസിസ്റ്റം. അനന്ത സാധ്യതകൾ. അനന്ത പ്രവേശനം.",
+            "signupSubtitle": "ഞങ്ങളുടെ ഇക്കോസിസ്റ്റത്തിലേക്ക് ചേരൂ. നിങ്ങളുടെ അപേക്ഷ കാത്തിരിക്കുന്നു.",
+            "copyright": "ഡെയിലിക്ലബ് ഡിജിറ്റൽ ഇക്കോസിസ്റ്റം • എല്ലാ സിസ്റ്റങ്ങളും സാധാരണ നിലയിൽ",
+            "login": {
+                "title": "പോർട്ടൽ പ്രവേശനം",
+                "description": "സിസ്റ്റത്തിലേക്ക് പ്രവേശിക്കാൻ നിങ്ങളുടെ വിവരങ്ങൾ നൽകുക.",
+                "identityLabel": "ഇമെയിൽ വിലാസം",
+                "identityPlaceholder": "ഇമെയിൽ വിലാസം",
+                "passwordLabel": "സുരക്ഷാ കീ",
+                "passwordPlaceholder": "••••••••",
+                "submitButton": "അധികൃത പ്രവേശനം",
+                "verifying": "പരിശോധിക്കുന്നു...",
+                "newHere": "പുതിയ ആളാണോ?",
+                "registerLink": "അക്കൗണ്ട് രജിസ്റ്റർ ചെയ്യുക",
+                "welcomeAdmin": "വീണ്ടും സ്വാഗതം, കമാൻഡർ!",
+                "welcomeUser": "സ്വാഗതം, {name}!",
+                "invalidCredentials": "അസാധുവായ യൂസർനെയിം അല്ലെങ്കിൽ പാസ്‌വേഡ്",
+                "authFailed": "അധികൃത പരിശോധന പരാജയപ്പെട്ടു",
+                "missingCredentials": "വിവരങ്ങൾ നൽകുക"
+            },
+            "signup": {
+                "title": "അംഗത്വ രജിസ്ട്രേഷൻ",
+                "description": "പോർട്ടൽ പ്രവേശനം അഭ്യർത്ഥിക്കാൻ ഫോം പൂരിപ്പിക്കുക.",
+                "roleTypeLabel": "അംഗത്വ തരം തിരഞ്ഞെടുക്കുക",
+                "roleStaffLabel": "ഡെയിലിക്ലബ് സ്റ്റാഫ്",
+                "roleDeliveryLabel": "ഡെലിവറി പാർട്നർ",
+                "roleExternalLabel": "ബാഹ്യ ഉപയോക്താവ്",
+                "nameLabel": "പൂർണ്ണ നാമം",
+                "namePlaceholder": "ജോൺ ഡോ",
+                "emailLabel": "ഇമെയിൽ",
+                "emailPlaceholder": "mail@ex.com",
+                "phoneLabel": "ഫോൺ",
+                "phonePlaceholder": "9876543210",
+                "passwordLabel": "പാസ്‌വേഡ്",
+                "confirmPasswordLabel": "സ്ഥിരീകരിക്കുക",
+                "submitButton": "അംഗത്വത്തിനായി അപേക്ഷിക്കുക",
+                "submitting": "സമർപ്പിക്കുന്നു...",
+                "backToLogin": "ലോഗിനിലേക്ക് മടങ്ങുക",
+                "missingFields": "എല്ലാ ഫീൽഡുകളും നിർബന്ധമാണ്",
+                "passwordMismatch": "പാസ്‌വേഡുകൾ പൊരുത്തപ്പെടുന്നില്ല",
+                "signupSuccess": "രജിസ്ട്രേഷൻ വിജയകരം! അഡ്മിൻ അംഗീകാരം കാത്തിരിക്കുന്നു.",
+                "signupFailed": "രജിസ്ട്രേഷൻ പരാജയപ്പെട്ടു",
+                "adminNotifyTitle": "പുതിയ രജിസ്ട്രേഷൻ അഭ്യർത്ഥന",
+                "adminNotifyMessage": "{name} {role} ആയി പ്രവേശനം അഭ്യർത്ഥിച്ചിട്ടുണ്ട്."
+            }
+        },
+        "appGallery": {
+            "sidebar": {
+                "quickActions": "ദ്രുത പ്രവർത്തനങ്ങൾ",
+                "manageStaff": "സ്റ്റാഫ് നിയന്ത്രിക്കുക",
+                "manageApps": "ആപ്പുകൾ നിയന്ത്രിക്കുക",
+                "doneEditing": "എഡിറ്റിംഗ് പൂർത്തിയായി",
+                "darkMode": "ഡാർക്ക് മോഡ്",
+                "portalSettings": "പോർട്ടൽ ക്രമീകരണങ്ങൾ",
+                "signOut": "സൈൻ ഔട്ട്"
+            },
+            "searchPlaceholder": "ആപ്പുകൾ തിരയുക...",
+            "pendingAccess": {
+                "title": "പ്രവേശനം കാത്തിരിക്കുന്നു",
+                "description": "ഡെയിലിക്ലബ് പോർട്ടലിലേക്ക് സ്വാഗതം! നിങ്ങളുടെ അക്കൗണ്ട് പരിശോധനയിൽ ആണ്. അഡ്മിൻ ഉടൻ പ്രവേശനം നൽകും.",
+                "statusBadge": "സ്ഥിതി: പരിശോധനയിൽ",
+                "returnToLogin": "ലോഗിനിലേക്ക് മടങ്ങുക"
+            }
+        },
+        "searchBar": {
+            "placeholder": "ടൂളുകൾ, റിപ്പോർട്ടുകൾ അല്ലെങ്കിൽ ഡാറ്റ എന്നിവയ്ക്കായി തിരയുക...",
+            "label": "തിരയുക"
+        },
+        "notificationWidget": {
+            "title": "അറിയിപ്പുകൾ",
+            "subtitle": "സമീപകാല അപ്‌ഡേറ്റുകളും അലർട്ടുകളും",
+            "markAllRead": "എല്ലാം വായിച്ചതായി അടയാളപ്പെടുത്തുക",
+            "clearAll": "എല്ലാം നീക്കം ചെയ്യുക",
+            "noNotifications": "പുതിയ അറിയിപ്പുകളില്ല."
+        },
+        "notificationCenter": {
+            "title": "അറിയിപ്പ് കേന്ദ്രം",
+            "subtitle": "എല്ലാ ഉപയോക്താക്കൾക്കും സന്ദേശങ്ങൾ പ്രക്ഷേപണം ചെയ്യുക.",
+            "composeTitle": "സന്ദേശം തയ്യാറാക്കുക",
+            "composeSubtitle": "ടീമിലേക്ക് തത്സമയ അറിയിപ്പ് അയക്കുക.",
+            "recentBroadcasts": "സമീപകാല പ്രക്ഷേപണങ്ങൾ",
+            "recentSubtitle": "അയച്ച അറിയിപ്പുകളുടെ ചരിത്രം",
+            "form": {
+                "title": "തലക്കെട്ട്",
+                "titlePlaceholder": "ഉദാ: സിസ്റ്റം പരിപാലനം",
+                "type": "പ്രാധാന്യം / തരം",
+                "message": "സന്ദേശം",
+                "messagePlaceholder": "നിങ്ങളുടെ സന്ദേശം ഇവിടെ...",
+                "serverKey": "Firebase ലെഗസി സർവർ കീ",
+                "serverKeyPlaceholder": "സർവർ കീ പേസ്റ്റ് ചെയ്യുക",
+                "sendButton": "പ്രക്ഷേപണം അയയ്ക്കുക"
+            },
+            "messages": {
+                "missingFields": "തലക്കെട്ടും സന്ദേശവും നൽകുക.",
+                "fcmError": "ക്ലൗഡ് സന്ദേശം അയക്കാൻ പരാജയപ്പെട്ടു. സർവർ കീ പരിശോധിക്കുക.",
+                "sendSuccess": "അറിയിപ്പ് അയച്ചു",
+                "sendSuccessDesc": "DB & FCM വഴി പ്രക്ഷേപണം ചെയ്തു.",
+                "deleteConfirm": "ഈ പ്രക്ഷേപണം ഡിലീറ്റ് ചെയ്യണോ?",
+                "noBroadcasts": "സമീപകാല പ്രക്ഷേപണങ്ങളില്ല."
+            }
+        },
+        "manageApps": {
+            "createTitle": "ആപ്പ് നിർമ്മിക്കുക",
+            "editTitle": "ആപ്പ് എഡിറ്റ് ചെയ്യുക",
+            "selectIcon": "ഐക്കൺ തിരഞ്ഞെടുക്കുക",
+            "selectColor": "നിറം തിരഞ്ഞെടുക്കുക",
+            "changeIcon": "ഐക്കൺ മാറ്റുക",
+            "appName": "ആപ്പിന്റെ പേര്",
+            "appNamePlaceholder": "ഉദാ: എന്റെ പേജ്",
+            "contentType": "ഉള്ളടക്കം",
+            "urlLink": "URL ലിങ്ക്",
+            "customHtml": "കസ്റ്റം HTML",
+            "destinationUrl": "URL വിലാസം",
+            "uploadHtml": "HTML ഫയൽ അപ്‌ലോഡ് ചെയ്യുക",
+            "fileSelected": "ഫയൽ തിരഞ്ഞെടുത്തിട്ടുണ്ട്",
+            "dragDrop": "അപ്‌ലോഡ് ചെയ്യാൻ ക്ലിക്ക് ചെയ്യുക അല്ലെങ്കിൽ ഡ്രാഗ് ചെയ്യുക",
+            "htmlOnly": "HTML ഫയലുകൾ മാത്രം",
+            "clickReplace": "മാറ്റാൻ ക്ലിക്ക് ചെയ്യുക",
+            "fileSuccess": "ഫയൽ വിജയകരമായി ലോഡ് ചെയ്തു",
+            "openInNew": "ക്ലിക്ക് ചെയ്യുമ്പോൾ പുതിയ പേജിൽ തുറക്കുക",
+            "searchIcons": "ഐക്കണുകൾ തിരയുക...",
+            "addApp": "ആപ്പ് ചേർക്കുക",
+            "deleteConfirm": "നിങ്ങൾക്ക് ഉറപ്പാണോ?",
+            "deleteDesc": "ഈ ആപ്പ് സ്ഥിരമായി ഡിലീറ്റ് ചെയ്യപ്പെടും.",
+            "editTooltip": "ആപ്പ് എഡിറ്റ് ചെയ്യുക",
+            "deleteTooltip": "ആപ്പ് ഡിലീറ്റ് ചെയ്യുക",
+            "noResults": "ആപ്പുകൾ ഒന്നും കണ്ടെത്തിയില്ല",
+            "noMatchingApps": "\"{query}\" എന്നതുമായി പൊരുത്തപ്പെടുന്ന ആപ്പുകൾ ഒന്നുമില്ല"
+        },
+        "attendance": {
+            "noHrLink": "അക്കൗണ്ട് HR റെക്കോർഡുകളുമായി ബന്ധിപ്പിച്ചിട്ടില്ല. അഡ്മിനെ ബന്ധപ്പെടുക.",
+            "checkInSuccess": "{time}-ന് ചെക്ക് ഇൻ ചെയ്തു",
+            "checkInFailed": "ചെക്ക് ഇൻ പരാജയപ്പെട്ടു",
+            "checkOutSuccess": "{time}-ന് ചെക്ക് ഔട്ട് ചെയ്തു. ആകെ: {totalHours} മണിക്കൂർ",
+            "checkOutFailed": "ചെക്ക് ഔട്ട് പരാജയപ്പെട്ടു"
+        },
+        "feedback": {
+            "signedOut": "വിജയകരമായി സൈൻ ഔട്ട് ചെയ്തു"
+        },
+        "settings": {
+            "title": "പോർട്ടൽ ക്രമീകരണങ്ങൾ",
+            "tabs": {
+                "general": "ജനറൽ",
+                "appearance": "കാഴ്ച",
+                "notifications": "അറിയിപ്പുകൾ",
+                "usage": "ഉപയോഗം",
+                "account": "അക്കൗണ്ട്",
+                "security": "സുരക്ഷ"
+            },
+            "general": {
+                "title": "ജനറൽ",
+                "subtitle": "നിങ്ങളുടെ പോർട്ടൽ അനുഭവം ക്രമീകരിക്കുക",
+                "systemPreferences": "സിസ്റ്റം ക്രമീകരണങ്ങൾ",
+                "audioFeedback": "ശബ്ദ അറിയിപ്പുകൾ",
+                "audioDesc": "മുന്നറിയിപ്പുകൾക്കായി ശബ്ദം കേൾപ്പിക്കുക",
+                "desktopMode": "ഡെസ്ക്ടോപ്പ് മോഡ്",
+                "desktopDesc": "വലിയ ഫോണുകളിൽ ഡെസ്ക്ടോപ്പ് ലേഔട്ട് ഉപയോഗിക്കുക",
+                "regional": "പ്രാദേശികം",
+                "language": "ഭാഷ മാറ്റുക",
+                "languageDesc": "നിങ്ങൾക്ക് താൽപ്പര്യമുള്ള ഭാഷ തിരഞ്ഞെടുക്കുക"
+            },
+            "appearance": {
+                "title": "കാഴ്ച",
+                "theme": "ഇന്റർഫേസ് തീം",
+                "light": "ലൈറ്റ്",
+                "dark": "ഡാർക്ക്"
+            },
+            "footer": {
+                "discard": "വേണ്ട",
+                "apply": "മാറ്റങ്ങൾ വരുത്തുക"
+            }
+        }
+    }
+}

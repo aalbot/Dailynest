@@ -12,9 +12,11 @@ import firebase from "firebase/compat/app";
 import "firebase/compat/database";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import BackButton from "@/components/BackButton";
+import { useLang } from "@/contexts/LanguageContext";
 
 const NotificationManager = () => {
     const { toast } = useToast();
+    const { getTranslation } = useLang();
     const [title, setTitle] = useState("");
     const [message, setMessage] = useState("");
     const [type, setType] = useState("info");
@@ -43,7 +45,7 @@ const NotificationManager = () => {
 
     const handleSend = async () => {
         if (!title || !message) {
-            toast({ title: "Error", description: "Please provide both title and message.", variant: "destructive" });
+            toast({ title: getTranslation("common.error"), description: getTranslation("notificationCenter.messages.missingFields"), variant: "destructive" });
             return;
         }
 
@@ -74,7 +76,7 @@ const NotificationManager = () => {
 
                 if (!response.ok) {
                     console.error("FCM Error", await response.text());
-                    toast({ title: "FCM Warning", description: "Failed to send Cloud Message. Check Server Key.", variant: "destructive" });
+                    toast({ title: "FCM Warning", description: getTranslation("notificationCenter.messages.fcmError"), variant: "destructive" });
                 }
             } catch (error) {
                 console.error("FCM Fetch Error", error);
@@ -92,7 +94,7 @@ const NotificationManager = () => {
             timestamp: firebase.database.ServerValue.TIMESTAMP,
             sender: "Admin"
         }).then(() => {
-            toast({ title: "Notification Sent", description: "Broadcast pushed via DB & FCM." });
+            toast({ title: getTranslation("notificationCenter.messages.sendSuccess"), description: getTranslation("notificationCenter.messages.sendSuccessDesc") });
             setTitle("");
             setMessage("");
             setType("info");
@@ -100,7 +102,7 @@ const NotificationManager = () => {
     };
 
     const handleDelete = (id: string) => {
-        if (confirm("Are you sure you want to delete this broadcast?")) {
+        if (confirm(getTranslation("notificationCenter.messages.deleteConfirm"))) {
             firebase.database().ref(`root/notifications/${id}`).remove();
         }
     };
@@ -115,30 +117,30 @@ const NotificationManager = () => {
                     <div>
                         <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-3">
                             <Bell className="w-8 h-8 text-indigo-600" />
-                            Notification Center
+                            {getTranslation("notificationCenter.title")}
                         </h1>
-                        <p className="text-slate-500 mt-1">Broadcast messages to all connected users.</p>
+                        <p className="text-slate-500 mt-1">{getTranslation("notificationCenter.subtitle")}</p>
                     </div>
                 </div>
 
                 <div className="grid gap-8 md:grid-cols-2">
                     <Card className="border-slate-200 dark:border-slate-800 h-fit">
                         <CardHeader>
-                            <CardTitle>Compose Message</CardTitle>
-                            <CardDescription>Send a real-time alert to the team.</CardDescription>
+                            <CardTitle>{getTranslation("notificationCenter.composeTitle")}</CardTitle>
+                            <CardDescription>{getTranslation("notificationCenter.composeSubtitle")}</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
-                                <Label>Title</Label>
+                                <Label>{getTranslation("notificationCenter.form.title")}</Label>
                                 <Input
-                                    placeholder="e.g. System Maintenance"
+                                    placeholder={getTranslation("notificationCenter.form.titlePlaceholder")}
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
                                 />
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Priority / Type</Label>
+                                <Label>{getTranslation("notificationCenter.form.type")}</Label>
                                 <Select value={type} onValueChange={setType}>
                                     <SelectTrigger>
                                         <SelectValue />
@@ -146,17 +148,17 @@ const NotificationManager = () => {
                                     <SelectContent>
                                         <SelectItem value="info">
                                             <div className="flex items-center gap-2">
-                                                <Info className="w-4 h-4 text-blue-500" /> Information
+                                                <Info className="w-4 h-4 text-blue-500" /> {getTranslation("common.info")}
                                             </div>
                                         </SelectItem>
                                         <SelectItem value="warning">
                                             <div className="flex items-center gap-2">
-                                                <AlertTriangle className="w-4 h-4 text-amber-500" /> Warning
+                                                <AlertTriangle className="w-4 h-4 text-amber-500" /> {getTranslation("common.warning")}
                                             </div>
                                         </SelectItem>
                                         <SelectItem value="success">
                                             <div className="flex items-center gap-2">
-                                                <CheckCircle className="w-4 h-4 text-emerald-500" /> Success
+                                                <CheckCircle className="w-4 h-4 text-emerald-500" /> {getTranslation("common.success")}
                                             </div>
                                         </SelectItem>
                                     </SelectContent>
@@ -164,9 +166,9 @@ const NotificationManager = () => {
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Message</Label>
+                                <Label>{getTranslation("notificationCenter.form.message")}</Label>
                                 <Textarea
-                                    placeholder="Your message here..."
+                                    placeholder={getTranslation("notificationCenter.form.messagePlaceholder")}
                                     value={message}
                                     onChange={(e) => setMessage(e.target.value)}
                                     className="min-h-[120px]"
@@ -175,10 +177,10 @@ const NotificationManager = () => {
 
                             <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                                 <div>
-                                    <Label className="text-xs text-slate-500 font-semibold">Firebase Legacy Server Key</Label>
+                                    <Label className="text-xs text-slate-500 font-semibold">{getTranslation("notificationCenter.form.serverKey")}</Label>
                                     <Input
                                         type="password"
-                                        placeholder="Paste Server Key"
+                                        placeholder={getTranslation("notificationCenter.form.serverKeyPlaceholder")}
                                         value={serverKey}
                                         onChange={(e) => setServerKey(e.target.value)}
                                         className="text-xs font-mono mt-1"
@@ -197,15 +199,15 @@ const NotificationManager = () => {
                             </div>
 
                             <Button onClick={handleSend} className="w-full bg-indigo-600 hover:bg-indigo-700 gap-2">
-                                <Send className="w-4 h-4" /> Send Broadcast
+                                <Send className="w-4 h-4" /> {getTranslation("notificationCenter.form.sendButton")}
                             </Button>
                         </CardContent>
                     </Card>
 
                     <Card className="border-slate-200 dark:border-slate-800 flex flex-col h-[500px]">
                         <CardHeader>
-                            <CardTitle>Recent Broadcasts</CardTitle>
-                            <CardDescription>History of sent notifications.</CardDescription>
+                            <CardTitle>{getTranslation("notificationCenter.recentBroadcasts")}</CardTitle>
+                            <CardDescription>{getTranslation("notificationCenter.recentSubtitle")}</CardDescription>
                         </CardHeader>
                         <CardContent className="flex-1 overflow-hidden p-0">
                             <ScrollArea className="h-full px-6 pb-6">
@@ -236,7 +238,7 @@ const NotificationManager = () => {
                                     ))}
                                     {recentBroadcasts.length === 0 && (
                                         <div className="text-center py-12 text-slate-500">
-                                            No recent broadcasts.
+                                            {getTranslation("notificationCenter.messages.noBroadcasts")}
                                         </div>
                                     )}
                                 </div>

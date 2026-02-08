@@ -23,7 +23,7 @@ import {
     Map as MapIcon
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
-import { DeliveryAuth } from "@/components/DeliveryAuth";
+import { useNavigate } from "react-router-dom";
 
 // Types
 interface FlowStatus {
@@ -89,6 +89,7 @@ const STATUS_FLOW: Record<string, FlowStatus> = {
 const SLIDE_THRESHOLD = 0.8;
 
 const DeliveryScreen = () => {
+    const navigate = useNavigate();
     const [user, setUser] = useState<any>(null);
     const [activeOrder, setActiveOrder] = useState<any>(null);
     const [fetchedAddress, setFetchedAddress] = useState<string | null>(null);
@@ -297,7 +298,10 @@ const DeliveryScreen = () => {
     };
 
     // Main Render Logic
-    if (!user) return <DeliveryAuth onLogin={setUser} />;
+    if (!user) {
+        navigate("/");
+        return null;
+    }
 
     if (!isOnline) {
         return (

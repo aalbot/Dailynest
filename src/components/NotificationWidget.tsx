@@ -5,9 +5,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useNotification } from "@/contexts/NotificationContext";
 import { Button } from "@/components/ui/button";
+import { useLang } from "@/contexts/LanguageContext";
 
 const NotificationWidget = () => {
     const { notifications, markAllAsRead, clearNotifications, markAsRead } = useNotification();
+    const { getTranslation } = useLang();
     const unreadNotifications = notifications.filter(n => !n.read);
 
     return (
@@ -19,8 +21,8 @@ const NotificationWidget = () => {
                             <Bell className="w-5 h-5 text-indigo-500" />
                         </div>
                         <div>
-                            <CardTitle className="text-base font-semibold">Notifications</CardTitle>
-                            <CardDescription className="text-xs">Recent updates & alerts</CardDescription>
+                            <CardTitle className="text-base font-semibold">{getTranslation("notificationWidget.title")}</CardTitle>
+                            <CardDescription className="text-xs">{getTranslation("notificationWidget.subtitle")}</CardDescription>
                         </div>
                     </div>
 
@@ -30,7 +32,7 @@ const NotificationWidget = () => {
                             size="icon"
                             className="h-8 w-8 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
                             onClick={markAllAsRead}
-                            title="Mark all as read"
+                            title={getTranslation("notificationWidget.markAllRead")}
                         >
                             <CheckCheck className="w-4 h-4" />
                         </Button>
@@ -39,7 +41,7 @@ const NotificationWidget = () => {
                             size="icon"
                             className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                             onClick={clearNotifications}
-                            title="Clear all"
+                            title={getTranslation("notificationWidget.clearAll")}
                         >
                             <Trash2 className="w-4 h-4" />
                         </Button>
@@ -85,7 +87,7 @@ const NotificationWidget = () => {
 
                         {unreadNotifications.length === 0 && (
                             <div className="text-center py-12 text-slate-500 text-sm">
-                                No new notifications.
+                                {getTranslation("notificationWidget.noNotifications")}
                             </div>
                         )}
                     </div>

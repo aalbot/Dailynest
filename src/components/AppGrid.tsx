@@ -26,6 +26,7 @@ import { AddAppModal } from "./AddAppModal";
 import firebase from "firebase/compat/app";
 import "firebase/compat/database";
 import { iconMap } from "@/utils/appIcons";
+import { useLang } from "@/contexts/LanguageContext";
 
 import {
   AlertDialog,
@@ -39,22 +40,21 @@ import {
 } from "@/components/ui/alert-dialog";
 
 const initialApps = [
-  { icon: TrendingUp, label: "Dashboard", colorClass: "app-icon-rose", path: "/dashboard" },
-  { icon: Users, label: "Employee Management", colorClass: "app-icon-indigo", path: "/employee-management" },
-  { icon: LayoutDashboard, label: "Report", colorClass: "app-icon-cyan", path: "/overview" },
-
-  { icon: ClipboardList, label: "Orders", colorClass: "app-icon-pink", path: "/orders" },
-  { icon: Truck, label: "Delivery", colorClass: "app-icon-green", path: "/delivery" },
-  { icon: Package, label: "Stocks", colorClass: "app-icon-blue", path: "/stock-entry" },
-  { icon: ShoppingBag, label: "Products", colorClass: "app-icon-purple", path: "/product-entry" },
-  { icon: Building2, label: "Purchase", colorClass: "app-icon-teal", path: "/back-office" },
-  { icon: Crown, label: "Wallet", colorClass: "app-icon-yellow", path: "/premium-entry" },
-  { icon: Star, label: "Promotions", colorClass: "app-icon-orange", path: "/rating-entry" },
-  { icon: Keyboard, label: "SEO", colorClass: "app-icon-indigo", path: "/keyword-entry" },
-  { icon: Grid3X3, label: "Task Manager", colorClass: "app-icon-violet", path: "/tasks" },
-  { icon: Bell, label: "Notification", colorClass: "app-icon-red", path: "/notifications" },
-  { icon: Users, label: "Onboard", colorClass: "app-icon-cyan", path: "/staffes" },
-  { icon: FlaskConical, label: "test", colorClass: "app-icon-orange", path: "/staff-test" },
+  { icon: TrendingUp, label: "Dashboard", colorClass: "app-icon-rose", path: "/dashboard", key: "apps.dashboard" },
+  { icon: Users, label: "Employee Management", colorClass: "app-icon-indigo", path: "/employee-management", key: "apps.employeeManagement" },
+  { icon: LayoutDashboard, label: "Report", colorClass: "app-icon-cyan", path: "/overview", key: "apps.overview" },
+  { icon: ClipboardList, label: "Orders", colorClass: "app-icon-pink", path: "/orders", key: "apps.orders" },
+  { icon: Truck, label: "Delivery", colorClass: "app-icon-green", path: "/delivery", key: "apps.delivery" },
+  { icon: Package, label: "Stocks", colorClass: "app-icon-blue", path: "/stock-entry", key: "apps.stocks" },
+  { icon: ShoppingBag, label: "Products", colorClass: "app-icon-purple", path: "/product-entry", key: "apps.products" },
+  { icon: Building2, label: "Purchase", colorClass: "app-icon-teal", path: "/back-office", key: "apps.purchase" },
+  { icon: Crown, label: "Wallet", colorClass: "app-icon-yellow", path: "/premium-entry", key: "apps.wallet" },
+  { icon: Star, label: "Promotions", colorClass: "app-icon-orange", path: "/rating-entry", key: "apps.promotions" },
+  { icon: Keyboard, label: "SEO", colorClass: "app-icon-indigo", path: "/keyword-entry", key: "apps.seo" },
+  { icon: Grid3X3, label: "Task Manager", colorClass: "app-icon-violet", path: "/tasks", key: "apps.taskManager" },
+  { icon: Bell, label: "Notification", colorClass: "app-icon-red", path: "/notifications", key: "apps.notifications" },
+  { icon: Users, label: "Onboard", colorClass: "app-icon-cyan", path: "/staffes", key: "apps.staff" },
+  { icon: FlaskConical, label: "test", colorClass: "app-icon-orange", path: "/staff-test", key: "apps.test" },
 ];
 
 const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolean; searchQuery?: string }) => {
@@ -62,6 +62,7 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentAppToEdit, setCurrentAppToEdit] = useState<any>(null);
   const [appToDelete, setAppToDelete] = useState<string | null>(null);
+  const { getTranslation } = useLang();
 
   // RBAC State
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -134,7 +135,7 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
                 >
                   <AppIcon
                     icon={app.icon}
-                    label={app.label}
+                    label={getTranslation(app.key, {}, app.label)}
                     colorClass={app.colorClass}
                     delay={150 + index * 50}
                   />
@@ -173,14 +174,14 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
                           setIsModalOpen(true);
                         }}
                         className="p-1.5 bg-white dark:bg-slate-800 rounded-full shadow-md text-blue-500 hover:bg-blue-50 border border-slate-200 dark:border-slate-700"
-                        title="Edit App"
+                        title={getTranslation("manageApps.editTooltip")}
                       >
                         <Edit size={14} />
                       </button>
                       <button
                         onClick={() => setAppToDelete(app.id)}
                         className="p-1.5 bg-white dark:bg-slate-800 rounded-full shadow-md text-red-500 hover:bg-red-50 border border-slate-200 dark:border-slate-700"
-                        title="Delete App"
+                        title={getTranslation("manageApps.deleteTooltip")}
                       >
                         <Trash size={14} />
                       </button>
@@ -204,7 +205,7 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
                   <Plus className="w-8 h-8 sm:w-10 sm:h-10" strokeWidth={1.5} />
                 </div>
                 <span className="text-sm font-medium text-foreground/60 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors text-center leading-tight">
-                  Add App
+                  {getTranslation("manageApps.addApp")}
                 </span>
               </button>
             )}
@@ -224,13 +225,13 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
       <AlertDialog open={!!appToDelete} onOpenChange={(open) => !open && setAppToDelete(null)}>
         <AlertDialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogTitle>{getTranslation("manageApps.deleteConfirm")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete your custom app.
+              {getTranslation("manageApps.deleteDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-slate-100 dark:bg-slate-800">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="bg-slate-100 dark:bg-slate-800">{getTranslation("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700 text-white"
               onClick={() => {
@@ -238,7 +239,7 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
                 setAppToDelete(null);
               }}
             >
-              Delete
+              {getTranslation("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

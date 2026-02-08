@@ -581,7 +581,11 @@ const EmployeeManagement = () => {
                                                         <Badge variant="outline" className="font-normal">{emp.department}</Badge>
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Badge variant="default" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200 shadow-none">Active</Badge>
+                                                        {emp.workStatus === 'pending' ? (
+                                                            <Badge className="bg-amber-50 text-amber-700 border-amber-200">Pending Approval</Badge>
+                                                        ) : (
+                                                            <Badge variant="default" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200 shadow-none">Active</Badge>
+                                                        )}
                                                     </TableCell>
                                                     <TableCell className="text-right pr-6 flex items-center justify-end gap-2">
                                                         <Button size="sm" variant="ghost" className="h-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50" onClick={(e) => { e.stopPropagation(); setAdvanceEmpId(emp.id); setIsAdvanceOpen(true); }}>

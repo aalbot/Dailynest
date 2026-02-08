@@ -35,6 +35,7 @@ import firebase from "firebase/compat/app";
 import "firebase/compat/database";
 import { iconMap } from "@/utils/appIcons";
 import SettingsModal from "./SettingsModal";
+import { useLang } from "@/contexts/LanguageContext";
 
 const defaultAppItems = [
   { icon: TrendingUp, label: "Dashboard", path: "/dashboard", color: "bg-rose-500" },
@@ -63,6 +64,7 @@ const Navbar = () => {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications } = useNotification();
+  const { getTranslation, locale } = useLang();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -152,7 +154,7 @@ const Navbar = () => {
 
   const handleCheckIn = async () => {
     if (!currentStaff?.employeeId) {
-      toast.error("Account not linked to HR records.");
+      toast.error(getTranslation("attendance.noHrLink"));
       return;
     }
     const now = new Date();
@@ -174,8 +176,8 @@ const Navbar = () => {
         currentAttendanceId: attId,
         lastCheckIn: now.toISOString()
       });
-      toast.success(`Checked in at ${time}`);
-    } catch (error) { toast.error("Check-in failed"); }
+      toast.success(getTranslation("attendance.checkInSuccess", { time }));
+    } catch (error) { toast.error(getTranslation("attendance.checkInFailed")); }
   };
 
   const handleCheckOut = async () => {
@@ -194,12 +196,39 @@ const Navbar = () => {
       }
       await db.ref(`root/nexus_hr/attendance/${currentStaff.currentAttendanceId}`).update({ checkOutTime: time, totalHours: totalHours });
       await db.ref(`root/staff/${staffId}`).update({ checkedIn: false, currentAttendanceId: null, lastCheckOut: now.toISOString() });
-      toast.success(`Checked out. Total: ${totalHours} hrs`);
-    } catch (error) { toast.error("Check-out failed"); }
+      toast.success(getTranslation("attendance.checkOutSuccess", { time, totalHours }));
+    } catch (error) { toast.error(getTranslation("attendance.checkOutFailed")); }
   };
 
   const allAppsRaw = [
-    ...defaultAppItems.map(app => ({ ...app, openInNewTab: false })),
+    ...defaultAppItems.map(app => {
+      // Map path to a translation key
+      const keyMap: Record<string, string> = {
+        "/dashboard": "dashboard",
+        "/employee-management": "employeeManagement",
+        "/overview": "overview",
+        "/chat": "chat",
+        "/orders": "orders",
+        "/delivery": "delivery",
+        "/stock-entry": "stocks",
+        "/product-entry": "products",
+        "/back-office": "purchase",
+        "/premium-entry": "wallet",
+        "/rating-entry": "promotions",
+        "/keyword-entry": "seo",
+        "/tasks": "taskManager",
+        "/notifications": "notifications",
+        "/staffes": "staff",
+        "/staff-test": "test"
+      };
+
+      const key = `apps.${keyMap[app.path] || 'default'}`;
+      return {
+        ...app,
+        label: getTranslation(key, {}, app.label),
+        openInNewTab: false
+      };
+    }),
     ...customApps.map(app => ({
       icon: iconMap[app.icon] || Package,
       label: app.name,
@@ -258,7 +287,7 @@ const Navbar = () => {
           {/* Logo */}
           <Link to="/apps" className="flex items-center gap-3">
             <img src="/logo.png" alt="DailyClub" className="w-9 h-9 rounded-xl object-contain" />
-            <span className="font-bold text-lg tracking-tight text-slate-500 dark:text-slate-400">DailyClub</span>
+            <span className="font-bold text-lg tracking-tight text-slate-500 dark:text-slate-400">{getTranslation("navbar.branding")}</span>
           </Link>
 
           {/* Right side icons */}
@@ -279,7 +308,7 @@ const Navbar = () => {
                       autoFocus
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search menus..."
+                      placeholder={getTranslation("navbar.searchPlaceholder")}
                       className="ml-2 w-full bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground"
                     />
                     <button onClick={() => { setSearchOpen(false); setSearchQuery(""); }} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full flex-shrink-0">
@@ -308,7 +337,7 @@ const Navbar = () => {
                         </Link>
                       ))
                     ) : (
-                      <div className="p-4 text-center text-xs text-slate-400">No matching apps found</div>
+                      <div className="p-4 text-center text-xs text-slate-400">{getTranslation("manageApps.noResults")}</div>
                     )}
                   </div>
                 </div>
@@ -330,7 +359,7 @@ const Navbar = () => {
               {notificationsOpen && (
                 <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-2 animate-in fade-in zoom-in-95 origin-top-right overflow-hidden z-50">
                   <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 dark:border-slate-800">
-                    <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Notifications</h3>
+                    <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">{getTranslation("navbar.notificationsTitle")}</h3>
                     <div className="flex gap-1">
                       <button
                         onClick={markAllAsRead}
@@ -385,7 +414,7 @@ const Navbar = () => {
                     ) : (
                       <div className="py-12 px-6 text-center text-slate-400">
                         <Bell className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                        <p className="text-xs">No new notifications</p>
+                        <p className="text-xs">{getTranslation("navbar.noNotifications")}</p>
                       </div>
                     )}
                   </div>
@@ -430,8 +459,8 @@ const Navbar = () => {
                           <Grid3X3 size={24} strokeWidth={2.5} />
                         </div>
                         <div>
-                          <h3 className="font-black text-xl text-slate-900 dark:text-slate-100 tracking-tight">App Launcher</h3>
-                          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Quick Navigation</p>
+                          <h3 className="font-black text-xl text-slate-900 dark:text-slate-100 tracking-tight">{getTranslation("navbar.launcherTitle")}</h3>
+                          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{getTranslation("navbar.launcherSubtitle")}</p>
                         </div>
                       </div>
                       <button
@@ -474,7 +503,7 @@ const Navbar = () => {
                         className="group relative flex items-center justify-center gap-3 py-4 w-full bg-slate-900 dark:bg-indigo-600 rounded-2xl text-xs font-black text-white uppercase tracking-widest hover:scale-[1.02] transition-all active:scale-95 shadow-xl shadow-slate-900/10 dark:shadow-indigo-500/20"
                       >
                         <Sparkles className="w-4 h-4 animate-pulse" />
-                        Explore Full Gallery
+                        {getTranslation("navbar.exploreGallery")}
                       </Link>
                     </div>
                   </div>
@@ -519,7 +548,7 @@ const Navbar = () => {
                           <div className="flex items-center gap-2">
                             <div className={`w-2 h-2 rounded-full ${currentStaff?.checkedIn ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
                             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                              {currentStaff?.checkedIn ? 'On Duty' : 'Off Duty'}
+                              {currentStaff?.checkedIn ? getTranslation("common.onDuty") : getTranslation("common.offDuty")}
                             </span>
                           </div>
                           {liveTimer !== "00:00:00" && (
@@ -535,7 +564,7 @@ const Navbar = () => {
                             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-red-500 text-white font-bold text-xs shadow-md shadow-red-500/10 active:scale-95 transition-all"
                           >
                             <LogOut size={14} />
-                            Check Out
+                            {getTranslation("common.checkOut")}
                           </button>
                         ) : (
                           <button
@@ -543,7 +572,7 @@ const Navbar = () => {
                             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-emerald-600 text-white font-bold text-xs shadow-md shadow-emerald-500/10 active:scale-95 transition-all"
                           >
                             <LogIn size={14} />
-                            Check In
+                            {getTranslation("common.checkIn")}
                           </button>
                         )}
                       </div>
@@ -557,7 +586,7 @@ const Navbar = () => {
                     >
                       <div className="flex items-center gap-3">
                         {isDark ? <Moon size={16} /> : <Sun size={16} />}
-                        <span>Dark Mode</span>
+                        <span>{getTranslation("appGallery.sidebar.darkMode")}</span>
                       </div>
                       <div className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-300 ${isDark ? 'bg-indigo-500' : 'bg-slate-200'}`}>
                         <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-300 ${isDark ? 'translate-x-4' : 'translate-x-0'}`} />
@@ -569,7 +598,7 @@ const Navbar = () => {
                       className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
                     >
                       <Settings size={16} />
-                      <span>Settings</span>
+                      <span>{getTranslation("navbar.settings")}</span>
                     </button>
 
                     <div className="h-px bg-slate-100 dark:bg-slate-800 my-1 confirm-logout"></div>
@@ -577,13 +606,13 @@ const Navbar = () => {
                     <button
                       onClick={() => {
                         sessionStorage.clear();
-                        toast.success("Signed out successfully");
+                        toast.success(getTranslation("feedback.signedOut"));
                         navigate("/");
                       }}
                       className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors"
                     >
                       <LogOut size={16} />
-                      <span>Sign Out</span>
+                      <span>{getTranslation("navbar.signout")}</span>
                     </button>
                   </div>
                 </div>

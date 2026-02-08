@@ -10,7 +10,7 @@ export class DataProvider {
     // Added generic <T> for better typing in logs
     observe<T>(path: string, defaultValue: any = null) {
         const fullPath = this.normalizePath(path);
-        
+
         // LOG: Intent to listen. 
         // useful to see if we are over-fetching or listening to the same path multiple times.
         console.groupCollapsed(`[DataProvider] OBSERVE Request: ${fullPath}`);
@@ -20,7 +20,7 @@ export class DataProvider {
         return {
             subscribe: (callback: (data: T) => void) => {
                 const dbRef = ref(db, fullPath);
-                
+
                 // LOG: Actual Firebase Connection created
                 console.log(`[DataProvider] CONNECTING Firebase listener: ${fullPath}`);
 
@@ -56,7 +56,7 @@ export class DataProvider {
 
         // LOG: Data Mutation Request.
         console.log(`[DataProvider] WRITING Update to ${fullPath}`, data);
-        
+
         try {
             await update(dbRef, data);
             // LOG: Success confirmation. Ensures the promise resolved.
@@ -88,10 +88,18 @@ export class DataProvider {
         const fullPath = this.normalizePath(path);
         const dbRef = ref(db, fullPath);
         const key = push(dbRef).key || crypto.randomUUID();
-        
+
         // LOG: Utility action.
         console.debug(`[DataProvider] Generated Key for ${path}: ${key}`);
         return key;
+    }
+
+    async get(path: string, defaultValue: any = null) {
+        const fullPath = this.normalizePath(path);
+        const dbRef = ref(db, fullPath);
+        const { get: firebaseGet } = await import("firebase/database");
+        const snapshot = await firebaseGet(dbRef);
+        return snapshot.exists() ? snapshot.val() : defaultValue;
     }
 }
 

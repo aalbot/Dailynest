@@ -1,4 +1,5 @@
 import { Search, Command } from "lucide-react";
+import { useLang } from "@/contexts/LanguageContext";
 
 interface SearchBarProps {
   value: string;
@@ -7,6 +8,8 @@ interface SearchBarProps {
 }
 
 const SearchBar = ({ value, onChange, className = "" }: SearchBarProps) => {
+  const { getTranslation } = useLang();
+
   return (
     <div className={`relative w-full max-w-2xl mx-auto group ${className}`}>
       {/* Glow Effect */}
@@ -21,13 +24,13 @@ const SearchBar = ({ value, onChange, className = "" }: SearchBarProps) => {
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Search for tools, reports, or data..."
+          placeholder={getTranslation("searchBar.placeholder")}
           className="flex-1 bg-transparent border-none outline-none text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 text-lg font-medium selection:bg-indigo-500/30"
         />
 
         <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
           <Command className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-[10px] font-bold text-slate-500 tracking-widest uppercase">Search</span>
+          <span className="text-[10px] font-bold text-slate-500 tracking-widest uppercase">{getTranslation("searchBar.label")}</span>
         </div>
       </div>
 

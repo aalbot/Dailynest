@@ -33,6 +33,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useLang } from "@/contexts/LanguageContext";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Globe2 } from "lucide-react";
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -41,6 +44,7 @@ interface SettingsModalProps {
 
 const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
     const { isDark, toggleTheme } = useTheme();
+    const { getTranslation, locale, setLocale, translations } = useLang();
     const [soundEnabled, setSoundEnabled] = useState(true);
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const [activeTab, setActiveTab] = useState("general");
@@ -73,12 +77,12 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
     }, [isOpen, activeTab]);
 
     const tabs = [
-        { id: "general", label: "General", icon: Settings },
-        { id: "appearance", label: "Appearance", icon: Palette },
-        { id: "notifications", label: "Notifications", icon: Bell },
-        { id: "usage", label: "Usage", icon: Activity },
-        { id: "account", label: "Account", icon: User },
-        { id: "security", label: "Security", icon: Shield },
+        { id: "general", label: getTranslation("settings.tabs.general"), icon: Settings },
+        { id: "appearance", label: getTranslation("settings.tabs.appearance"), icon: Palette },
+        { id: "notifications", label: getTranslation("settings.tabs.notifications"), icon: Bell },
+        { id: "usage", label: getTranslation("settings.tabs.usage"), icon: Activity },
+        { id: "account", label: getTranslation("settings.tabs.account"), icon: User },
+        { id: "security", label: getTranslation("settings.tabs.security"), icon: Shield },
     ];
 
     const userRole = sessionStorage.getItem("user_role") || "Staff";
@@ -88,7 +92,7 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="w-full h-[100dvh] sm:h-auto sm:max-h-[600px] sm:w-[95vw] sm:max-w-[720px] p-0 bg-white dark:bg-slate-900 border-none shadow-2xl sm:rounded-[32px] rounded-none overflow-hidden duration-300">
+            <DialogContent className={`w-full h-[100dvh] sm:h-auto sm:max-h-[600px] sm:w-[95vw] sm:max-w-[720px] p-0 bg-white dark:bg-slate-900 border-none shadow-2xl sm:rounded-[32px] rounded-none overflow-hidden duration-300 ${locale === 'ar' ? 'font-arabic' : ''}`} dir={locale === 'ar' ? 'rtl' : 'ltr'}>
                 <div className="flex flex-col md:flex-row h-full max-h-[100dvh] sm:max-h-[600px] overflow-hidden">
                     {/* Sidebar / Mobile Menu */}
                     <div className={`
@@ -98,7 +102,7 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                         {/* Mobile Menu Header */}
                         <div className="md:hidden flex items-center justify-between p-4 px-6 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800/60">
                             <div className="flex flex-col">
-                                <span className="font-black text-xl tracking-tighter dark:text-white leading-none">Settings</span>
+                                <span className="font-black text-xl tracking-tighter dark:text-white leading-none">{getTranslation("navbar.settings")}</span>
                                 <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest mt-1">{activeTabLabel}</span>
                             </div>
                             <button
@@ -118,7 +122,7 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                                 <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
                                     <Settings size={20} />
                                 </div>
-                                <span className="font-bold text-lg dark:text-white">Settings</span>
+                                <span className="font-bold text-lg dark:text-white">{getTranslation("navbar.settings")}</span>
                             </div>
 
                             <nav className="flex flex-col gap-1.5">
@@ -130,7 +134,7 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                                             setIsMenuOpen(false); // Close menu on tab selection
                                         }}
                                         className={`flex items-center gap-3 px-5 py-3.5 text-sm font-bold rounded-2xl transition-all duration-300 ${activeTab === tab.id
-                                            ? "bg-indigo-600 md:bg-white dark:md:bg-slate-800 text-white md:text-indigo-600 dark:md:text-indigo-400 shadow-md md:shadow-sm md:ring-1 md:ring-slate-100 dark:md:ring-slate-700"
+                                            ? "bg-indigo-600 md:bg-white dark:md:bg-slate-800 text-white md:text-indigo-600 dark:md:text-indigo-400 shadow-md md:shadow-sm md:ring-1 md:ring-slate-100 dark:md:ring-slate-700 font-black"
                                             : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/40 hover:text-slate-900 dark:hover:text-slate-300"
                                             }`}
                                     >
@@ -188,7 +192,7 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                                 )}
                             </div>
                             <DialogDescription className="text-sm md:text-sm text-slate-500 mt-2 font-medium opacity-80">
-                                Customize your portal experience and preferences
+                                {getTranslation("settings.general.subtitle")}
                             </DialogDescription>
                         </DialogHeader>
 
@@ -199,15 +203,15 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                             {activeTab === "general" && (
                                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
                                     <div className="space-y-5">
-                                        <h4 className="text-[10px] md:text-xs font-black uppercase tracking-[0.25em] text-slate-400">System Preferences</h4>
+                                        <h4 className="text-[10px] md:text-xs font-black uppercase tracking-[0.25em] text-slate-400">{getTranslation("settings.general.systemPreferences")}</h4>
                                         <div className="p-6 md:p-6 rounded-[28px] bg-slate-50/50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800/40 space-y-6">
                                             <div className="flex items-center justify-between">
                                                 <div className="space-y-1">
                                                     <Label className="text-base md:text-base font-bold flex items-center gap-2">
                                                         {soundEnabled ? <Volume2 size={18} className="text-indigo-500" /> : <VolumeX size={18} className="text-slate-400" />}
-                                                        Audio Feedback
+                                                        {getTranslation("settings.general.audioFeedback")}
                                                     </Label>
-                                                    <p className="text-xs text-slate-500 font-medium">Play interactive sounds for events and alerts</p>
+                                                    <p className="text-xs text-slate-500 font-medium">{getTranslation("settings.general.audioDesc")}</p>
                                                 </div>
                                                 <Switch checked={soundEnabled} onCheckedChange={setSoundEnabled} className="data-[state=checked]:bg-indigo-600" />
                                             </div>
@@ -216,9 +220,9 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                                                 <div className="space-y-1">
                                                     <Label className="text-base md:text-base font-bold flex items-center gap-2">
                                                         <Monitor size={18} className="text-indigo-500" />
-                                                        Desktop Mode
+                                                        {getTranslation("settings.general.desktopMode")}
                                                     </Label>
-                                                    <p className="text-xs text-slate-500 font-medium">Force professional desktop layout on large mobile devices</p>
+                                                    <p className="text-xs text-slate-500 font-medium">{getTranslation("settings.general.desktopDesc")}</p>
                                                 </div>
                                                 <Switch checked={true} className="data-[state=checked]:bg-indigo-600" />
                                             </div>
@@ -226,16 +230,32 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                                     </div>
 
                                     <div className="space-y-5">
-                                        <h4 className="text-[10px] md:text-xs font-black uppercase tracking-[0.25em] text-slate-400">Regional</h4>
-                                        <div className="p-6 md:p-6 rounded-[28px] bg-slate-50/50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800/40 flex items-center justify-between group cursor-pointer hover:border-indigo-500/30 transition-all">
+                                        <h4 className="text-[10px] md:text-xs font-black uppercase tracking-[0.25em] text-slate-400">{getTranslation("settings.general.regional")}</h4>
+                                        <div className="p-6 md:p-6 rounded-[28px] bg-slate-50/50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800/40 flex items-center justify-between group transition-all">
                                             <div className="space-y-1">
-                                                <Label className="text-base md:text-base font-bold">Language Setting</Label>
-                                                <p className="text-xs text-slate-500 font-medium">Choose your preferred system display language</p>
+                                                <Label className="text-base md:text-base font-bold">{getTranslation("settings.general.language")}</Label>
+                                                <p className="text-xs text-slate-500 font-medium">{getTranslation("settings.general.languageDesc")}</p>
                                             </div>
-                                            <div className="flex items-center gap-2 text-xs font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/40 px-4 py-2 rounded-full uppercase tracking-wider">
-                                                English (US)
-                                                <ChevronRight size={14} />
-                                            </div>
+                                            <Select value={locale} onValueChange={setLocale}>
+                                                <SelectTrigger className="w-auto min-w-[140px] h-11 bg-indigo-50 dark:bg-indigo-900/40 border-none rounded-full text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider px-5 shadow-none ring-0 focus:ring-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <Globe2 size={14} />
+                                                        <SelectValue />
+                                                    </div>
+                                                </SelectTrigger>
+                                                <SelectContent className="rounded-2xl border-slate-100 dark:border-slate-800 shadow-2xl">
+                                                    {Object.keys(translations)
+                                                        .filter(langCode => translations[langCode]?.common?.languageName)
+                                                        .map((langCode) => {
+                                                            const langName = translations[langCode].common.languageName;
+                                                            return (
+                                                                <SelectItem key={langCode} value={langCode} className="font-bold">
+                                                                    {langName}
+                                                                </SelectItem>
+                                                            );
+                                                        })}
+                                                </SelectContent>
+                                            </Select>
                                         </div>
                                     </div>
                                 </div>
@@ -244,7 +264,7 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                             {activeTab === "appearance" && (
                                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
                                     <div className="space-y-5">
-                                        <h4 className="text-[10px] md:text-xs font-black uppercase tracking-[0.25em] text-slate-400">Interface Theme</h4>
+                                        <h4 className="text-[10px] md:text-xs font-black uppercase tracking-[0.25em] text-slate-400">{getTranslation("settings.appearance.theme")}</h4>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                                             <button
                                                 onClick={() => isDark && toggleTheme()}
@@ -259,7 +279,7 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center justify-between w-full px-1">
-                                                    <span className="text-sm font-black uppercase tracking-widest text-slate-700">Light</span>
+                                                    <span className="text-sm font-black uppercase tracking-widest text-slate-700">{getTranslation("settings.appearance.light")}</span>
                                                     {!isDark && <div className="p-1 bg-indigo-600 rounded-full text-white"><Check size={12} strokeWidth={3} /></div>}
                                                 </div>
                                             </button>
@@ -277,7 +297,7 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center justify-between w-full px-1">
-                                                    <span className="text-sm font-black uppercase tracking-widest text-slate-100">Dark</span>
+                                                    <span className="text-sm font-black uppercase tracking-widest text-slate-100">{getTranslation("settings.appearance.dark")}</span>
                                                     {isDark && <div className="p-1 bg-indigo-500 rounded-full text-white"><Check size={12} strokeWidth={3} /></div>}
                                                 </div>
                                             </button>
@@ -301,9 +321,9 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                                             <div className="h-px bg-slate-200/50 dark:bg-slate-700/40" />
                                             <div className="space-y-5">
                                                 {[
-                                                    { id: 'orders', label: 'Order Alerts', desc: 'Critical alerts for new incoming orders' },
-                                                    { id: 'stock', label: 'Inventory Monitor', desc: 'Alerts when stock levels hit threshold' },
-                                                    { id: 'delivery', label: 'Fleet Status', desc: 'Updates from active delivery partners' }
+                                                    { id: 'orders', label: getTranslation("apps.orders"), desc: 'Critical alerts for new incoming orders' },
+                                                    { id: 'stock', label: getTranslation("apps.stocks"), desc: 'Alerts when stock levels hit threshold' },
+                                                    { id: 'delivery', label: getTranslation("apps.delivery"), desc: 'Updates from active delivery partners' }
                                                 ].map((item) => (
                                                     <div key={item.id} className="flex items-center justify-between px-1">
                                                         <div className="space-y-1">

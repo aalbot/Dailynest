@@ -5,6 +5,7 @@ import { useNavigate, Link } from "react-router-dom";
 import firebase from "firebase/compat/app";
 import "firebase/compat/database";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useLang } from "@/contexts/LanguageContext";
 import { useState, useEffect } from "react";
 
 const QuickActionCard = ({
@@ -20,6 +21,7 @@ const QuickActionCard = ({
 }) => {
     const navigate = useNavigate();
     const { isDark, toggleTheme } = useTheme();
+    const { getTranslation } = useLang();
     const [currentStaff, setCurrentStaff] = useState<any>(null);
     const [attendance, setAttendance] = useState<any[]>([]);
     const [liveTimer, setLiveTimer] = useState("00:00:00");
@@ -86,7 +88,7 @@ const QuickActionCard = ({
 
     const handleCheckIn = async () => {
         if (!currentStaff?.employeeId) {
-            toast.error("Account not linked to HR records. Contact Admin.");
+            toast.error(getTranslation("attendance.noHrLink"));
             return;
         }
 
@@ -113,9 +115,9 @@ const QuickActionCard = ({
                 lastCheckIn: now.toISOString()
             });
 
-            toast.success(`Checked in at ${time}`);
+            toast.success(getTranslation("attendance.checkInSuccess", { time }));
         } catch (error) {
-            toast.error("Check-in failed");
+            toast.error(getTranslation("attendance.checkInFailed"));
         }
     };
 
@@ -150,9 +152,9 @@ const QuickActionCard = ({
                 lastCheckOut: now.toISOString()
             });
 
-            toast.success(`Checked out at ${time}. Total: ${totalHours} hrs`);
+            toast.success(getTranslation("attendance.checkOutSuccess", { time, totalHours }));
         } catch (error) {
-            toast.error("Check-out failed");
+            toast.error(getTranslation("attendance.checkOutFailed"));
         }
     };
 
@@ -160,7 +162,7 @@ const QuickActionCard = ({
         <Card className="h-full border-white/40 dark:border-white/10 shadow-xl bg-white/70 dark:bg-slate-900/40 backdrop-blur-xl transition-colors duration-500 overflow-hidden flex flex-col">
             <CardHeader className="pb-4">
                 <CardTitle className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                    Quick Actions
+                    {getTranslation("appGallery.sidebar.quickActions")}
                 </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col gap-4">
@@ -176,7 +178,7 @@ const QuickActionCard = ({
                                     <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
                                         <Users size={18} />
                                     </div>
-                                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Manage Staff</span>
+                                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{getTranslation("appGallery.sidebar.manageStaff")}</span>
                                 </div>
                                 <ChevronRight size={16} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
                             </Link>
@@ -194,7 +196,7 @@ const QuickActionCard = ({
                                         <Settings size={18} className={isManaging ? "animate-spin-slow" : ""} />
                                     </div>
                                     <span className={`text-sm font-semibold ${isManaging ? "text-white" : "text-slate-700 dark:text-slate-300"}`}>
-                                        {isManaging ? "Done Editing" : "Manage Apps"}
+                                        {isManaging ? getTranslation("appGallery.sidebar.doneEditing") : getTranslation("appGallery.sidebar.manageApps")}
                                     </span>
                                 </div>
                                 <ChevronRight size={16} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
@@ -206,7 +208,7 @@ const QuickActionCard = ({
                             <div className="flex items-center gap-2">
                                 <div className={`w-2 h-2 rounded-full ${currentStaff?.checkedIn ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
                                 <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                                    {currentStaff?.checkedIn ? 'On Duty' : 'Off Duty'}
+                                    {currentStaff?.checkedIn ? getTranslation("common.onDuty") : getTranslation("common.offDuty")}
                                 </span>
                                 {liveTimer !== "00:00:00" && (
                                     <span className={`text-[10px] font-black font-mono px-2 py-0.5 rounded-full border ml-auto ${currentStaff?.checkedIn ? 'bg-indigo-500/10 text-indigo-600 border-indigo-500/10' : 'bg-slate-100 text-slate-400 border-slate-200'}`}>
@@ -221,7 +223,7 @@ const QuickActionCard = ({
                                     className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-red-500 text-white font-bold text-sm shadow-lg shadow-red-500/20 active:scale-95 transition-all"
                                 >
                                     <LogOut size={18} />
-                                    Check Out
+                                    {getTranslation("common.checkOut")}
                                 </button>
                             ) : (
                                 <button
@@ -229,7 +231,7 @@ const QuickActionCard = ({
                                     className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-emerald-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
                                 >
                                     <LogIn size={18} />
-                                    Check In
+                                    {getTranslation("common.checkIn")}
                                 </button>
                             )}
                         </div>
@@ -243,7 +245,7 @@ const QuickActionCard = ({
                             <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
                                 {isDark ? <Moon size={18} /> : <Sun size={18} />}
                             </div>
-                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Dark Mode</span>
+                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{getTranslation("appGallery.sidebar.darkMode")}</span>
                         </div>
                         <div className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-300 ${isDark ? 'bg-indigo-500' : 'bg-slate-300'}`}>
                             <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-300 ${isDark ? 'translate-x-4' : 'translate-x-0'}`} />
@@ -258,7 +260,7 @@ const QuickActionCard = ({
                             <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
                                 <Settings size={18} />
                             </div>
-                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Portal Settings</span>
+                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{getTranslation("appGallery.sidebar.portalSettings")}</span>
                         </div>
                         <ChevronRight size={16} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
                     </button>
@@ -269,7 +271,7 @@ const QuickActionCard = ({
                     <button
                         onClick={() => {
                             sessionStorage.clear();
-                            toast.success("Signed out successfully");
+                            toast.success(getTranslation("feedback.signedOut"));
                             navigate("/");
                         }}
                         className="w-full flex items-center justify-between p-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-all group"
@@ -278,7 +280,7 @@ const QuickActionCard = ({
                             <div className="p-2 rounded-lg bg-red-500/20 text-red-600 group-hover:bg-red-500 group-hover:text-white transition-colors">
                                 <LogOut size={18} />
                             </div>
-                            <span className="text-sm font-semibold text-red-700 dark:text-red-400">Sign Out</span>
+                            <span className="text-sm font-semibold text-red-700 dark:text-red-400">{getTranslation("appGallery.sidebar.signOut")}</span>
                         </div>
                     </button>
                 </div>

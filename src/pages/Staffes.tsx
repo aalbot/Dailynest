@@ -37,6 +37,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { dataProvider } from "@/data";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 /* =====================================================
    ACTION REQUEST (LOCAL, FRAMEWORK-COMPATIBLE)
    ===================================================== */
@@ -120,6 +121,7 @@ type PageData = {
     currentTime: Date;
     form: Partial<Staff>;
     isEditing: boolean;
+    pendingRequests: any[];
 };
 
 function createData(): PageData {
@@ -141,7 +143,8 @@ function createData(): PageData {
             employeeId: "",
             allowedApps: []
         },
-        isEditing: false
+        isEditing: false,
+        pendingRequests: []
     };
 }
 
@@ -161,6 +164,8 @@ type Event =
     | { type: "SAVE" }
     | { type: "UPDATE_FORM"; patch: Partial<Staff> }
     | { type: "TOGGLE_APP"; path: string }
+    | { type: "APPROVE"; request: any }
+    | { type: "REJECT"; request: any }
     | { type: "TOGGLE_PASSWORD" };
 
 function Logic(data: PageData, render: () => void) {
@@ -207,6 +212,8 @@ function Logic(data: PageData, render: () => void) {
                 data.form = { ...data.form, ...e.patch };
                 return render();
             case "TOGGLE_APP": return toggleApp(e.path);
+            case "APPROVE": return approve(e.request);
+            case "REJECT": return reject(e.request);
             case "TOGGLE_PASSWORD": data.showPassword = !data.showPassword; return render();
         }
     }
@@ -232,6 +239,13 @@ function Logic(data: PageData, render: () => void) {
             dataProvider.observe("nexus_hr/attendance", {}).subscribe(v => {
                 logger.info("Logic", "Data Received: 'nexus_hr/attendance'", Object.keys(v || {}).length + " records");
                 data.attendance = Object.values(v || {});
+                render();
+            }),
+            dataProvider.observe("delivery_users", {}).subscribe(v => { render(); }),
+            dataProvider.observe("external_users", {}).subscribe(v => { render(); }),
+            dataProvider.observe("notifications", {}).subscribe(v => {
+                const pending = Object.values(v || {}).filter((n: any) => n.type === 'verification' && !n.read);
+                data.pendingRequests = pending;
                 render();
             })
         );
@@ -309,6 +323,55 @@ function Logic(data: PageData, render: () => void) {
         render();
     }
 
+    async function approve(request: any) {
+        try {
+            const db = dataProvider;
+            const role = request.roleType;
+            const userId = request.userId;
+
+            let path = "";
+            if (role === 'Staff') path = "staff";
+            else if (role === 'Delivery') path = "delivery_users";
+            else path = "external_users";
+
+            const users = await db.get(path, {});
+            const userKey = userId || Object.keys(users || {}).find(k => users[k].name === request.requesterName);
+
+            if (userKey && users[userKey]) {
+                const updatedUser = { ...users[userKey], status: 'Active' };
+                await db.update(path, { [userKey]: updatedUser });
+
+                // If it's a delivery partner, also activate in HR
+                if (role === 'Delivery') {
+                    const employees = await db.get("nexus_hr/employees", {});
+                    const empKey = Object.keys(employees || {}).find(k => employees[k].deliveryUserId === userKey);
+                    if (empKey) {
+                        await db.update("nexus_hr/employees", { [empKey]: { ...employees[empKey], workStatus: 'Active' } });
+                    }
+                }
+
+                // If staff, automatically open edit modal for app assignment
+                if (role === 'Staff') {
+                    dispatch({ type: "EDIT", staff: updatedUser });
+                }
+
+                await db.update(`notifications/${request.id}`, { read: true });
+                toast.success(`${role} approved successfully`);
+            } else {
+                toast.error("User not found for approval");
+            }
+            render();
+        } catch (error) {
+            toast.error("Approval failed");
+        }
+    }
+
+    async function reject(request: any) {
+        if (!confirm("Reject this request?")) return;
+        await dataProvider.update(`notifications/${request.id}`, { read: true });
+        render();
+    }
+
     return { dispatch, data };
 }
 
@@ -370,6 +433,14 @@ function useUIActions(logic: any) {
         onFormPatch(patch: any) {
             // logUIEvent("onFormPatch", patch); // Optional: can be noisy
             logic.dispatch({ type: "UPDATE_FORM", patch });
+        },
+
+        onApprove(request: any) {
+            logic.dispatch({ type: "APPROVE", request });
+        },
+
+        onReject(request: any) {
+            logic.dispatch({ type: "REJECT", request });
         }
     };
 }
@@ -509,14 +580,41 @@ export function UI({ data, logic }: UIProps) {
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
-                        {/* Staff Table */}
-                        <StaffTable
-                            staff={filteredStaff}
-                            attendance={data.attendance}
-                            currentTime={data.currentTime}
-                            onEdit={actions.onEditStaff}
-                            onDelete={actions.onDeleteStaff}
-                        />
+                        <Tabs defaultValue="directory" className="w-full">
+                            <div className="px-6 border-b border-slate-100 dark:border-slate-800">
+                                <TabsList className="bg-transparent h-14 p-0 gap-8">
+                                    <TabsTrigger value="directory" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 rounded-none h-14 font-bold text-slate-500">
+                                        Staff Directory
+                                    </TabsTrigger>
+                                    <TabsTrigger value="verification" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 rounded-none h-14 font-bold text-slate-500 relative">
+                                        Pending Verification
+                                        {data.pendingRequests.length > 0 && (
+                                            <span className="ml-2 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center animate-bounce">
+                                                {data.pendingRequests.length}
+                                            </span>
+                                        )}
+                                    </TabsTrigger>
+                                </TabsList>
+                            </div>
+
+                            <TabsContent value="directory" className="p-0 mt-0">
+                                <StaffTable
+                                    staff={filteredStaff}
+                                    attendance={data.attendance}
+                                    currentTime={data.currentTime}
+                                    onEdit={actions.onEditStaff}
+                                    onDelete={actions.onDeleteStaff}
+                                />
+                            </TabsContent>
+
+                            <TabsContent value="verification" className="p-0 mt-0">
+                                <VerificationTable
+                                    requests={data.pendingRequests}
+                                    onApprove={actions.onApprove}
+                                    onReject={actions.onReject}
+                                />
+                            </TabsContent>
+                        </Tabs>
                     </CardContent>
                 </Card>
 
@@ -538,6 +636,76 @@ export function UI({ data, logic }: UIProps) {
 /* =====================================================
    COMPONENTS
    ===================================================== */
+
+const VerificationTable = ({ requests, onApprove, onReject }: any) => {
+    return (
+        <div className="overflow-x-auto">
+            <table className="w-full text-left">
+                <thead>
+                    <tr className="bg-slate-50/50 dark:bg-slate-800/30 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
+                        <th className="px-6 py-4">Requester</th>
+                        <th className="px-6 py-4">Role Requested</th>
+                        <th className="px-6 py-4">Time</th>
+                        <th className="px-6 py-4 text-right">Decision</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {requests.length === 0 ? (
+                        <tr>
+                            <td colSpan={4} className="px-6 py-12 text-center text-slate-500 font-medium">
+                                <ShieldCheck className="w-12 h-12 mx-auto mb-4 opacity-10" />
+                                No pending verifications
+                            </td>
+                        </tr>
+                    ) : (
+                        requests.map((r: any) => (
+                            <tr key={r.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
+                                <td className="px-6 py-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600">
+                                            <UserPlus size={20} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-900 dark:text-white">{r.message.split(' has')[0]}</p>
+                                            <p className="text-[10px] text-slate-500 uppercase tracking-widest">New Signup</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <Badge className="bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-100 uppercase text-[10px] tracking-widest font-black">
+                                        {r.roleType}
+                                    </Badge>
+                                </td>
+                                <td className="px-6 py-4 text-xs text-slate-500">
+                                    {new Date(r.timestamp).toLocaleString()}
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="text-red-500 hover:bg-red-50 font-bold"
+                                            onClick={() => onReject(r)}
+                                        >
+                                            Reject
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            className="bg-indigo-600 hover:bg-indigo-700 font-bold text-white shadow-lg shadow-indigo-500/20"
+                                            onClick={() => onApprove(r)}
+                                        >
+                                            Approve Access
+                                        </Button>
+                                    </div>
+                                </td>
+                            </tr>
+                        ))
+                    )}
+                </tbody>
+            </table>
+        </div>
+    );
+};
 
 interface StaffTableProps {
     staff: Staff[];

@@ -7,6 +7,7 @@ import { appColors } from "@/utils/appColors";
 import { Search, ChevronLeft, Loader2, Link as LinkIcon, FileCode } from "lucide-react";
 import firebase from "firebase/compat/app";
 import "firebase/compat/database";
+import { useLang } from "@/contexts/LanguageContext";
 
 interface AddAppModalProps {
     open: boolean;
@@ -16,9 +17,10 @@ interface AddAppModalProps {
 
 type Step = "form" | "icon" | "color";
 
-export function AddAppModal({ open, onOpenChange, initialData }: AddAppModalProps) {
+export const AddAppModal = ({ open, onOpenChange, initialData }: AddAppModalProps) => {
     const [step, setStep] = useState<Step>("form");
     const [loading, setLoading] = useState(false);
+    const { getTranslation } = useLang();
     const [formData, setFormData] = useState({
         name: "",
         icon: "Layout",
@@ -126,9 +128,9 @@ export function AddAppModal({ open, onOpenChange, initialData }: AddAppModalProp
                             </button>
                         )}
                         <DialogTitle className="text-xl font-bold text-slate-900 dark:text-slate-100">
-                            {step === "form" && "Create App"}
-                            {step === "icon" && "Select Icon"}
-                            {step === "color" && "Select Color"}
+                            {step === "form" && (initialData ? getTranslation("manageApps.editTitle") : getTranslation("manageApps.createTitle"))}
+                            {step === "icon" && getTranslation("manageApps.selectIcon")}
+                            {step === "color" && getTranslation("manageApps.selectColor")}
                         </DialogTitle>
                     </div>
                 </DialogHeader>
@@ -149,16 +151,16 @@ export function AddAppModal({ open, onOpenChange, initialData }: AddAppModalProp
                                         className="text-sm font-medium text-slate-500 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                                         onClick={() => setStep("icon")}
                                     >
-                                        Change Icon
+                                        {getTranslation("manageApps.changeIcon")}
                                     </div>
                                 </div>
                             </div>
 
                             <div className="space-y-4">
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">App Name</label>
+                                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{getTranslation("manageApps.appName")}</label>
                                     <Input
-                                        placeholder="e.g. My Custom Page"
+                                        placeholder={getTranslation("manageApps.appNamePlaceholder")}
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                         className="bg-slate-50 dark:bg-slate-800/50"
@@ -166,7 +168,7 @@ export function AddAppModal({ open, onOpenChange, initialData }: AddAppModalProp
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Content Type</label>
+                                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{getTranslation("manageApps.contentType")}</label>
                                     <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
                                         <button
                                             onClick={() => setFormData({ ...formData, type: "url" })}
@@ -175,7 +177,7 @@ export function AddAppModal({ open, onOpenChange, initialData }: AddAppModalProp
                                                 : "text-slate-500 hover:text-slate-700"
                                                 }`}
                                         >
-                                            <LinkIcon size={16} /> URL Link
+                                            <LinkIcon size={16} /> {getTranslation("manageApps.urlLink")}
                                         </button>
                                         <button
                                             onClick={() => setFormData({ ...formData, type: "html" })}
@@ -184,14 +186,14 @@ export function AddAppModal({ open, onOpenChange, initialData }: AddAppModalProp
                                                 : "text-slate-500 hover:text-slate-700"
                                                 }`}
                                         >
-                                            <FileCode size={16} /> Custom HTML
+                                            <FileCode size={16} /> {getTranslation("manageApps.customHtml")}
                                         </button>
                                     </div>
                                 </div>
 
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                                        {formData.type === 'url' ? 'Destination URL' : 'Upload HTML File'}
+                                        {formData.type === 'url' ? getTranslation("manageApps.destinationUrl") : getTranslation("manageApps.uploadHtml")}
                                     </label>
                                     {formData.type === 'url' ? (
                                         <Input
@@ -242,10 +244,10 @@ export function AddAppModal({ open, onOpenChange, initialData }: AddAppModalProp
                                                     <FileCode className="w-6 h-6 text-blue-500" />
                                                 </div>
                                                 <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                                                    {formData.content ? "File Selected" : "Click to upload or drag and drop"}
+                                                    {formData.content ? getTranslation("manageApps.fileSelected") : getTranslation("manageApps.dragDrop")}
                                                 </p>
                                                 <p className="text-xs text-slate-500 mt-1">
-                                                    {formData.content ? "Click to replace" : "HTML files only"}
+                                                    {formData.content ? getTranslation("manageApps.clickReplace") : getTranslation("manageApps.htmlOnly")}
                                                 </p>
                                                 {formData.content && (
                                                     <div className="absolute top-2 right-2 bg-emerald-500 text-white p-1 rounded-full shadow-sm animate-in zoom-in">
@@ -257,7 +259,7 @@ export function AddAppModal({ open, onOpenChange, initialData }: AddAppModalProp
                                             </div>
                                             {formData.content && (
                                                 <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium text-center">
-                                                    File loaded successfully
+                                                    {getTranslation("manageApps.fileSuccess")}
                                                 </div>
                                             )}
                                         </div>
@@ -276,7 +278,7 @@ export function AddAppModal({ open, onOpenChange, initialData }: AddAppModalProp
                                         htmlFor="open-new-tab"
                                         className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer"
                                     >
-                                        Open in new page when clicked
+                                        {getTranslation("manageApps.openInNew")}
                                     </label>
                                 </div>
                             </div>
@@ -286,7 +288,7 @@ export function AddAppModal({ open, onOpenChange, initialData }: AddAppModalProp
                                 disabled={loading || !formData.name || !formData.content}
                                 className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                             >
-                                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Create App"}
+                                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : (initialData ? getTranslation("common.save") : getTranslation("manageApps.createTitle"))}
                             </Button>
                         </div>
                     )}
@@ -296,7 +298,7 @@ export function AddAppModal({ open, onOpenChange, initialData }: AddAppModalProp
                             <div className="relative mb-4">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                                 <Input
-                                    placeholder="Search icons..."
+                                    placeholder={getTranslation("manageApps.searchIcons")}
                                     value={searchIcon}
                                     onChange={(e) => setSearchIcon(e.target.value)}
                                     className="pl-9 bg-slate-50 dark:bg-slate-800/50"

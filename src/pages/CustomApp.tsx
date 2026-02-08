@@ -5,10 +5,13 @@ import { Loader2 } from "lucide-react";
 import firebase from "firebase/compat/app";
 import "firebase/compat/database";
 
+import { useLang } from "@/contexts/LanguageContext";
+
 const CustomApp = () => {
     const { id } = useParams<{ id: string }>();
     const [appData, setAppData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const { getTranslation } = useLang();
 
     useEffect(() => {
         if (!id) return;
@@ -35,7 +38,7 @@ const CustomApp = () => {
     if (!appData) {
         return (
             <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-slate-900 text-slate-500">
-                App not found
+                {getTranslation("common.appNotFound")}
             </div>
         );
     }
