@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Navbar from "@/components/Navbar";
 import { useToast } from "@/components/ui/use-toast";
 import { firebase } from "@/lib/firebase";
+import { sendPushNotification } from "@/utils/fcm";
 import {
     Activity,
     CheckCircle,
@@ -417,6 +418,14 @@ const TaskManager = () => {
                     "New Task Assigned",
                     `You have been assigned ${validTasks.length} new task(s): ${validTasks[0].title}${validTasks.length > 1 ? '...' : ''}`
                 );
+
+                // Send REAL FCM Push Notification
+                sendPushNotification(
+                    newTask.assignedEmployeeIds,
+                    "New Task Assigned 📋",
+                    `You have been assigned ${validTasks.length} task(s): ${validTasks[0].title}`,
+                    { taskId: 'multiple', type: 'task_assignment' }
+                );
             }
 
             setIsCreateOpen(false);
@@ -557,6 +566,14 @@ const TaskManager = () => {
                     newlyAdded,
                     "Task Assigned to You",
                     `Task "${editTaskData.title}" has been assigned to you.`
+                );
+
+                // Send REAL FCM Push Notification to newly added
+                sendPushNotification(
+                    newlyAdded,
+                    "Task Assigned to You 📋",
+                    `You have been assigned a task: ${editTaskData.title}`,
+                    { taskId: editTaskData.id, type: 'task_assignment' }
                 );
             }
 

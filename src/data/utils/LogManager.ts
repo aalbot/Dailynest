@@ -94,12 +94,12 @@ class LogManager {
 
         // USE THE ABSTRACTION LAYER
         // We do not import firebase here. We use dataProvider.push
-        try {
-            await dataProvider.push(path, payload);
-        } catch (err) {
-            console.error("[LogManager] Failed to upload logs via DataProvider", err);
-            // Logic to retry could go here
-        }
+        // try {
+        //     await dataProvider.push(path, payload);
+        // } catch (err) {
+        //     console.error("[LogManager] Failed to upload logs via DataProvider", err);
+        //     // Logic to retry could go here
+        // }
     }
 
     private writeToConsole(entry: LogEntry) {

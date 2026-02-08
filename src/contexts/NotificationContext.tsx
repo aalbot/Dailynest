@@ -256,7 +256,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                     lastUpdated: Date.now(),
                     userAgent: navigator.userAgent
                 });
-                console.log("FCM Token registered:", token);
+                console.log("%c🚀 FCM Token Registered:", "color: #4CAF50; font-weight: bold; font-size: 12px;", token);
+                // Also log as a plain string for easy copying
+                console.log(token);
             }
         } catch (error) {
             console.error("FCM Registration failed:", error);

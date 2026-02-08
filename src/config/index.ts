@@ -14,7 +14,8 @@ export const CONFIG = {
         apiKey: "AIzaSyDj1gRVZ4lRJIM2v8c4pJxdyfEY6I1ZGEk"
     },
     FCM: {
-        vapidKey: "BORUQ2p7jMkhKXyww597I0dBGQvgfocigWjbu0kJ1CSjF7J4J6pJJE8lti_JI7c0KLdZy7EDgNm3hNblJA6ne1U"
+        vapidKey: "BORUQ2p7jMkhKXyww597I0dBGQvgfocigWjbu0kJ1CSjF7J4J6pJJE8lti_JI7c0KLdZy7EDgNm3hNblJA6ne1U",
+        serverKey: "YOUR_FCM_SERVER_KEY" // Get this from Firebase Console > Project Settings > Cloud Messaging > Cloud Messaging API (Legacy)
     },
     ASSETS: {
         notificationSound: "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"

@@ -17,25 +17,49 @@ const messaging = firebase.messaging(app);
 
 // Handle background messages
 messaging.onBackgroundMessage((payload) => {
-    console.log('[firebase-messaging-sw.js] Received background message ', payload);
+    console.log('[firebase-messaging-sw.js] 📥 Received background message:', payload);
 
-    if (!payload.notification) {
-        console.log('[firebase-messaging-sw.js] No notification property in payload');
-        return;
-    }
-
-    const notificationTitle = payload.notification.title || 'DailyClub Update';
+    const notificationTitle = payload.notification?.title || payload.data?.title || 'DailyClub Update';
     const notificationOptions = {
-        body: payload.notification.body || '',
-        icon: '/logo.png',
-        badge: '/logo.png', // Small icon for the status bar
-        tag: payload.data?.type || 'general', // Groups notifications
+        body: payload.notification?.body || payload.data?.message || payload.data?.body || 'New message received',
+        // icon: '/logo.png', // Disabling potentially heavy icon for troubleshooting
+        // badge: '/logo.png',
+        tag: payload.data?.type || 'general',
         renotify: true,
-        data: payload.data
+        vibrate: [200, 100, 200],
+        data: {
+            ...payload.data,
+            url: payload.data?.click_url || payload.notification?.click_action || '/'
+        }
     };
 
     return self.registration.showNotification(notificationTitle, notificationOptions)
-        .then(() => console.log('[firebase-messaging-sw.js] Notification successfully displayed'))
-        .catch(err => console.error('[firebase-messaging-sw.js] Error displaying notification:', err));
+        .then(() => console.log('[firebase-messaging-sw.js] ✅ showNotification resolved'))
+        .catch(err => console.error('[firebase-messaging-sw.js] ❌ showNotification error:', err));
+});
+
+// Handle notification click
+self.addEventListener('notificationclick', (event) => {
+    console.log('[firebase-messaging-sw.js] 🖱 Notification clicked:', event.notification.tag);
+    event.notification.close();
+
+    const urlToOpen = event.notification.data?.url || '/';
+
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true })
+            .then((windowClients) => {
+                // If a tab is already open, focus it
+                for (let i = 0; i < windowClients.length; i++) {
+                    const client = windowClients[i];
+                    if (client.url.includes(urlToOpen) && 'focus' in client) {
+                        return client.focus();
+                    }
+                }
+                // If no tab is open, open a new one
+                if (clients.openWindow) {
+                    return clients.openWindow(urlToOpen);
+                }
+            })
+    );
 });
 
