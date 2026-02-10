@@ -575,6 +575,8 @@ const EmployeeManagement = () => {
                                                 <TableHead className="pl-6">Employee</TableHead>
                                                 <TableHead>Role</TableHead>
                                                 <TableHead>Department</TableHead>
+                                                <TableHead>FCM Status</TableHead>
+                                                <TableHead>Last Device Sync</TableHead>
                                                 <TableHead>Status</TableHead>
                                                 <TableHead className="text-right pr-6">Action</TableHead>
                                             </TableRow>
@@ -597,6 +599,22 @@ const EmployeeManagement = () => {
                                                     <TableCell>{emp.role}</TableCell>
                                                     <TableCell>
                                                         <Badge variant="outline" className="font-normal">{emp.department}</Badge>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {emp.fcmToken ? (
+                                                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-emerald-200 bg-emerald-50 w-fit">
+                                                                <span className="relative flex h-2 w-2">
+                                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                                                </span>
+                                                                <span className="text-[10px] font-medium text-emerald-700">Active</span>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-[10px] font-medium text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-full">Inactive</span>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="text-xs text-slate-500 font-mono">
+                                                        {emp.lastTokenUpdate ? new Date(emp.lastTokenUpdate).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : '-'}
                                                     </TableCell>
                                                     <TableCell>
                                                         {emp.workStatus === 'pending' ? (

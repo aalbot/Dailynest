@@ -442,8 +442,8 @@ const TaskDetail = () => {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">All Employees</SelectItem>
-                                    {employees.map(emp => (
-                                        <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
+                                    {employees.filter(emp => emp.role !== 'Ride' && emp.department !== 'Logistics').map(emp => (
+                                        <SelectItem key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -1088,7 +1088,7 @@ const TaskDetail = () => {
                             <div className="space-y-2">
                                 <Label>Assigned Employees</Label>
                                 <div className="border rounded-md p-2 max-h-40 overflow-y-auto space-y-1 dark:border-slate-700 custom-scrollbar">
-                                    {employees.map(emp => (
+                                    {employees.filter(emp => emp.role !== 'Ride' && emp.department !== 'Logistics').map(emp => (
                                         <div key={emp.id} className="flex items-center space-x-2 p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
                                             <input
                                                 type="checkbox"
