@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useRef } from "r
 import { useNavigate, useLocation } from "react-router-dom";
 import { firebase, messaging, db as modularDb } from "@/lib/firebase";
 import { getToken, onMessage } from "firebase/messaging";
-import { ref, set } from "firebase/database";
+import { ref, set, update } from "firebase/database";
 import { toast } from "sonner";
 import { adjustStockForOrder } from "@/utils/stockManagement";
 import { CONFIG } from "@/config";
@@ -250,14 +250,23 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             });
 
             if (token) {
+                // Store token directly in employee profile (replaces old one)
+                const employeeRef = ref(modularDb, `root/nexus_hr/employees/${currentStaffId}`);
+                await update(employeeRef, {
+                    fcmToken: token,
+                    lastTokenUpdate: Date.now(),
+                    deviceInfo: navigator.userAgent
+                });
+
+                // maintain legacy parallel token storage for now (optional, can be removed if not needed)
                 const tokenRef = ref(modularDb, `root/staff_tokens/${currentStaffId}/${token.replace(/[.$#[\]]/g, "_")}`);
                 await set(tokenRef, {
                     token,
                     lastUpdated: Date.now(),
                     userAgent: navigator.userAgent
                 });
+
                 console.log("%c🚀 FCM Token Registered:", "color: #4CAF50; font-weight: bold; font-size: 12px;", token);
-                // Also log as a plain string for easy copying
                 console.log(token);
             }
         } catch (error) {

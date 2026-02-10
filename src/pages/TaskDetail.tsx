@@ -7,7 +7,7 @@ import {
     Calendar, Clock, User, Users, CheckCircle2, AlertCircle,
     Paperclip, Send, X, ChevronLeft, ChevronRight, Flag,
     MessageSquare, FileText, Tag, ArrowLeft, Pencil, Trash2,
-    Plus, Pin, Smile, Reply, ArrowUp, Camera, Search, MoreVertical
+    Plus, Pin, Smile, Reply, ArrowUp, Camera, Search, MoreVertical, Filter, List
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,14 @@ const TaskDetail = () => {
     const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
     const [replyText, setReplyText] = useState("");
     const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+    // Filters
+    const [filterEmployee, setFilterEmployee] = useState<string>("all");
+    const [filterPriority, setFilterPriority] = useState<string>("all");
+
+    // Mobile view toggles
+    const [showMobileComments, setShowMobileComments] = useState(false);
+    const [showMobileTasks, setShowMobileTasks] = useState(false);
 
     const loggedInEmpId = sessionStorage.getItem("employee_id") || "";
     const loggedInName = sessionStorage.getItem("staff_name") || "";
@@ -86,6 +94,47 @@ const TaskDetail = () => {
             replies: {}
         });
 
+        // Send email notification to involved users
+        const involvedUserIds = new Set<string>();
+
+        // Add assignees
+        if (task.assignedEmployeeIds) {
+            task.assignedEmployeeIds.forEach((id: string) => involvedUserIds.add(id));
+        }
+
+        // Add author
+        if (task.authorId) {
+            involvedUserIds.add(task.authorId);
+        }
+
+        // Add tester
+        if (task.testerId) {
+            involvedUserIds.add(task.testerId);
+        }
+
+        // Remove current user
+        involvedUserIds.delete(loggedInEmpId);
+
+        const recipients = Array.from(involvedUserIds)
+            .map(id => employees.find(e => e.id === id))
+            .filter(e => e && e.email)
+            .map(e => ({ email: e.email }));
+
+        if (recipients.length > 0) {
+            await sendTaskUpdateEmail(
+                recipients,
+                `New comment on: ${task.title}`,
+                `<h2>${task.title}</h2>
+                 <p><strong>${authorName}</strong> commented:</p>
+                 <div style="background-color: #f3f4f6; padding: 12px; border-radius: 8px; margin: 10px 0;">
+                    ${newComment}
+                 </div>
+                 <p><a href="${window.location.href}">View Task</a></p>`,
+                false,
+                `New comment on: ${task.title}`
+            );
+        }
+
         setNewComment("");
         toast.success("Comment added");
     };
@@ -95,13 +144,6 @@ const TaskDetail = () => {
         const db = firebase.database();
         await db.ref(`root/nexus_hr/tasks/${taskId}`).update({ status: newStatus });
         toast.success("Status updated");
-    };
-
-    const handlePriorityUpdate = async (newPriority: string) => {
-        if (!task) return;
-        const db = firebase.database();
-        await db.ref(`root/nexus_hr/tasks/${taskId}`).update({ priority: newPriority });
-        toast.success("Priority updated");
     };
 
     const handleDeleteTask = async () => {
@@ -150,14 +192,37 @@ const TaskDetail = () => {
             const db = firebase.database();
             await db.ref(`root/nexus_hr/tasks/${taskId}/comments/${commentId}/replies/${replyId}`).set(replyData);
 
-            // Send email to original commenter
+            // Send notifications
             const comment = task.comments?.[commentId];
             const originalCommenter = employees.find(e => e.id === comment?.authorId);
-            if (originalCommenter?.email) {
+
+            // Build set of recipients (involved users + original commenter)
+            const involvedUserIds = new Set<string>();
+
+            if (task.assignedEmployeeIds) task.assignedEmployeeIds.forEach((id: string) => involvedUserIds.add(id));
+            if (task.authorId) involvedUserIds.add(task.authorId);
+            if (task.testerId) involvedUserIds.add(task.testerId);
+            if (comment?.authorId) involvedUserIds.add(comment.authorId);
+
+            // Remove replier
+            involvedUserIds.delete(loggedInEmpId);
+
+            const recipients = Array.from(involvedUserIds)
+                .map(id => employees.find(e => e.id === id))
+                .filter(e => e && e.email)
+                .map(e => ({ email: e.email }));
+
+            if (recipients.length > 0) {
                 await sendTaskUpdateEmail(
-                    [{ email: originalCommenter.email }],
-                    `${replierName} replied to your comment`,
-                    `<h2>${task.title}</h2><p><strong>${replierName}</strong> replied to your comment:</p><p><em>Your comment: "${comment.text}"</em></p><p><strong>Reply:</strong> ${replyText}</p>`,
+                    recipients,
+                    `New reply on: ${task.title}`,
+                    `<h2>${task.title}</h2>
+                     <p><strong>${replierName}</strong> replied to a comment by <strong>${comment?.author || 'someone'}</strong>:</p>
+                     <div style="background-color: #f3f4f6; padding: 12px; border-radius: 8px; margin: 10px 0;">
+                        <p style="margin: 0 0 8px 0; font-size: 0.9em; color: #666;">On "${comment?.text}":</p>
+                        <p style="margin: 0; font-weight: bold;">${replyText}</p>
+                     </div>
+                     <p><a href="${window.location.href}">View Task</a></p>`,
                     false,
                     `New reply on: ${task.title}`
                 );
@@ -195,11 +260,21 @@ const TaskDetail = () => {
 
     const navigateToTask = (newTaskId: string) => {
         navigate(`/tasks/${newTaskId}`);
+        // Close mobile views when navigating
+        setShowMobileComments(false);
+        setShowMobileTasks(false);
     };
 
-    const currentTaskIndex = tasks.findIndex(t => t.id === taskId);
-    const prevTask = currentTaskIndex > 0 ? tasks[currentTaskIndex - 1] : null;
-    const nextTask = currentTaskIndex < tasks.length - 1 ? tasks[currentTaskIndex + 1] : null;
+    // Filter tasks
+    const filteredTasks = tasks.filter(t => {
+        if (filterEmployee !== "all" && !t.assignedEmployeeIds?.includes(filterEmployee)) return false;
+        if (filterPriority !== "all" && t.priority !== filterPriority) return false;
+        return true;
+    });
+
+    const currentTaskIndex = filteredTasks.findIndex(t => t.id === taskId);
+    const prevTask = currentTaskIndex > 0 ? filteredTasks[currentTaskIndex - 1] : null;
+    const nextTask = currentTaskIndex < filteredTasks.length - 1 ? filteredTasks[currentTaskIndex + 1] : null;
 
     if (loading) {
         return (
@@ -251,18 +326,86 @@ const TaskDetail = () => {
         <div className="flex flex-col h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-indigo-50/30 dark:from-slate-950 dark:via-slate-950 dark:to-indigo-950/20">
             <Navbar />
 
+            {/* Mobile Action Buttons */}
+            <div className="md:hidden fixed bottom-4 right-4 z-40 flex gap-2">
+                <Button
+                    onClick={() => {
+                        setShowMobileTasks(!showMobileTasks);
+                        setShowMobileComments(false);
+                    }}
+                    className="rounded-full shadow-lg bg-indigo-600 hover:bg-indigo-700 h-14 w-14"
+                >
+                    <List className="w-6 h-6" />
+                </Button>
+                <Button
+                    onClick={() => {
+                        setShowMobileComments(!showMobileComments);
+                        setShowMobileTasks(false);
+                    }}
+                    className="rounded-full shadow-lg bg-purple-600 hover:bg-purple-700 h-14 w-14 relative"
+                >
+                    <MessageSquare className="w-6 h-6" />
+                    {sortedComments.length > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                            {sortedComments.length}
+                        </span>
+                    )}
+                </Button>
+            </div>
+
             <div className="flex flex-1 overflow-hidden pt-16">
                 {/* Left Sidebar - Task List */}
-                <div className={`${isSidebarCollapsed ? 'w-0' : 'w-80'} transition-all duration-300 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden flex flex-col`}>
-                    <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                        <h3 className="font-bold text-slate-900 dark:text-slate-100">All Tasks</h3>
-                        <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-full">
-                            {tasks.length}
-                        </span>
+                <div className={`${isSidebarCollapsed ? 'w-0' : 'w-80'
+                    } ${showMobileTasks ? 'fixed inset-0 z-50 w-full md:relative md:w-80' : 'hidden md:flex'
+                    } transition-all duration-300 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden flex-col`}>
+                    <div className="p-4 border-b border-slate-200 dark:border-slate-800">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-bold text-slate-900 dark:text-slate-100">All Tasks</h3>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-full">
+                                    {filteredTasks.length}
+                                </span>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="md:hidden h-8 w-8"
+                                    onClick={() => setShowMobileTasks(false)}
+                                >
+                                    <X className="w-4 h-4" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Filters */}
+                        <div className="space-y-2">
+                            <Select value={filterEmployee} onValueChange={setFilterEmployee}>
+                                <SelectTrigger className="h-9 text-xs">
+                                    <SelectValue placeholder="Filter by Employee" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Employees</SelectItem>
+                                    {employees.map(emp => (
+                                        <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            <Select value={filterPriority} onValueChange={setFilterPriority}>
+                                <SelectTrigger className="h-9 text-xs">
+                                    <SelectValue placeholder="Filter by Priority" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Priorities</SelectItem>
+                                    <SelectItem value="High">High</SelectItem>
+                                    <SelectItem value="Normal">Normal</SelectItem>
+                                    <SelectItem value="Low">Low</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
 
                     <div className="flex-1 overflow-y-auto custom-scrollbar">
-                        {tasks.map((t) => (
+                        {filteredTasks.map((t) => (
                             <div
                                 key={t.id}
                                 onClick={() => navigateToTask(t.id)}
@@ -286,10 +429,10 @@ const TaskDetail = () => {
                     </div>
                 </div>
 
-                {/* Toggle Sidebar Button */}
+                {/* Toggle Sidebar Button - Desktop Only */}
                 <button
                     onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                    className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-r-lg p-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-lg"
+                    className="hidden md:block absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-r-lg p-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-lg"
                     style={{ left: isSidebarCollapsed ? '0' : '320px' }}
                 >
                     {isSidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -297,16 +440,18 @@ const TaskDetail = () => {
 
                 {/* Main Content - Task Details */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
-                    <div className="max-w-4xl mx-auto p-6 space-y-6">
+                    <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-4 md:space-y-6">
                         {/* Navigation */}
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
                             <Button
                                 variant="ghost"
                                 onClick={() => navigate("/tasks")}
                                 className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+                                size="sm"
                             >
                                 <ArrowLeft className="w-4 h-4 mr-2" />
-                                Back to Tasks
+                                <span className="hidden sm:inline">Back to Tasks</span>
+                                <span className="sm:hidden">Back</span>
                             </Button>
 
                             <div className="flex items-center gap-2">
@@ -332,10 +477,10 @@ const TaskDetail = () => {
                         </div>
 
                         {/* Task Header */}
-                        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 p-8">
-                            <div className="flex items-start justify-between mb-6">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-3 mb-3">
+                        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 p-4 md:p-8">
+                            <div className="flex flex-col md:flex-row items-start justify-between mb-6 gap-4">
+                                <div className="flex-1 w-full">
+                                    <div className="flex items-center gap-3 mb-3 flex-wrap">
                                         <Badge className={`${getPriorityColor(task.priority)} text-xs px-3 py-1`}>
                                             <Flag className="w-3 h-3 mr-1" />
                                             {task.priority}
@@ -344,7 +489,7 @@ const TaskDetail = () => {
                                             {task.status}
                                         </Badge>
                                     </div>
-                                    <h1 className="text-3xl font-black text-slate-900 dark:text-slate-100 mb-2">
+                                    <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-slate-100 mb-2">
                                         {task.title}
                                     </h1>
                                     <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -353,17 +498,16 @@ const TaskDetail = () => {
                                 </div>
 
                                 {/* Action Buttons */}
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 w-full md:w-auto">
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => {
-                                            window.open("/tasks", "_blank");
-                                        }}
-                                        className="rounded-xl"
+                                        onClick={() => window.open("/tasks", "_blank")}
+                                        className="rounded-xl flex-1 md:flex-initial"
                                     >
                                         <Plus className="w-4 h-4 mr-2" />
-                                        Create Subtask
+                                        <span className="hidden sm:inline">Create Subtask</span>
+                                        <span className="sm:hidden">Subtask</span>
                                     </Button>
                                     <Button
                                         variant="outline"
@@ -388,7 +532,7 @@ const TaskDetail = () => {
                             </div>
 
                             {/* Task Meta Info */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                                 <div className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl">
                                     <Calendar className="w-5 h-5 text-indigo-500" />
                                     <div>
@@ -434,37 +578,22 @@ const TaskDetail = () => {
                                 )}
                             </div>
 
-                            {/* Status and Priority Controls */}
-                            <div className="grid grid-cols-2 gap-4 mb-6">
-                                <div>
-                                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 block">Status</label>
-                                    <Select value={task.status} onValueChange={handleStatusUpdate}>
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Open">Open</SelectItem>
-                                            <SelectItem value="In Progress">In Progress</SelectItem>
-                                            <SelectItem value="Testing">Testing</SelectItem>
-                                            <SelectItem value="On Hold">On Hold</SelectItem>
-                                            <SelectItem value="Completed">Completed</SelectItem>
-                                            <SelectItem value="Pending">Pending</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div>
-                                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 block">Priority</label>
-                                    <Select value={task.priority} onValueChange={handlePriorityUpdate}>
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Low">Low</SelectItem>
-                                            <SelectItem value="Normal">Normal</SelectItem>
-                                            <SelectItem value="High">High</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                            {/* Status Control - Priority removed from here */}
+                            <div className="mb-6">
+                                <label className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 block">Status</label>
+                                <Select value={task.status} onValueChange={handleStatusUpdate}>
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Open">Open</SelectItem>
+                                        <SelectItem value="In Progress">In Progress</SelectItem>
+                                        <SelectItem value="Testing">Testing</SelectItem>
+                                        <SelectItem value="On Hold">On Hold</SelectItem>
+                                        <SelectItem value="Completed">Completed</SelectItem>
+                                        <SelectItem value="Pending">Pending</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             {/* Assigned Employees */}
@@ -544,14 +673,25 @@ const TaskDetail = () => {
                 </div>
 
                 {/* Right Sidebar - Comments */}
-                <div className="w-96 border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col">
+                <div className={`${showMobileComments ? 'fixed inset-0 z-50 w-full md:relative md:w-96' : 'hidden md:flex'
+                    } w-96 border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex-col`}>
                     <div className="p-4 border-b border-slate-200 dark:border-slate-800">
-                        <div className="flex items-center gap-2">
-                            <MessageSquare className="w-5 h-5 text-indigo-500" />
-                            <h3 className="font-bold text-slate-900 dark:text-slate-100">Comments</h3>
-                            <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-full">
-                                {sortedComments.length}
-                            </span>
+                        <div className="flex items-center gap-2 justify-between">
+                            <div className="flex items-center gap-2">
+                                <MessageSquare className="w-5 h-5 text-indigo-500" />
+                                <h3 className="font-bold text-slate-900 dark:text-slate-100">Comments</h3>
+                                <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-full">
+                                    {sortedComments.length}
+                                </span>
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="md:hidden h-8 w-8"
+                                onClick={() => setShowMobileComments(false)}
+                            >
+                                <X className="w-4 h-4" />
+                            </Button>
                         </div>
                     </div>
 

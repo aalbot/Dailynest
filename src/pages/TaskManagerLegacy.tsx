@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Navbar from "@/components/Navbar";
 import { useToast } from "@/components/ui/use-toast";
 import { firebase } from "@/lib/firebase";
-import { sendPushNotification } from "@/utils/fcm";
+import { sendPushNotification, sendCloudFunctionPush } from "@/utils/fcm";
 import { sendTaskUpdateEmail } from "@/utils/emailService";
 import {
     Activity,
@@ -540,12 +540,11 @@ const TaskManager = () => {
                     );
                 }
 
-                // Push
-                sendPushNotification(
+                // Cloud Function Push
+                sendCloudFunctionPush(
                     assignees,
                     "New Task Assigned 📋",
-                    `You have been assigned: ${newTask.title}`,
-                    { taskId, type: 'task_assignment' }
+                    `You have been assigned: ${newTask.title}`
                 );
             }
 
