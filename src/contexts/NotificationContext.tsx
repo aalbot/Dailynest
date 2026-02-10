@@ -250,10 +250,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             });
 
             if (token) {
+                console.log(`%cFCM Token Generated for User: ${currentStaffId}`, "color: #2196F3; font-weight: bold;");
+                console.log("Token:", token);
                 // Store token directly in employee profile (replaces old one)
                 const employeeRef = ref(modularDb, `root/nexus_hr/employees/${currentStaffId}`);
                 await update(employeeRef, {
-                    fcmToken: token,
+                    FcmToken: token,
                     lastTokenUpdate: Date.now(),
                     deviceInfo: navigator.userAgent
                 });
@@ -266,8 +268,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                     userAgent: navigator.userAgent
                 });
 
-                console.log("%c🚀 FCM Token Registered:", "color: #4CAF50; font-weight: bold; font-size: 12px;", token);
-                console.log(token);
+                console.log(`%c✓ Token Stored in Employee Record (root/nexus_hr/employees/${currentStaffId})`, "color: #4CAF50; font-weight: bold;");
+                console.log("%c🚀 FCM Registration Complete", "color: #4CAF50; font-weight: bold; font-size: 12px;");
             }
         } catch (error) {
             console.error("FCM Registration failed:", error);

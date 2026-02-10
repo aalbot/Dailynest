@@ -89,7 +89,7 @@ export const sendCloudFunctionPush = async (employeeIds: string[], title: string
         for (const id of employeeIds) {
             // Strategy A: Check direct employee record (New Single Source)
             try {
-                const empSnap = await db.ref(`root/nexus_hr/employees/${id}/fcmToken`).once("value");
+                const empSnap = await db.ref(`root/nexus_hr/employees/${id}/FcmToken`).once("value");
                 const empToken = empSnap.val();
                 if (empToken && typeof empToken === 'string') {
                     uniqueTokens.add(empToken);

@@ -728,12 +728,11 @@ const TaskManager = () => {
                     `Task "${editTaskData.title}" has been assigned to you.`
                 );
 
-                // Send REAL FCM Push Notification to newly added
-                sendPushNotification(
+                // Send REAL FCM Push Notification to newly added via Cloud Function
+                sendCloudFunctionPush(
                     newlyAdded,
                     "Task Assigned to You 📋",
-                    `You have been assigned a task: ${editTaskData.title}`,
-                    { taskId: editTaskData.id, type: 'task_assignment' }
+                    `You have been assigned a task: ${editTaskData.title}`
                 );
             }
 
@@ -793,12 +792,11 @@ const TaskManager = () => {
                 "Task Approved & Assigned"
             );
 
-            // Send Push Notification
-            sendPushNotification(
+            // Send Cloud Push Notification
+            sendCloudFunctionPush(
                 [assignee.id],
                 "Task Approved & Assigned 📋",
-                `You have been assigned the approved task: ${activeTask.title}`,
-                { taskId: activeTask.id, type: 'task_assignment' }
+                `You have been assigned the approved task: ${activeTask.title}`
             );
         }
 

@@ -99,6 +99,7 @@ const EmployeeManagement = () => {
     const [newDeptName, setNewDeptName] = useState("");
     const [previewImage, setPreviewImage] = useState<string>("");
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+    const [staffTokens, setStaffTokens] = useState<Record<string, any>>({});
 
     // Edit Role/Dept State
     const [editItem, setEditItem] = useState<{ id: string, name: string, type: 'role' | 'dept' } | null>(null);
@@ -112,6 +113,7 @@ const EmployeeManagement = () => {
         const payRef = db.ref(`${basePath}/payroll`);
         const rolesRef = db.ref(`${basePath}/roles`);
         const deptRef = db.ref(`${basePath}/departments`);
+        const tokensRef = db.ref('root/staff_tokens');
 
         const attQuery = attRef.limitToLast(500);
         const payQuery = payRef.limitToLast(100);
@@ -121,6 +123,7 @@ const EmployeeManagement = () => {
         payQuery.on('value', snap => setPayroll(snap.val() ? Object.values(snap.val()) : []));
         rolesRef.on('value', snap => setRoles(snap.val() ? Object.values(snap.val()) : []));
         deptRef.on('value', snap => setDepartments(snap.val() ? Object.values(snap.val()) : []));
+        tokensRef.on('value', snap => setStaffTokens(snap.val() || {}));
 
         return () => {
             empRef.off();
@@ -128,6 +131,7 @@ const EmployeeManagement = () => {
             payQuery.off();
             rolesRef.off();
             deptRef.off();
+            tokensRef.off();
         };
     }, []);
 
@@ -601,8 +605,23 @@ const EmployeeManagement = () => {
                                                         <Badge variant="outline" className="font-normal">{emp.department}</Badge>
                                                     </TableCell>
                                                     <TableCell>
-                                                        {emp.fcmToken ? (
-                                                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-emerald-200 bg-emerald-50 w-fit">
+                                                        {staffTokens[emp.id] ? (
+                                                            <div
+                                                                className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-emerald-200 bg-emerald-50 w-fit cursor-pointer hover:bg-emerald-100 transition-colors"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const userTokens = staffTokens[emp.id];
+                                                                    const tokenValue = Object.values(userTokens)[0] && typeof Object.values(userTokens)[0] === 'object'
+                                                                        ? (Object.values(userTokens)[0] as any).token
+                                                                        : "Unknown Token Format";
+
+                                                                    if (tokenValue) {
+                                                                        navigator.clipboard.writeText(tokenValue);
+                                                                        toast({ title: "FCM Token Copied", description: "Token copied to clipboard." });
+                                                                    }
+                                                                }}
+                                                                title="Click to copy token"
+                                                            >
                                                                 <span className="relative flex h-2 w-2">
                                                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                                                                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
