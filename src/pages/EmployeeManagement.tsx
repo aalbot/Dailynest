@@ -32,6 +32,7 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogDescription,
     DialogFooter,
 } from "@/components/ui/dialog";
 import {
@@ -97,6 +98,7 @@ const EmployeeManagement = () => {
     const [newRoleName, setNewRoleName] = useState("");
     const [newDeptName, setNewDeptName] = useState("");
     const [previewImage, setPreviewImage] = useState<string>("");
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
     // Edit Role/Dept State
     const [editItem, setEditItem] = useState<{ id: string, name: string, type: 'role' | 'dept' } | null>(null);
@@ -247,6 +249,22 @@ const EmployeeManagement = () => {
             .then(() => {
                 setEditItem(null);
                 toast({ title: "Updated", description: "Item updated successfully." });
+            });
+    };
+
+    const handleDeleteEmployee = () => {
+        if (!selectedEmp) return;
+
+        firebase.database().ref(`root/nexus_hr/employees/${selectedEmp.id}`).remove()
+            .then(() => {
+                setIsDeleteConfirmOpen(false);
+                setIsProfileOpen(false);
+                setSelectedEmp(null);
+                toast({ title: "Deleted", description: "Employee has been removed successfully." });
+            })
+            .catch((error) => {
+                console.error("Delete failed:", error);
+                toast({ title: "Error", description: "Failed to delete employee.", variant: "destructive" });
             });
     };
 
@@ -1005,19 +1023,43 @@ const EmployeeManagement = () => {
                                         <span className="text-slate-700 dark:text-slate-300">Joined on {selectedEmp.joiningDate}</span>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4 mt-6">
-                                    <Button variant="outline" className="w-full border-amber-200 text-amber-700 hover:bg-amber-50" onClick={() => { setIsProfileOpen(false); setAdvanceEmpId(selectedEmp.id); setIsAdvanceOpen(true); }}>
-                                        <HandCoins className="w-4 h-4 mr-2" /> Issue Advance
-                                    </Button>
-                                    <Button variant="default" className="w-full bg-slate-900 text-white" onClick={() => { setIsProfileOpen(false); setIsEditEmpOpen(true); }}>
-                                        Edit Profile
-                                    </Button>
-                                </div>
+                            </div>
+                            <div className="flex gap-2 mt-auto pt-6">
+                                <Button variant="outline" className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300" onClick={() => { setIsProfileOpen(false); setIsDeleteConfirmOpen(true); }}>
+                                    <Trash2 className="w-4 h-4 mr-2" /> Delete
+                                </Button>
+                                <Button variant="outline" className="flex-1 border-amber-200 text-amber-700 hover:bg-amber-50" onClick={() => { setIsProfileOpen(false); setAdvanceEmpId(selectedEmp.id); setIsAdvanceOpen(true); }}>
+                                    <HandCoins className="w-4 h-4 mr-2" /> Issue Advance
+                                </Button>
+                                <Button variant="default" className="flex-1 bg-slate-900 text-white" onClick={() => { setIsProfileOpen(false); setIsEditEmpOpen(true); }}>
+                                    Edit Profile
+                                </Button>
                             </div>
                         </div>
                     )}
                 </SheetContent>
             </Sheet>
+
+            {/* DELETE CONFIRMATION DIALOG */}
+            <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-red-600">
+                            <Trash2 className="w-5 h-5" />
+                            Confirm Deletion
+                        </DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to remove <strong>{selectedEmp?.firstName} {selectedEmp?.lastName}</strong>? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)}>Cancel</Button>
+                        <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDeleteEmployee}>
+                            Delete Employee
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* ADD EMPLOYEE MODAL (Reused for Edit with logic) */}
             <Dialog open={isAddEmpOpen || isEditEmpOpen} onOpenChange={(open) => { if (!open) { setIsAddEmpOpen(false); setIsEditEmpOpen(false); } }}>
@@ -1097,10 +1139,10 @@ const EmployeeManagement = () => {
                         </DialogFooter>
                     </form>
                 </DialogContent>
-            </Dialog>
+            </Dialog >
 
             {/* ATTENDANCE MODAL */}
-            <Dialog open={isMarkAttOpen} onOpenChange={setIsMarkAttOpen}>
+            < Dialog open={isMarkAttOpen} onOpenChange={setIsMarkAttOpen} >
                 <DialogContent>
                     <DialogHeader><DialogTitle>Mark Attendance</DialogTitle></DialogHeader>
                     <form onSubmit={handleMarkAttendance} className="space-y-4 pt-4">
@@ -1132,10 +1174,10 @@ const EmployeeManagement = () => {
                         </DialogFooter>
                     </form>
                 </DialogContent>
-            </Dialog>
+            </Dialog >
 
             {/* ADVANCE MODAL */}
-            <Dialog open={isAdvanceOpen} onOpenChange={setIsAdvanceOpen}>
+            < Dialog open={isAdvanceOpen} onOpenChange={setIsAdvanceOpen} >
                 <DialogContent>
                     <DialogHeader><DialogTitle>Issue Advance</DialogTitle></DialogHeader>
                     <form onSubmit={handleIssueAdvance} className="space-y-4 pt-4">
@@ -1155,10 +1197,10 @@ const EmployeeManagement = () => {
                         </DialogFooter>
                     </form>
                 </DialogContent>
-            </Dialog>
+            </Dialog >
 
             {/* PAYROLL MODAL */}
-            <Dialog open={isPayrollOpen} onOpenChange={setIsPayrollOpen}>
+            < Dialog open={isPayrollOpen} onOpenChange={setIsPayrollOpen} >
                 <DialogContent>
                     <DialogHeader><DialogTitle>Process Payroll</DialogTitle></DialogHeader>
                     <form onSubmit={handleProcessPayroll} className="space-y-4 pt-4">
@@ -1184,10 +1226,10 @@ const EmployeeManagement = () => {
                         </DialogFooter>
                     </form>
                 </DialogContent>
-            </Dialog>
+            </Dialog >
 
             {/* EDIT ROLE/DEPT DIALOG */}
-            <Dialog open={!!editItem} onOpenChange={(open) => !open && setEditItem(null)}>
+            < Dialog open={!!editItem} onOpenChange={(open) => !open && setEditItem(null)}>
                 <DialogContent className="sm:max-w-[400px]">
                     <DialogHeader>
                         <DialogTitle>Edit {editItem?.type === 'role' ? 'Role' : 'Department'}</DialogTitle>
@@ -1205,9 +1247,9 @@ const EmployeeManagement = () => {
                         <Button onClick={handleUpdateItem} className="bg-indigo-600 text-white hover:bg-indigo-700">Save Changes</Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
+            </Dialog >
 
-        </div>
+        </div >
     );
 };
 

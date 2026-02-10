@@ -1,15 +1,47 @@
 
+const getStoredConfig = () => {
+    try {
+        if (typeof window !== 'undefined') {
+            const stored = localStorage.getItem('FIREBASE_CONFIG_OVERRIDE');
+            if (stored) return JSON.parse(stored);
+        }
+    } catch (e) {
+        console.error("Failed to load firebase config override", e);
+    }
+    return null;
+};
+
+const getStoredBranding = () => {
+    try {
+        if (typeof window !== 'undefined') {
+            const stored = localStorage.getItem('APP_BRANDING_OVERRIDE');
+            if (stored) return JSON.parse(stored);
+        }
+    } catch (e) {
+        console.error("Failed to load branding override", e);
+    }
+    return null;
+};
+
+const DEFAULT_FIREBASE = {
+    apiKey: "AIzaSyBUhKliTOKWKVW-TCTaYiRN9FXCjoxcsHg",
+    authDomain: "dclub-32718.firebaseapp.com",
+    databaseURL: "https://dclub-32718-default-rtdb.firebaseio.com",
+    projectId: "dclub-32718",
+    storageBucket: "dclub-32718.firebasestorage.app",
+    messagingSenderId: "401946278556",
+    appId: "1:401946278556:web:efd912ca5196ce248b0b59",
+    measurementId: "G-Q9RC6QRR7K"
+};
+
+const DEFAULT_BRANDING = {
+    appName: "DailyClub",
+    logoUrl: "/logo.png"
+};
+
 export const CONFIG = {
-    FIREBASE: {
-        apiKey: "AIzaSyBUhKliTOKWKVW-TCTaYiRN9FXCjoxcsHg",
-        authDomain: "dclub-32718.firebaseapp.com",
-        databaseURL: "https://dclub-32718-default-rtdb.firebaseio.com",
-        projectId: "dclub-32718",
-        storageBucket: "dclub-32718.firebasestorage.app",
-        messagingSenderId: "401946278556",
-        appId: "1:401946278556:web:efd912ca5196ce248b0b59",
-        measurementId: "G-Q9RC6QRR7K"
-    },
+    FIREBASE: getStoredConfig() || DEFAULT_FIREBASE,
+    BRANDING: getStoredBranding() || DEFAULT_BRANDING,
     GOOGLE_MAPS: {
         apiKey: "AIzaSyDj1gRVZ4lRJIM2v8c4pJxdyfEY6I1ZGEk"
     },

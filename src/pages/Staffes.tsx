@@ -350,13 +350,42 @@ function Logic(data: PageData, render: () => void) {
                     }
                 }
 
-                // If staff, automatically open edit modal for app assignment
+                // If staff, automatically create employee record if not exists
                 if (role === 'Staff') {
+                    if (!updatedUser.employeeId) {
+                        const newEmpId = 'EMP-' + Date.now();
+                        const nameParts = updatedUser.name ? updatedUser.name.split(' ') : ['Unknown', 'User'];
+                        const firstName = nameParts[0];
+                        const lastName = nameParts.slice(1).join(' ') || '';
+
+                        const newEmployee = {
+                            id: newEmpId,
+                            firstName,
+                            lastName,
+                            email: updatedUser.email || '',
+                            contactNumber: updatedUser.contactNumber || updatedUser.phone || '',
+                            role: updatedUser.role || 'Staff',
+                            department: 'General',
+                            salary: 0,
+                            status: 'Active',
+                            joiningDate: new Date().toISOString().split('T')[0],
+                            photoUrl: `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=random&color=fff&size=128`,
+                            advanceBalance: 0,
+                            staffUserId: userKey
+                        };
+
+                        await db.update(`nexus_hr/employees/${newEmpId}`, newEmployee);
+                        updatedUser.employeeId = newEmpId;
+
+                        // Update the staff record with the new employee ID
+                        await db.update(path, { [userKey]: updatedUser });
+                    }
+
                     dispatch({ type: "EDIT", staff: updatedUser });
                 }
 
                 await db.update(`notifications/${request.id}`, { read: true });
-                toast.success(`${role} approved successfully`);
+                toast.success(`${role} approved and added to employees successfully`);
             } else {
                 toast.error("User not found for approval");
             }

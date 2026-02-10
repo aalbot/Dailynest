@@ -17,14 +17,9 @@ import {
     VolumeX,
     Palette,
     Check,
-    BarChart3,
-    Activity,
-    Database,
-    Zap,
+
     ChevronRight,
-    ClipboardList,
-    Package,
-    ShoppingBag,
+
     Menu,
     X,
     LogOut
@@ -50,37 +45,13 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
     const [activeTab, setActiveTab] = useState("general");
     const [isMenuOpen, setIsMenuOpen] = useState(false); // New state for mobile menu
 
-    // Live Usage State
-    const [bandwidth, setBandwidth] = useState(1.24);
-    const [requests, setRequests] = useState(45.2);
-    const [resourceMatrix, setResourceMatrix] = useState([
-        { name: "Order Engine", data: 450, calls: 12402, color: "bg-pink-500", percent: 85, icon: ClipboardList },
-        { name: "Inventory Cloud", data: 120, calls: 4150, color: "bg-blue-500", percent: 35, icon: Package },
-        { name: "Product Catalog", data: 85, calls: 2840, color: "bg-violet-500", percent: 25, icon: ShoppingBag },
-    ]);
 
-    useEffect(() => {
-        if (!isOpen || activeTab !== "usage") return;
-
-        const interval = setInterval(() => {
-            setBandwidth(prev => +(prev + (Math.random() * 0.005)).toFixed(3));
-            setRequests(prev => +(prev + (Math.random() * 0.1)).toFixed(1));
-            setResourceMatrix(prev => prev.map(app => ({
-                ...app,
-                data: +(app.data + (Math.random() * 0.2)).toFixed(1),
-                calls: app.calls + Math.floor(Math.random() * 3),
-                percent: Math.min(100, app.percent + (Math.random() > 0.95 ? 1 : 0))
-            })));
-        }, 3000);
-
-        return () => clearInterval(interval);
-    }, [isOpen, activeTab]);
 
     const tabs = [
         { id: "general", label: getTranslation("settings.tabs.general"), icon: Settings },
         { id: "appearance", label: getTranslation("settings.tabs.appearance"), icon: Palette },
         { id: "notifications", label: getTranslation("settings.tabs.notifications"), icon: Bell },
-        { id: "usage", label: getTranslation("settings.tabs.usage"), icon: Activity },
+
         { id: "account", label: getTranslation("settings.tabs.account"), icon: User },
         { id: "security", label: getTranslation("settings.tabs.security"), icon: Shield },
     ];
@@ -184,12 +155,7 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                                 <DialogTitle className="text-3xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tighter">
                                     {activeTabLabel}
                                 </DialogTitle>
-                                {activeTab === "usage" && (
-                                    <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 text-emerald-500 rounded-full animate-pulse border border-emerald-500/20 shrink-0">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest">Live Monitoring</span>
-                                    </div>
-                                )}
+
                             </div>
                             <DialogDescription className="text-sm md:text-sm text-slate-500 mt-2 font-medium opacity-80">
                                 {getTranslation("settings.general.subtitle")}
@@ -339,88 +305,7 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                                 </div>
                             )}
 
-                            {activeTab === "usage" && (
-                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div className="p-6 rounded-[32px] bg-indigo-50/30 dark:bg-slate-800/20 border border-slate-100 dark:border-slate-800/40 relative overflow-hidden group">
-                                            <div className="absolute top-6 right-6 text-indigo-500/20 group-hover:scale-110 transition-transform"><Database size={32} /></div>
-                                            <div className="space-y-1 relative z-10">
-                                                <p className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.2em]">Live Bandwidth</p>
-                                                <div className="flex items-baseline gap-2">
-                                                    <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">{bandwidth}</h3>
-                                                    <span className="text-[11px] font-bold text-slate-400 uppercase">GB Transferred</span>
-                                                </div>
-                                            </div>
-                                            <div className="mt-6 pt-6 border-t border-slate-100/50 dark:border-slate-800/50 flex items-center justify-between">
-                                                <div className="space-y-1">
-                                                    <p className="text-[9px] font-black text-slate-400 uppercase">Optimization Status</p>
-                                                    <p className="text-[10px] font-black text-emerald-500 uppercase flex items-center gap-1.5">
-                                                        <Zap size={10} fill="currentColor" /> Granular Sync Active
-                                                    </p>
-                                                </div>
-                                                <div className="px-3 py-1.5 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest leading-none">
-                                                    -65% Cost
-                                                </div>
-                                            </div>
-                                        </div>
 
-                                        <div className="p-6 rounded-[32px] bg-emerald-50/30 dark:bg-slate-800/20 border border-slate-100 dark:border-slate-800/40 relative overflow-hidden group">
-                                            <div className="absolute top-6 right-6 text-emerald-500/20 group-hover:scale-110 transition-transform"><Zap size={32} /></div>
-                                            <div className="space-y-1">
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">System Load</p>
-                                                <div className="flex items-baseline gap-2">
-                                                    <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">{requests}</h3>
-                                                    <span className="text-[11px] font-bold text-slate-400 uppercase">K REQ</span>
-                                                </div>
-                                            </div>
-                                            <div className="mt-6 pt-6 border-t border-slate-100/50 dark:border-slate-800/50">
-                                                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest mb-2.5">
-                                                    <span className="text-emerald-600 dark:text-emerald-400">API Status</span>
-                                                    <span className="text-emerald-500 font-bold uppercase tracking-widest">Optimal</span>
-                                                </div>
-                                                <div className="w-full bg-slate-200/50 dark:bg-slate-700/50 h-1.5 rounded-full overflow-hidden">
-                                                    <div className="bg-emerald-500 h-full rounded-full w-[28%]" />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-4">
-                                        <h4 className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 px-1">Resource Matrix</h4>
-                                        <div className="space-y-3">
-                                            {resourceMatrix.map((app) => (
-                                                <div key={app.name} className="p-5 rounded-[28px] bg-white dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60 hover:border-slate-200 dark:hover:border-slate-700 transition-all group">
-                                                    <div className="flex items-center justify-between gap-4 mb-4">
-                                                        <div className="flex items-center gap-4 min-w-0">
-                                                            <div className={`p-2.5 rounded-2xl ${app.color}/10 ${app.color.replace('bg-', 'text-')} shrink-0`}>
-                                                                <app.icon size={18} />
-                                                            </div>
-                                                            <div className="min-w-0">
-                                                                <h5 className="text-sm font-black text-slate-900 dark:text-slate-100 truncate">{app.name}</h5>
-                                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Module</p>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="flex items-center gap-6 shrink-0">
-                                                            <div className="text-right">
-                                                                <p className="text-xs font-black text-slate-900 dark:text-white">{app.data} MB</p>
-                                                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">IO</p>
-                                                            </div>
-                                                            <div className="text-right border-l border-slate-100 dark:border-slate-800 pl-6">
-                                                                <p className="text-xs font-black text-slate-900 dark:text-white">{app.calls.toLocaleString()}</p>
-                                                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Syncs</p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="w-full bg-slate-100 dark:bg-slate-700/50 h-1 rounded-full overflow-hidden">
-                                                        <div className={`${app.color} h-full rounded-full transition-all duration-1000 ease-out`} style={{ width: `${app.percent}%` }} />
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
 
                             {activeTab === "account" && (
                                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500 py-4">

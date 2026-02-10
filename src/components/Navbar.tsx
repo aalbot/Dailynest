@@ -36,6 +36,7 @@ import "firebase/compat/database";
 import { iconMap } from "@/utils/appIcons";
 import SettingsModal from "./SettingsModal";
 import { useLang } from "@/contexts/LanguageContext";
+import { CONFIG } from "@/config";
 
 const defaultAppItems = [
   { icon: TrendingUp, label: "Dashboard", path: "/dashboard", color: "bg-rose-500" },
@@ -286,8 +287,8 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/apps" className="flex items-center gap-3">
-            <img src="/logo.png" alt="DailyClub" className="w-9 h-9 rounded-xl object-contain" />
-            <span className="font-bold text-lg tracking-tight text-slate-500 dark:text-slate-400">{getTranslation("navbar.branding")}</span>
+            <img src={CONFIG.BRANDING.logoUrl} alt={CONFIG.BRANDING.appName} className="w-9 h-9 rounded-xl object-contain" />
+            <span className="font-bold text-lg tracking-tight text-slate-500 dark:text-slate-400">{CONFIG.BRANDING.appName}</span>
           </Link>
 
           {/* Right side icons */}

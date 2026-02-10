@@ -40,7 +40,8 @@
             "seo": "SEO",
             "taskManager": "Task Manager",
             "notifications": "Notification",
-            "staff": "Staff",
+            "staff": "Onboard",
+            "infra": "Infra",
             "test": "Test App"
         },
         "gateway": {
@@ -327,6 +328,7 @@
             "taskManager": "إدارة المهام",
             "notifications": "التنبيهات",
             "staff": "الموظفين",
+            "infra": "البنية التحتية",
             "test": "تطبيق تجريبي"
         },
         "gateway": {
@@ -613,6 +615,7 @@
             "taskManager": "ടാസ്‌ക് മാനേജർ",
             "notifications": "അറിയിപ്പുകൾ",
             "staff": "സ്റ്റാഫ്",
+            "infra": "ഇൻഫ്രാ",
             "test": "ടെസ്റ്റ് ആപ്പ്"
         },
         "gateway": {

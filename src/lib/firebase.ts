@@ -12,7 +12,14 @@ import "firebase/compat/storage";
 import { CONFIG } from "@/config";
 
 // Your web app's Firebase configuration
-const firebaseConfig = CONFIG.FIREBASE;
+const getStoredConfig = () => {
+    try {
+        const stored = typeof window !== 'undefined' ? localStorage.getItem('firebase_config_override') : null;
+        return stored ? JSON.parse(stored) : null;
+    } catch { return null; }
+};
+
+const firebaseConfig = getStoredConfig() || CONFIG.FIREBASE;
 
 // Initialize modular SDK
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();

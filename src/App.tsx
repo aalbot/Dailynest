@@ -21,9 +21,11 @@ const CustomApp = lazy(() => import("./pages/CustomApp"));
 const KeywordEntry = lazy(() => import("./pages/KeywordEntry"));
 const BackOffice = lazy(() => import("./pages/BackOffice"));
 const EmployeeManagement = lazy(() => import("./pages/EmployeeManagement"));
-const TaskManager = lazy(() => import("./pages/TaskManager"));
+const TaskManager = lazy(() => import("./pages/TaskManagerLegacy"));
+const TaskDetail = lazy(() => import("./pages/TaskDetail"));
 const NotificationManager = lazy(() => import("./pages/NotificationManager"));
 const Staffes = lazy(() => import("./pages/Staffes"));
+const InfraConsole = lazy(() => import("./pages/InfraConsole"));
 const StaffActionTestPage = lazy(() => import("./pages/StaffActionTestPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -83,8 +85,10 @@ const App = () => (
                   <Route path="/back-office" element={<BackOffice />} />
                   <Route path="/employee-management" element={<EmployeeManagement />} />
                   <Route path="/tasks" element={<TaskManager />} />
+                  <Route path="/tasks/:taskId" element={<TaskDetail />} />
                   <Route path="/notifications" element={<NotificationManager />} />
                   <Route path="/staffes" element={<Staffes />} />
+                  <Route path="/infra" element={<InfraConsole />} />
                   <Route path="/staff-test" element={<StaffActionTestPage />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
