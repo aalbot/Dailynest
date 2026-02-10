@@ -16,7 +16,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { sendTaskUpdateEmail } from "@/utils/emailService";
+import { sendCloudFunctionPush } from "@/utils/fcm";
 
 const TaskDetail = () => {
     const { taskId } = useParams<{ taskId: string }>();
@@ -152,6 +155,61 @@ const TaskDetail = () => {
         await db.ref(`root/nexus_hr/tasks/${taskId}`).remove();
         toast.success("Task deleted");
         navigate("/tasks");
+    };
+
+    const handleUpdateTask = async () => {
+        if (!editTaskData) return;
+        const db = firebase.database();
+        try {
+            // For approval flow, if status was raised, force it to Open if user didn't change it to something else
+            const newStatus = (task.status === 'Raised' && editTaskData.status === 'Raised') ? 'Open' : editTaskData.status;
+
+            await db.ref(`root/nexus_hr/tasks/${taskId}`).update({
+                title: editTaskData.title,
+                description: editTaskData.description,
+                priority: editTaskData.priority,
+                dueDate: editTaskData.dueDate || null,
+                assignedEmployeeIds: editTaskData.assignedEmployeeIds || [],
+                status: newStatus,
+                effortDays: editTaskData.effortDays || null
+            });
+
+            // Notifications for new assignees
+            const oldAssignees = task.assignedEmployeeIds || [];
+            const newAssignees = editTaskData.assignedEmployeeIds || [];
+            const newlyAdded = newAssignees.filter((id: string) => !oldAssignees.includes(id));
+
+            if (newlyAdded.length > 0) {
+                // Email
+                const recipients = newlyAdded
+                    .map((id: string) => employees.find(e => e.id === id))
+                    .filter((e: any) => e && e.email)
+                    .map((e: any) => ({ email: e.email }));
+
+                if (recipients.length > 0) {
+                    sendTaskUpdateEmail(
+                        recipients,
+                        "Task Assigned to You",
+                        `<h2>Task Assigned</h2><p>You have been assigned to: <strong>${editTaskData.title}</strong></p>`,
+                        false,
+                        `New Assignment: ${editTaskData.title}`
+                    );
+                }
+
+                // Push
+                sendCloudFunctionPush(
+                    newlyAdded,
+                    "New Task Assigned 📋",
+                    `You have been assigned: ${editTaskData.title}`
+                );
+            }
+
+            toast.success(task.status === 'Raised' ? "Task approved & updated" : "Task updated successfully");
+            setIsEditOpen(false);
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to update task");
+        }
     };
 
     const handlePinComment = async (commentId: string, currentPinned: boolean) => {
@@ -499,6 +557,19 @@ const TaskDetail = () => {
 
                                 {/* Action Buttons */}
                                 <div className="flex items-center gap-2 w-full md:w-auto">
+                                    {!isStaff && task.status === 'Raised' && (
+                                        <Button
+                                            size="sm"
+                                            className="bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-lg shadow-green-200 dark:shadow-none flex-1 md:flex-initial"
+                                            onClick={() => {
+                                                setEditTaskData({ ...task, status: 'Open' }); // Default to Open when approving
+                                                setIsEditOpen(true);
+                                            }}
+                                        >
+                                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                                            Approve
+                                        </Button>
+                                    )}
                                     <Button
                                         variant="outline"
                                         size="sm"
@@ -931,6 +1002,124 @@ const TaskDetail = () => {
                     />
                 </div>
             )}
+
+            {/* Edit/Approve Task Dialog */}
+            <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+                <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                    <DialogHeader>
+                        <DialogTitle>{task?.status === 'Raised' ? 'Approve & Edit Task' : 'Edit Task'}</DialogTitle>
+                        <DialogDescription>Make changes to the task details below.</DialogDescription>
+                    </DialogHeader>
+
+                    {editTaskData && (
+                        <div className="space-y-4 py-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Title</Label>
+                                    <Input
+                                        value={editTaskData.title}
+                                        onChange={(e) => setEditTaskData({ ...editTaskData, title: e.target.value })}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Priority</Label>
+                                    <Select
+                                        value={editTaskData.priority}
+                                        onValueChange={(val) => setEditTaskData({ ...editTaskData, priority: val })}
+                                    >
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Low">Low</SelectItem>
+                                            <SelectItem value="Normal">Normal</SelectItem>
+                                            <SelectItem value="High">High</SelectItem>
+                                            <SelectItem value="Crucial">Crucial</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Description</Label>
+                                <textarea
+                                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-800 dark:border-slate-700"
+                                    value={editTaskData.description}
+                                    onChange={(e) => setEditTaskData({ ...editTaskData, description: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Due Date</Label>
+                                    <Input
+                                        type="date"
+                                        value={editTaskData.dueDate ? new Date(editTaskData.dueDate).toISOString().split('T')[0] : ''}
+                                        onChange={(e) => setEditTaskData({ ...editTaskData, dueDate: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Effort (Days)</Label>
+                                    <Input
+                                        type="number"
+                                        placeholder="e.g. 2"
+                                        value={editTaskData.effortDays || ''}
+                                        onChange={(e) => setEditTaskData({ ...editTaskData, effortDays: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Status</Label>
+                                <Select
+                                    value={editTaskData.status}
+                                    onValueChange={(val) => setEditTaskData({ ...editTaskData, status: val })}
+                                >
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Raised">Raised</SelectItem>
+                                        <SelectItem value="Open">Open</SelectItem>
+                                        <SelectItem value="In Progress">In Progress</SelectItem>
+                                        <SelectItem value="Testing">Testing</SelectItem>
+                                        <SelectItem value="Completed">Completed</SelectItem>
+                                        <SelectItem value="On Hold">On Hold</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Assigned Employees</Label>
+                                <div className="border rounded-md p-2 max-h-40 overflow-y-auto space-y-1 dark:border-slate-700 custom-scrollbar">
+                                    {employees.map(emp => (
+                                        <div key={emp.id} className="flex items-center space-x-2 p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
+                                            <input
+                                                type="checkbox"
+                                                id={`assign-${emp.id}`}
+                                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                checked={(editTaskData.assignedEmployeeIds || []).includes(emp.id)}
+                                                onChange={(e) => {
+                                                    const current = editTaskData.assignedEmployeeIds || [];
+                                                    if (e.target.checked) {
+                                                        setEditTaskData({ ...editTaskData, assignedEmployeeIds: [...current, emp.id] });
+                                                    } else {
+                                                        setEditTaskData({ ...editTaskData, assignedEmployeeIds: current.filter((id: string) => id !== emp.id) });
+                                                    }
+                                                }}
+                                            />
+                                            <label htmlFor={`assign-${emp.id}`} className="text-sm cursor-pointer select-none flex-1">
+                                                {emp.firstName} {emp.lastName}
+                                            </label>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+                        <Button onClick={handleUpdateTask}>Save Changes</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };
