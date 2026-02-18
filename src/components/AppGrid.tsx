@@ -19,7 +19,6 @@ import {
   Users,
   Grid3X3,
   Bell,
-  FlaskConical,
   ShieldAlert,
 } from "lucide-react";
 import AppIcon from "./AppIcon";
@@ -56,7 +55,6 @@ const initialApps = [
   { icon: Bell, label: "Notification", colorClass: "app-icon-red", path: "/notifications", key: "apps.notifications" },
   { icon: Users, label: "Onboard", colorClass: "app-icon-cyan", path: "/staffes", key: "apps.staff" },
   { icon: ShieldAlert, label: "Infra", colorClass: "app-icon-red", path: "/infra", key: "apps.infra" },
-  { icon: FlaskConical, label: "test", colorClass: "app-icon-orange", path: "/staff-test", key: "apps.test" },
 ];
 
 const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolean; searchQuery?: string }) => {
