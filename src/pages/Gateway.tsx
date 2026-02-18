@@ -11,11 +11,13 @@ import "firebase/compat/database";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLang } from "@/contexts/LanguageContext";
+import { useBranding } from "@/contexts/BrandingContext";
 
 const Gateway = () => {
     const navigate = useNavigate();
     const { isDark, toggleTheme } = useTheme();
     const { getTranslation } = useLang();
+    const { config: branding } = useBranding();
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [isSignup, setIsSignup] = useState(false);
@@ -316,7 +318,7 @@ const Gateway = () => {
                         <span>{getTranslation("gateway.badge")}</span>
                     </div>
                     <h1 className={`text-5xl sm:text-7xl font-black tracking-tighter leading-[0.9] text-balance transition-colors duration-300 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                        Daily<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500">Club</span>
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500">{branding.appName}</span>
                     </h1>
                     <p className={`text-lg sm:text-xl font-medium max-w-2xl mx-auto leading-relaxed transition-colors duration-300 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                         {isSignup ? getTranslation("gateway.signupSubtitle") : getTranslation("gateway.subtitle")}
@@ -530,7 +532,7 @@ const Gateway = () => {
                 {/* Footer Credits */}
                 <div className="mt-8 text-center animate-reveal-up stagger-4 opacity-30 hover:opacity-100 transition-opacity duration-700">
                     <p className={`text-[10px] font-bold uppercase tracking-[0.4em] transition-colors ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                        &copy; 2024 {getTranslation("gateway.copyright")}
+                        &copy; 2024 {getTranslation("gateway.copyright", { appName: branding.appName })}
                     </p>
                 </div>
             </div>

@@ -136,4 +136,5 @@ export type InfraEvent =
     | { type: "SAVE_FIREBASE_CONFIG" }
     | { type: "UPDATE_BRANDING_CONFIG"; key: string; value: string }
     | { type: "SAVE_BRANDING_CONFIG" }
-    | { type: "REFRESH_SYSTEM_HEALTH" };
+    | { type: "REFRESH_SYSTEM_HEALTH" }
+    | { type: "REFRESH_BRANDING" };

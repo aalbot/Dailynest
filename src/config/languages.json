@@ -49,7 +49,7 @@
             "title": "DailyClub",
             "subtitle": "One ecosystem. Infinite possibilities. Infinite Access.",
             "signupSubtitle": "Join our ecosystem. Waiting for your application.",
-            "copyright": "DailyClub Digital Ecosystem • All Systems Operational",
+            "copyright": "{appName} Digital Ecosystem • All Systems Operational",
             "login": {
                 "title": "Portal Access",
                 "description": "Enter your credentials to proceed into the system.",

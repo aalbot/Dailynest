@@ -33,6 +33,7 @@ import ScrollToTop from "./components/ScrollToTop";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
+import { BrandingProvider } from "./contexts/BrandingContext";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -62,40 +63,42 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <LanguageProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <NotificationProvider>
-              <ScrollToTop />
-              <Suspense fallback={<PageLoader />}>
-                <Routes>
-                  <Route path="/" element={<Gateway />} />
-                  <Route path="/apps" element={<AppGallery />} />
-                  <Route path="/orders" element={<OrderManagement />} />
-                  <Route path="/premium-entry" element={<PremiumEntry />} />
-                  <Route path="/rating-entry" element={<RatingEntry />} />
-                  <Route path="/stock-entry" element={<StockEntry />} />
-                  <Route path="/product-entry" element={<ProductEntry />} />
-                  <Route path="/delivery" element={<DeliveryScreen />} />
-                  <Route path="/overview" element={<Overview />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/custom-app/:id" element={<CustomApp />} />
-                  <Route path="/keyword-entry" element={<KeywordEntry />} />
-                  <Route path="/back-office" element={<BackOffice />} />
-                  <Route path="/employee-management" element={<EmployeeManagement />} />
-                  <Route path="/tasks" element={<TaskManager />} />
-                  <Route path="/tasks/:taskId" element={<TaskDetail />} />
-                  <Route path="/notifications" element={<NotificationManager />} />
-                  <Route path="/staffes" element={<Staffes />} />
-                  <Route path="/infra" element={<InfraConsole />} />
-                  <Route path="/staff-test" element={<StaffActionTestPage />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
-            </NotificationProvider>
-          </BrowserRouter>
-        </TooltipProvider>
+        <BrandingProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <NotificationProvider>
+                <ScrollToTop />
+                <Suspense fallback={<PageLoader />}>
+                  <Routes>
+                    <Route path="/" element={<Gateway />} />
+                    <Route path="/apps" element={<AppGallery />} />
+                    <Route path="/orders" element={<OrderManagement />} />
+                    <Route path="/premium-entry" element={<PremiumEntry />} />
+                    <Route path="/rating-entry" element={<RatingEntry />} />
+                    <Route path="/stock-entry" element={<StockEntry />} />
+                    <Route path="/product-entry" element={<ProductEntry />} />
+                    <Route path="/delivery" element={<DeliveryScreen />} />
+                    <Route path="/overview" element={<Overview />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/custom-app/:id" element={<CustomApp />} />
+                    <Route path="/keyword-entry" element={<KeywordEntry />} />
+                    <Route path="/back-office" element={<BackOffice />} />
+                    <Route path="/employee-management" element={<EmployeeManagement />} />
+                    <Route path="/tasks" element={<TaskManager />} />
+                    <Route path="/tasks/:taskId" element={<TaskDetail />} />
+                    <Route path="/notifications" element={<NotificationManager />} />
+                    <Route path="/staffes" element={<Staffes />} />
+                    <Route path="/infra" element={<InfraConsole />} />
+                    <Route path="/staff-test" element={<StaffActionTestPage />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
+              </NotificationProvider>
+            </BrowserRouter>
+          </TooltipProvider>
+        </BrandingProvider>
       </LanguageProvider>
     </ThemeProvider>
   </QueryClientProvider>

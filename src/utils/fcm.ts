@@ -42,7 +42,7 @@ export const sendPushNotification = async (employeeIds: string[], title: string,
             notification: {
                 title,
                 body,
-                icon: "/logo.png",
+                icon: CONFIG.BRANDING.logoUrl,
                 click_action: window.location.origin + "/tasks",
                 sound: "default"
             },

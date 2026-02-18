@@ -25,6 +25,7 @@ export const useInfraLogic = (data: InfraState, render: () => void) => {
                 data.activeTab = event.tab;
                 if (event.tab === "migration") await dispatch({ type: "REFRESH_MIGRATIONS" });
                 if (event.tab === "status") await dispatch({ type: "REFRESH_SETTINGS" });
+                if (event.tab === "branding") await dispatch({ type: "REFRESH_BRANDING" });
                 return render();
 
             case "SET_PROGRESS":
@@ -365,11 +366,14 @@ export const useInfraLogic = (data: InfraState, render: () => void) => {
 
             case "SAVE_BRANDING_CONFIG":
                 try {
-                    if (confirm("Changing app branding requires a reload. Continue?")) {
-                        localStorage.setItem('APP_BRANDING_OVERRIDE', JSON.stringify(data.brandingConfig));
-                        toast.success("Branding saved! Reloading system...");
-                        setTimeout(() => window.location.reload(), 1000);
-                    }
+                    const db = await import('@/lib/firebase').then(m => m.firebase.database());
+                    await db.ref('root/infra/branding').set(data.brandingConfig);
+
+                    // Update local storage for immediate config availability on reload
+                    localStorage.setItem("APP_BRANDING_OVERRIDE", JSON.stringify(data.brandingConfig));
+
+                    toast.success("Branding updated globally!");
+                    setTimeout(() => window.location.reload(), 1000);
                 } catch (e) {
                     toast.error("Failed to save branding configuration.");
                     console.error(e);
@@ -381,6 +385,19 @@ export const useInfraLogic = (data: InfraState, render: () => void) => {
                 data.liveMetrics = await SystemMonitorService.getLiveMetrics();
                 data.appUsage = await SystemMonitorService.getAppUsageBreakdown();
                 return render();
+
+            case "REFRESH_BRANDING":
+                try {
+                    const branding = await dataProvider.get("infra/branding");
+                    if (branding) {
+                        data.brandingConfig = branding;
+                    }
+                } catch (e) {
+                    console.error("Failed to load branding", e);
+                } finally {
+                    render();
+                }
+                break;
         }
     };
 

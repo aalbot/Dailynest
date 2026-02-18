@@ -13,10 +13,12 @@ import "firebase/compat/database";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import BackButton from "@/components/BackButton";
 import { useLang } from "@/contexts/LanguageContext";
+import { useBranding } from "@/contexts/BrandingContext";
 
 const NotificationManager = () => {
     const { toast } = useToast();
     const { getTranslation } = useLang();
+    const { config: branding } = useBranding();
     const [title, setTitle] = useState("");
     const [message, setMessage] = useState("");
     const [type, setType] = useState("info");
@@ -63,8 +65,8 @@ const NotificationManager = () => {
                         notification: {
                             title: title,
                             body: message,
-                            icon: "/logo.png",
-                            click_action: "https://dailyclub.in"
+                            icon: branding.logoUrl,
+                            click_action: window.location.origin
                         },
                         data: {
                             type: type,

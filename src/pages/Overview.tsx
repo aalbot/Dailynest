@@ -8,6 +8,7 @@ import {
     ChevronRight, Database, Download, Tag
 } from 'lucide-react';
 import Navbar from "@/components/Navbar";
+import { useBranding } from "@/contexts/BrandingContext";
 import BackButton from "@/components/BackButton";
 
 // --- Error Boundary ---
@@ -79,6 +80,7 @@ const CellRenderer = ({ value, column }: { value: any, column: string }) => {
 
 const DataTable = ({ data, title, icon: Icon, productLookup, stockLookup }: any) => {
     const [searchTerm, setSearchTerm] = useState('');
+    const { config: branding } = useBranding();
 
     const tableData = useMemo(() => {
         if (!data) return [];
@@ -181,7 +183,7 @@ const DataTable = ({ data, title, icon: Icon, productLookup, stockLookup }: any)
                 alternateRowStyles: { fillColor: [248, 250, 252] },
                 columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 }, 1: { cellWidth: 100 }, 2: { cellWidth: 60 }, 3: { halign: 'center', cellWidth: 40 } }
             });
-            doc.save(`dailyclub_${title.toLowerCase()}_report.pdf`);
+            doc.save(`${branding.appName.toLowerCase().replace(/\s+/g, '_')}_${title.toLowerCase()}_report.pdf`);
         } catch (e: any) {
             console.error(e);
             alert("PDF Error: " + e.message);

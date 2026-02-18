@@ -36,6 +36,7 @@ import "firebase/compat/database";
 import { iconMap } from "@/utils/appIcons";
 import SettingsModal from "./SettingsModal";
 import { useLang } from "@/contexts/LanguageContext";
+import { useBranding } from "@/contexts/BrandingContext";
 import { CONFIG } from "@/config";
 
 const defaultAppItems = [
@@ -59,6 +60,8 @@ const defaultAppItems = [
 const Navbar = () => {
   const location = useLocation();
   const { isDark, toggleTheme } = useTheme();
+  const { config: branding } = useBranding();
+  // ... existing state ...
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -287,8 +290,8 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/apps" className="flex items-center gap-3">
-            <img src={CONFIG.BRANDING.logoUrl} alt={CONFIG.BRANDING.appName} className="w-9 h-9 rounded-xl object-contain" />
-            <span className="font-bold text-lg tracking-tight text-slate-500 dark:text-slate-400">{CONFIG.BRANDING.appName}</span>
+            <img src={branding.logoUrl} alt={branding.appName} className="w-9 h-9 rounded-xl object-contain" />
+            <span className="font-bold text-lg tracking-tight text-slate-500 dark:text-slate-400">{branding.appName}</span>
           </Link>
 
           {/* Right side icons */}
