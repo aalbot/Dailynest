@@ -335,8 +335,6 @@ const Dashboard = () => {
                     {[
                         { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
                         { id: 'business', label: 'Business & Finance', icon: IndianRupee },
-                        { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
-                        { id: 'business', label: 'Business & Finance', icon: IndianRupee },
                         { id: 'orders', label: 'Orders Analysis', icon: ShoppingBasket },
                         { id: 'users', label: 'Users & Orders', icon: Users },
                         { id: 'stocks', label: 'Inventory & Stocks', icon: Package }
