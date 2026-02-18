@@ -242,6 +242,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const registerDevice = async () => {
         if (!messaging) return;
         const currentStaffId = sessionStorage.getItem("staff_id");
+        const currentEmployeeId = sessionStorage.getItem("employee_id");
         if (!currentStaffId) return;
 
         try {
@@ -251,16 +252,19 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
             if (token) {
                 console.log(`%cFCM Token Generated for User: ${currentStaffId}`, "color: #2196F3; font-weight: bold;");
-                console.log("Token:", token);
-                // Store token directly in employee profile (replaces old one)
-                const employeeRef = ref(modularDb, `root/nexus_hr/employees/${currentStaffId}`);
-                await update(employeeRef, {
-                    FcmToken: token,
-                    lastTokenUpdate: Date.now(),
-                    deviceInfo: navigator.userAgent
-                });
 
-                // maintain legacy parallel token storage for now (optional, can be removed if not needed)
+                // 1. Update Employee Record (ONLY if employee_id exists)
+                if (currentEmployeeId) {
+                    const employeeRef = ref(modularDb, `root/nexus_hr/employees/${currentEmployeeId}`);
+                    await update(employeeRef, {
+                        FcmToken: token,
+                        lastTokenUpdate: Date.now(),
+                        deviceInfo: navigator.userAgent
+                    });
+                    console.log(`%c✓ Token Stored in Employee Record (root/nexus_hr/employees/${currentEmployeeId})`, "color: #4CAF50; font-weight: bold;");
+                }
+
+                // 2. Maintain token mapping in staff_tokens (keyed by staff registration ID)
                 const tokenRef = ref(modularDb, `root/staff_tokens/${currentStaffId}/${token.replace(/[.$#[\]]/g, "_")}`);
                 await set(tokenRef, {
                     token,
@@ -268,7 +272,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                     userAgent: navigator.userAgent
                 });
 
-                console.log(`%c✓ Token Stored in Employee Record (root/nexus_hr/employees/${currentStaffId})`, "color: #4CAF50; font-weight: bold;");
                 console.log("%c🚀 FCM Registration Complete", "color: #4CAF50; font-weight: bold; font-size: 12px;");
             }
         } catch (error) {
@@ -321,7 +324,31 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return () => unsubscribe();
     }, [location.pathname]); // Re-check on nav, but mainly relies on staff_id presence
 
-    const addNotification = (n: Omit<Notification, 'timestamp' | 'read'>) => {
+    const addNotification = (n: Omit<Notification, "timestamp" | "read">) => {
+        // 1. Suppress on Login/Signup page
+        if (location.pathname === '/' || location.pathname === '/gateway') return;
+
+        // 2. Filter by Authorized Applications for non-admins
+        const role = sessionStorage.getItem("user_role");
+        if (role !== 'admin') {
+            const allowedAppsJSON = sessionStorage.getItem("allowed_apps");
+            const allowedApps: string[] = JSON.parse(allowedAppsJSON || "[]");
+
+            const typeToPathMap: Record<string, string> = {
+                'order': '/orders',
+                'delivery': '/delivery',
+                'stock': '/stock-entry',
+                'info': '/notifications'
+            };
+
+            const requiredPath = typeToPathMap[n.type];
+            // If the notification type is associated with an app the user doesn't have, ignore it
+            // 'info' is treated as restricted to the Notifications app.
+            if (requiredPath && !allowedApps.includes(requiredPath)) {
+                return;
+            }
+        }
+
         const id = n.id;
         if (hiddenNotificationsRef.current[id]) return;
 

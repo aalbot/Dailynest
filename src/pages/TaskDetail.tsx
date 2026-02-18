@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import firebase from "firebase/compat/app";
@@ -7,7 +7,9 @@ import {
     Calendar, Clock, User, Users, CheckCircle2, AlertCircle,
     Paperclip, Send, X, ChevronLeft, ChevronRight, Flag,
     MessageSquare, FileText, Tag, ArrowLeft, Pencil, Trash2,
-    Plus, Pin, Smile, Reply, ArrowUp, Camera, Search, MoreVertical, Filter, List
+    Plus, Pin, Smile, Reply, ArrowUp, Camera, Search, MoreVertical, Filter, List,
+    ZoomIn, ZoomOut, RotateCcw, FolderOpen, Maximize, Share2, Download, Copy, Link,
+    Menu, PanelLeftClose, PanelRightClose, Image, ThumbsUp
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -20,6 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Label } from "@/components/ui/label";
 import { sendTaskUpdateEmail } from "@/utils/emailService";
 import { sendCloudFunctionPush } from "@/utils/fcm";
+import jsPDF from "jspdf";
 
 const TaskDetail = () => {
     const { taskId } = useParams<{ taskId: string }>();
@@ -29,6 +32,7 @@ const TaskDetail = () => {
     const [employees, setEmployees] = useState<any[]>([]);
     const [newComment, setNewComment] = useState("");
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
     const [loading, setLoading] = useState(true);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [editTaskData, setEditTaskData] = useState<any>(null);
@@ -36,6 +40,16 @@ const TaskDetail = () => {
     const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
     const [replyText, setReplyText] = useState("");
     const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [isReassignOpen, setIsReassignOpen] = useState(false);
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+    const [selectedReassignEmployee, setSelectedReassignEmployee] = useState<string>("");
+    const [showAttachmentsFolder, setShowAttachmentsFolder] = useState(false);
+    const [imageZoom, setImageZoom] = useState(1);
+    const [imageTransform, setImageTransform] = useState({ x: 0, y: 0 });
+    const [isShareOpen, setIsShareOpen] = useState(false);
+    const [replyingTo, setReplyingTo] = useState<any>(null);
+    const [commentAttachments, setCommentAttachments] = useState<string[]>([]);
+    const [visibleCommentsCount, setVisibleCommentsCount] = useState<number>(3);
 
     // Filters
     const [filterEmployee, setFilterEmployee] = useState<string>("all");
@@ -48,6 +62,9 @@ const TaskDetail = () => {
     const loggedInEmpId = sessionStorage.getItem("employee_id") || "";
     const loggedInName = sessionStorage.getItem("staff_name") || "";
     const isStaff = sessionStorage.getItem("user_role") === "staff";
+
+    // Ref for auto-scroll
+    const chatContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const db = firebase.database();
@@ -69,7 +86,11 @@ const TaskDetail = () => {
         const empRef = db.ref("root/nexus_hr/employees");
         empRef.on("value", (snapshot) => {
             const data = snapshot.val();
-            setEmployees(data ? Object.values(data) : []);
+            const employeesList = data ? Object.values(data).map((emp: any) => ({
+                ...emp,
+                name: emp.name || `${emp.firstName} ${emp.lastName}`.trim() || "Unknown"
+            })) : [];
+            setEmployees(employeesList);
         });
 
         return () => {
@@ -78,8 +99,15 @@ const TaskDetail = () => {
         };
     }, [taskId]);
 
+    // Auto-scroll to top when comments change (since newest are at top)
+    useEffect(() => {
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = 0;
+        }
+    }, [task?.comments]);
+
     const handleAddComment = async () => {
-        if (!newComment.trim()) return;
+        if (!newComment.trim() && commentAttachments.length === 0) return;
 
         const db = firebase.database();
         const commentId = `CMT-${Date.now()}`;
@@ -94,7 +122,13 @@ const TaskDetail = () => {
             createdAt: new Date().toISOString(),
             isPinned: false,
             reactions: {},
-            replies: {}
+            replies: {},
+            replyTo: replyingTo ? {
+                id: replyingTo.id,
+                author: replyingTo.author,
+                text: replyingTo.text
+            } : null,
+            attachments: commentAttachments
         });
 
         // Send email notification to involved users
@@ -139,7 +173,23 @@ const TaskDetail = () => {
         }
 
         setNewComment("");
+        setReplyingTo(null);
+        setCommentAttachments([]);
         toast.success("Comment added");
+    };
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files) return;
+
+        Array.from(files).forEach(file => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64String = reader.result as string;
+                setCommentAttachments(prev => [...prev, base64String]);
+            };
+            reader.readAsDataURL(file);
+        });
     };
 
     const handleStatusUpdate = async (newStatus: string) => {
@@ -149,10 +199,14 @@ const TaskDetail = () => {
         toast.success("Status updated");
     };
 
-    const handleDeleteTask = async () => {
-        if (!confirm("Are you sure you want to delete this task?")) return;
+    const handleDeleteTask = () => {
+        setIsDeleteOpen(true);
+    };
+
+    const confirmDelete = async () => {
         const db = firebase.database();
         await db.ref(`root/nexus_hr/tasks/${taskId}`).remove();
+        setIsDeleteOpen(false);
         toast.success("Task deleted");
         navigate("/tasks");
     };
@@ -209,6 +263,307 @@ const TaskDetail = () => {
         } catch (error) {
             console.error(error);
             toast.error("Failed to update task");
+        }
+    };
+
+    const handleReassign = async () => {
+        if (!selectedReassignEmployee) {
+            toast.error("Please select an employee");
+            return;
+        }
+
+        const db = firebase.database();
+        try {
+            const currentAssignees = task.assignedEmployeeIds || [];
+
+            // Track reassignment history
+            const reassignmentHistory = task.reassignmentHistory || [];
+            reassignmentHistory.push({
+                from: currentAssignees,
+                to: selectedReassignEmployee,
+                timestamp: new Date().toISOString(),
+                reassignedBy: loggedInEmpId || "admin"
+            });
+
+            await db.ref(`root/nexus_hr/tasks/${taskId}`).update({
+                assignedEmployeeIds: [selectedReassignEmployee],
+                reassignmentHistory: reassignmentHistory
+            });
+
+            // Send email notification
+            const newAssignee = employees.find(e => e.id === selectedReassignEmployee);
+            if (newAssignee && newAssignee.email) {
+                await sendTaskUpdateEmail(
+                    [{ email: newAssignee.email }],
+                    "Task Reassigned to You",
+                    `<h2>Task Reassigned</h2><p>You have been reassigned to: <strong>${task.title}</strong></p><p>Due Date: ${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "Not set"}</p>`,
+                    false,
+                    `Task Reassigned: ${task.title}`
+                );
+
+                // Send push notification
+                await sendCloudFunctionPush(
+                    [selectedReassignEmployee],
+                    "Task Reassigned 🔄",
+                    `You have been reassigned: ${task.title}`
+                );
+            }
+
+            toast.success("Task reassigned successfully");
+            setIsReassignOpen(false);
+            setSelectedReassignEmployee("");
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to reassign task");
+        }
+    };
+
+    const handleShareTask = async () => {
+        const shareUrl = `${window.location.origin}/tasks/${taskId}`;
+
+        try {
+            if (navigator.share) {
+                // Use Web Share API if available
+                await navigator.share({
+                    title: task.title,
+                    text: `Check out this task: ${task.title}`,
+                    url: shareUrl
+                });
+                toast.success("Shared successfully!");
+            } else {
+                // Fallback: copy to clipboard
+                await navigator.clipboard.writeText(shareUrl);
+                toast.success("Link copied to clipboard!");
+            }
+        } catch (error) {
+            console.error("Share failed:", error);
+        }
+    };
+
+    const handleCopyLink = async () => {
+        const shareUrl = `${window.location.origin}/tasks/${taskId}`;
+        try {
+            await navigator.clipboard.writeText(shareUrl);
+            toast.success("Link copied to clipboard!");
+        } catch (error) {
+            toast.error("Failed to copy link");
+        }
+    };
+
+    const handleExportPDF = () => {
+        try {
+            const pdf = new jsPDF();
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            let yPos = 20;
+
+            // Header with gradient effect (simulated with rectangles)
+            pdf.setFillColor(99, 102, 241); // Indigo
+            pdf.rect(0, 0, pageWidth, 40, 'F');
+
+            // Title
+            pdf.setTextColor(255, 255, 255);
+            pdf.setFontSize(24);
+            pdf.setFont(undefined, 'bold');
+            pdf.text('Task Report', pageWidth / 2, 25, { align: 'center' });
+
+            yPos = 50;
+
+            // Task Title Section
+            pdf.setFillColor(241, 245, 249);
+            pdf.rect(10, yPos, pageWidth - 20, 15, 'F');
+            pdf.setTextColor(30, 41, 59);
+            pdf.setFontSize(18);
+            pdf.setFont(undefined, 'bold');
+            pdf.text(task.title, 15, yPos + 10);
+            yPos += 25;
+
+            // Task ID and Date
+            pdf.setFontSize(9);
+            pdf.setFont(undefined, 'normal');
+            pdf.setTextColor(100, 116, 139);
+            pdf.text(`Task ID: ${task.id}`, 15, yPos);
+            pdf.text(`Generated: ${new Date().toLocaleString()}`, pageWidth - 15, yPos, { align: 'right' });
+            yPos += 15;
+
+            // Status and Priority Badges
+            pdf.setFontSize(10);
+            pdf.setFont(undefined, 'bold');
+
+            // Status Badge
+            const statusColors: any = {
+                'Open': [59, 130, 246],
+                'In Progress': [251, 191, 36],
+                'Testing': [168, 85, 247],
+                'Completed': [34, 197, 94],
+                'On Hold': [239, 68, 68],
+                'Pending': [156, 163, 175]
+            };
+            const statusColor: [number, number, number] = statusColors[task.status] || [100, 116, 139];
+            pdf.setFillColor(...statusColor);
+            pdf.roundedRect(15, yPos - 5, 35, 8, 2, 2, 'F');
+            pdf.setTextColor(255, 255, 255);
+            pdf.text(task.status, 17, yPos);
+
+            // Priority Badge
+            const priorityColors: any = {
+                'High': [239, 68, 68],
+                'Medium': [251, 191, 36],
+                'Low': [34, 197, 94]
+            };
+            const priorityColor: [number, number, number] = priorityColors[task.priority] || [156, 163, 175];
+            pdf.setFillColor(...priorityColor);
+            pdf.roundedRect(55, yPos - 5, 35, 8, 2, 2, 'F');
+            pdf.text(task.priority, 57, yPos);
+
+            yPos += 20;
+
+            // Section: Task Details
+            pdf.setFillColor(99, 102, 241);
+            pdf.rect(10, yPos - 3, 3, 8, 'F');
+            pdf.setTextColor(30, 41, 59);
+            pdf.setFontSize(14);
+            pdf.setFont(undefined, 'bold');
+            pdf.text('Task Details', 18, yPos + 3);
+            yPos += 12;
+
+            // Details Grid
+            pdf.setFontSize(10);
+            pdf.setFont(undefined, 'normal');
+            const details = [
+                { label: 'Created', value: new Date(task.createdAt).toLocaleString() },
+                { label: 'Due Date', value: task.dueDate ? new Date(task.dueDate).toLocaleString() : 'Not set' },
+                { label: 'Author', value: author ? `${author.firstName} ${author.lastName}` : 'Unknown' },
+                { label: 'Tester', value: tester ? tester.name : 'Not assigned' }
+            ];
+
+            details.forEach((detail) => {
+                pdf.setTextColor(100, 116, 139);
+                pdf.setFont(undefined, 'bold');
+                pdf.text(`${detail.label}:`, 15, yPos);
+                pdf.setTextColor(30, 41, 59);
+                pdf.setFont(undefined, 'normal');
+                pdf.text(detail.value, 50, yPos);
+                yPos += 7;
+            });
+
+            yPos += 8;
+
+            // Description Section
+            if (task.description) {
+                pdf.setFillColor(99, 102, 241);
+                pdf.rect(10, yPos - 3, 3, 8, 'F');
+                pdf.setTextColor(30, 41, 59);
+                pdf.setFontSize(14);
+                pdf.setFont(undefined, 'bold');
+                pdf.text('Description', 18, yPos + 3);
+                yPos += 12;
+
+                pdf.setFontSize(10);
+                pdf.setFont(undefined, 'normal');
+                pdf.setTextColor(51, 65, 85);
+                const descLines = pdf.splitTextToSize(task.description, pageWidth - 30);
+                pdf.text(descLines, 15, yPos);
+                yPos += descLines.length * 5 + 10;
+            }
+
+            // Check for new page
+            if (yPos > pageHeight - 40) {
+                pdf.addPage();
+                yPos = 20;
+            }
+
+            // Assigned Employees Section
+            if (assignedEmployees.length > 0) {
+                pdf.setFillColor(99, 102, 241);
+                pdf.rect(10, yPos - 3, 3, 8, 'F');
+                pdf.setTextColor(30, 41, 59);
+                pdf.setFontSize(14);
+                pdf.setFont(undefined, 'bold');
+                pdf.text('Assigned Employees', 18, yPos + 3);
+                yPos += 12;
+
+                assignedEmployees.forEach((emp) => {
+                    pdf.setFontSize(10);
+                    pdf.setFont(undefined, 'normal');
+                    pdf.setTextColor(51, 65, 85);
+                    pdf.text(`• ${emp.name}`, 15, yPos);
+                    pdf.setTextColor(100, 116, 139);
+                    pdf.setFontSize(9);
+                    pdf.text(emp.email || '', 25, yPos + 4);
+                    yPos += 10;
+                });
+                yPos += 5;
+            }
+
+            // Check for new page
+            if (yPos > pageHeight - 40) {
+                pdf.addPage();
+                yPos = 20;
+            }
+
+            // Comments Section
+            if (task.comments && Object.keys(task.comments).length > 0) {
+                pdf.setFillColor(99, 102, 241);
+                pdf.rect(10, yPos - 3, 3, 8, 'F');
+                pdf.setTextColor(30, 41, 59);
+                pdf.setFontSize(14);
+                pdf.setFont(undefined, 'bold');
+                pdf.text('Comments', 18, yPos + 3);
+                yPos += 12;
+
+                Object.values(task.comments).forEach((comment: any, index: number) => {
+                    if (yPos > pageHeight - 40) {
+                        pdf.addPage();
+                        yPos = 20;
+                    }
+
+                    pdf.setFillColor(248, 250, 252);
+                    pdf.roundedRect(15, yPos - 3, pageWidth - 30, 20, 2, 2, 'F');
+
+                    pdf.setFontSize(10);
+                    pdf.setFont(undefined, 'bold');
+                    pdf.setTextColor(30, 41, 59);
+                    pdf.text(comment.author, 20, yPos + 3);
+
+                    pdf.setFontSize(8);
+                    pdf.setFont(undefined, 'normal');
+                    pdf.setTextColor(100, 116, 139);
+                    pdf.text(new Date(comment.createdAt).toLocaleString(), pageWidth - 20, yPos + 3, { align: 'right' });
+
+                    pdf.setFontSize(9);
+                    pdf.setTextColor(51, 65, 85);
+                    const commentLines = pdf.splitTextToSize(comment.text, pageWidth - 40);
+                    pdf.text(commentLines, 20, yPos + 10);
+
+                    yPos += 25;
+                });
+            }
+
+            // Footer
+            const footerY = pageHeight - 15;
+            pdf.setFontSize(8);
+            pdf.setTextColor(156, 163, 175);
+            pdf.setFont(undefined, 'italic');
+            pdf.text(`DailyClub Portal • Task Report • ${new Date().toLocaleDateString()}`, pageWidth / 2, footerY, { align: 'center' });
+
+            // Save PDF
+            pdf.save(`task_${task.id}_${new Date().toISOString().split('T')[0]}.pdf`);
+            toast.success("PDF exported successfully!");
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to export PDF");
+        }
+    };
+
+    const handleUpvoteComment = async (commentId: string) => {
+        const db = firebase.database();
+        const commentRef = db.ref(`root/nexus_hr/tasks/${taskId}/comments/${commentId}/upvotes/${loggedInEmpId}`);
+        const snapshot = await commentRef.once('value');
+        if (snapshot.exists()) {
+            await commentRef.remove();
+        } else {
+            await commentRef.set(true);
         }
     };
 
@@ -368,14 +723,24 @@ const TaskDetail = () => {
     }
 
     const assignedEmployees = employees.filter(e => task.assignedEmployeeIds?.includes(e.id));
-    const author = employees.find(e => e.id === task.authorId);
+    const author = task.authorId === 'admin'
+        ? { name: 'Admin', photoUrl: '', id: 'admin' }
+        : employees.find(e => e.id === task.authorId);
     const tester = employees.find(e => e.id === task.testerId);
 
-    // Sort comments: pinned first, then by date
+    // Sort comments: pinned first, then by upvotes (highest first), then by date (newest first)
     const sortedComments = task.comments
         ? Object.values(task.comments).sort((a: any, b: any) => {
+            // 1. Pinned
             if (a.isPinned && !b.isPinned) return -1;
             if (!a.isPinned && b.isPinned) return 1;
+
+            // 2. Upvotes
+            const aUpvotes = a.upvotes ? Object.keys(a.upvotes).length : 0;
+            const bUpvotes = b.upvotes ? Object.keys(b.upvotes).length : 0;
+            if (bUpvotes !== aUpvotes) return bUpvotes - aUpvotes;
+
+            // 3. Date (Newest first)
             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         })
         : [];
@@ -463,27 +828,67 @@ const TaskDetail = () => {
                     </div>
 
                     <div className="flex-1 overflow-y-auto custom-scrollbar">
-                        {filteredTasks.map((t) => (
-                            <div
-                                key={t.id}
-                                onClick={() => navigateToTask(t.id)}
-                                className={`p-4 border-b border-slate-100 dark:border-slate-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-slate-800 ${t.id === taskId ? 'bg-indigo-50 dark:bg-indigo-900/20 border-l-4 border-l-indigo-500' : ''
-                                    }`}
-                            >
-                                <div className="flex items-start justify-between gap-2 mb-2">
-                                    <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100 line-clamp-2">
-                                        {t.title}
-                                    </h4>
-                                    <Badge className={`${getPriorityColor(t.priority)} text-[10px] px-1.5 py-0.5 shrink-0`}>
-                                        {t.priority}
-                                    </Badge>
+                        {filteredTasks.map((t) => {
+                            const taskAssignees = employees.filter(e => t.assignedEmployeeIds?.includes(e.id));
+                            return (
+                                <div
+                                    key={t.id}
+                                    onClick={() => navigateToTask(t.id)}
+                                    className={`p-4 border-b border-slate-100 dark:border-slate-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-slate-800 ${t.id === taskId ? 'bg-indigo-50 dark:bg-indigo-900/20 border-l-4 border-l-indigo-500' : ''
+                                        }`}
+                                >
+                                    <div className="flex items-start justify-between gap-2 mb-2">
+                                        <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100 line-clamp-2">
+                                            {t.title}
+                                        </h4>
+                                        <Badge className={`${getPriorityColor(t.priority)} text-[10px] px-1.5 py-0.5 shrink-0`}>
+                                            {t.priority}
+                                        </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <div className={`w-2 h-2 rounded-full ${getStatusColor(t.status)}`}></div>
+                                        <span className="text-xs text-slate-600 dark:text-slate-400">{t.status}</span>
+                                    </div>
+                                    {/* Task Date & Assigned Employees */}
+                                    <div className="flex items-center justify-between gap-2 mt-2">
+                                        <div className="flex items-center gap-1">
+                                            <Calendar className="w-3 h-3 text-slate-400" />
+                                            <span className="text-[10px] text-slate-500">
+                                                {t.dueDate ? new Date(t.dueDate).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'No date'}
+                                            </span>
+                                        </div>
+                                        {taskAssignees.length > 0 && (
+                                            <div className="flex items-center -space-x-2">
+                                                {taskAssignees.slice(0, 3).map((emp, idx) => (
+                                                    <div key={emp.id} className="relative" style={{ zIndex: 3 - idx }}>
+                                                        {emp.photoUrl ? (
+                                                            <img
+                                                                src={emp.photoUrl}
+                                                                alt={emp.name}
+                                                                className="w-5 h-5 rounded-full border-2 border-white dark:border-slate-900 object-cover"
+                                                                title={emp.name}
+                                                            />
+                                                        ) : (
+                                                            <div
+                                                                className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-[8px] font-bold border-2 border-white dark:border-slate-900"
+                                                                title={emp.name}
+                                                            >
+                                                                {emp.name.charAt(0)}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                                {taskAssignees.length > 3 && (
+                                                    <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[8px] font-bold border-2 border-white dark:border-slate-900">
+                                                        +{taskAssignees.length - 3}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <div className={`w-2 h-2 rounded-full ${getStatusColor(t.status)}`}></div>
-                                    <span className="text-xs text-slate-600 dark:text-slate-400">{t.status}</span>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -583,6 +988,24 @@ const TaskDetail = () => {
                                     <Button
                                         variant="outline"
                                         size="icon"
+                                        onClick={() => setIsShareOpen(true)}
+                                        className="rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30"
+                                        title="Share Task"
+                                    >
+                                        <Share2 className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={handleExportPDF}
+                                        className="rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30"
+                                        title="Export as PDF"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
                                         onClick={() => {
                                             setEditTaskData({ ...task });
                                             setIsEditOpen(true);
@@ -602,96 +1025,139 @@ const TaskDetail = () => {
                                 </div>
                             </div>
 
-                            {/* Task Meta Info */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                                <div className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl">
-                                    <Calendar className="w-5 h-5 text-indigo-500" />
-                                    <div>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">Created</p>
-                                        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                                            {new Date(task.createdAt).toLocaleDateString()}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl">
-                                    <Clock className="w-5 h-5 text-amber-500" />
-                                    <div>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">Due Date</p>
-                                        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                                            {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "No due date"}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {author && (
-                                    <div className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl">
-                                        <User className="w-5 h-5 text-emerald-500" />
-                                        <div>
-                                            <p className="text-xs text-slate-500 dark:text-slate-400">Author</p>
-                                            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                                                {author.name}
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {tester && (
-                                    <div className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl">
-                                        <CheckCircle2 className="w-5 h-5 text-purple-500" />
-                                        <div>
-                                            <p className="text-xs text-slate-500 dark:text-slate-400">Tester</p>
-                                            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                                                {tester.name}
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Status Control - Priority removed from here */}
-                            <div className="mb-6">
-                                <label className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 block">Status</label>
-                                <Select value={task.status} onValueChange={handleStatusUpdate}>
-                                    <SelectTrigger className="w-full">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Open">Open</SelectItem>
-                                        <SelectItem value="In Progress">In Progress</SelectItem>
-                                        <SelectItem value="Testing">Testing</SelectItem>
-                                        <SelectItem value="On Hold">On Hold</SelectItem>
-                                        <SelectItem value="Completed">Completed</SelectItem>
-                                        <SelectItem value="Pending">Pending</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            {/* Assigned Employees */}
-                            {assignedEmployees.length > 0 && (
-                                <div className="mb-6">
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <Users className="w-4 h-4 text-slate-500" />
-                                        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                                            Assigned To ({assignedEmployees.length})
-                                        </h3>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {assignedEmployees.map((emp) => (
-                                            <div
-                                                key={emp.id}
-                                                className="flex items-center gap-2 px-3 py-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800"
-                                            >
-                                                {emp.photoUrl ? (
-                                                    <img src={emp.photoUrl} alt={emp.name} className="w-6 h-6 rounded-full object-cover" />
+                            {/* Task Meta Info - Single Row with Assigned, Created, Due Date */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6 mt-6">
+                                {/* Assigned To with Reassign Button */}
+                                <div className="flex items-center gap-2 p-3 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800">
+                                    <Users className="w-4 h-4 text-indigo-500 shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mb-0.5">Assigned To</p>
+                                        {assignedEmployees.length > 0 ? (
+                                            <div className="flex items-center gap-1.5">
+                                                {assignedEmployees[0].photoUrl ? (
+                                                    <img src={assignedEmployees[0].photoUrl} alt={assignedEmployees[0].name} className="w-5 h-5 rounded-full object-cover" />
                                                 ) : (
-                                                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
-                                                        {emp.name.charAt(0)}
+                                                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-[8px] font-bold">
+                                                        {assignedEmployees[0].name.charAt(0)}
                                                     </div>
                                                 )}
-                                                <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                    {emp.name}
+                                                <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
+                                                    {assignedEmployees[0].name}
                                                 </span>
+                                                {assignedEmployees.length > 1 && (
+                                                    <span className="text-[10px] text-slate-500 bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded-full">
+                                                        +{assignedEmployees.length - 1}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <p className="text-xs text-slate-400">Not assigned</p>
+                                        )}
+                                    </div>
+                                    <Button
+                                        size="sm"
+                                        onClick={() => setIsReassignOpen(true)}
+                                        className="h-7 px-2 text-[10px] bg-indigo-600 hover:bg-indigo-700 shrink-0"
+                                    >
+                                        Reassign
+                                    </Button>
+                                </div>
+
+                                {/* Created Date */}
+                                <div className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                                    <Calendar className="w-4 h-4 text-emerald-500 shrink-0" />
+                                    <div>
+                                        <p className="text-[10px] text-slate-500 dark:text-slate-400">Created</p>
+                                        <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
+                                            {new Date(task.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Due Date */}
+                                <div className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                                    <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                                    <div>
+                                        <p className="text-[10px] text-slate-500 dark:text-slate-400">Due Date</p>
+                                        <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
+                                            {task.dueDate ? new Date(task.dueDate).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : "Not set"}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Status & Attachments Row */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                {/* Status Dropdown - Reduced Width */}
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 block">Status</label>
+                                    <Select value={task.status} onValueChange={handleStatusUpdate}>
+                                        <SelectTrigger className="w-full h-11 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-indigo-200 dark:border-indigo-800 font-semibold">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-2 h-2 rounded-full ${getStatusColor(task.status)}`}></div>
+                                                <SelectValue />
+                                            </div>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Open">Open</SelectItem>
+                                            <SelectItem value="In Progress">In Progress</SelectItem>
+                                            <SelectItem value="Testing">Testing</SelectItem>
+                                            <SelectItem value="On Hold">On Hold</SelectItem>
+                                            <SelectItem value="Completed">Completed</SelectItem>
+                                            <SelectItem value="Pending">Pending</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Attachments Folder */}
+                                {task.images && task.images.length > 0 && (
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 block">
+                                            Attachments
+                                        </label>
+                                        <button
+                                            onClick={() => setShowAttachmentsFolder(!showAttachmentsFolder)}
+                                            className="w-full h-11 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-2 border-amber-200 dark:border-amber-800 rounded-xl flex items-center justify-between px-4 hover:shadow-lg transition-all group"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                                                    <Paperclip className="w-4 h-4 text-white" />
+                                                </div>
+                                                <div className="text-left">
+                                                    <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                                                        {task.images.length} {task.images.length === 1 ? 'File' : 'Files'}
+                                                    </p>
+                                                    <p className="text-[9px] text-slate-500">Click to view</p>
+                                                </div>
+                                            </div>
+                                            <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${showAttachmentsFolder ? 'rotate-90' : ''}`} />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Attachments Folder Content */}
+                            {showAttachmentsFolder && task.images && task.images.length > 0 && (
+                                <div className="mb-6 p-4 bg-gradient-to-br from-amber-50/50 to-orange-50/50 dark:from-amber-900/10 dark:to-orange-900/10 rounded-2xl border border-amber-100 dark:border-amber-900/30 animate-in slide-in-from-top-2">
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                        {task.images.map((img: string, i: number) => (
+                                            <div key={i} className="group relative">
+                                                <img
+                                                    src={img}
+                                                    alt={`Attachment ${i + 1}`}
+                                                    className="w-full aspect-square object-cover rounded-xl border-2 border-white dark:border-slate-800 shadow-md transition-all hover:scale-105 cursor-pointer ring-1 ring-slate-200 dark:ring-slate-700"
+                                                    onClick={() => setPreviewImage(img)}
+                                                />
+                                                {/* Expand Button Overlay */}
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 rounded-xl transition-all flex items-center justify-center">
+                                                    <button
+                                                        onClick={() => setPreviewImage(img)}
+                                                        className="bg-white/90 hover:bg-white text-slate-900 p-3 rounded-full shadow-xl transform translate-y-2 group-hover:translate-y-0 transition-all duration-200"
+                                                        title="Expand Image"
+                                                    >
+                                                        <Maximize className="w-5 h-5" />
+                                                    </button>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -711,50 +1177,268 @@ const TaskDetail = () => {
                                 </div>
                             </div>
 
-                            {/* Attachments */}
-                            {task.images && task.images.length > 0 && (
-                                <div>
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <Camera className="w-4 h-4 text-slate-500" />
-                                        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                                            Attachments ({task.images.length})
-                                        </h3>
-                                    </div>
-                                    <div className="flex gap-3 overflow-x-auto pb-4 -mx-1 px-1 custom-scrollbar">
-                                        {task.images.map((img: string, i: number) => (
-                                            <div key={i} className="group relative shrink-0">
-                                                <img
-                                                    src={img}
-                                                    alt="Attachment"
-                                                    className="w-28 h-28 object-cover rounded-2xl border-2 border-white dark:border-slate-800 shadow-md transition-all hover:scale-105 cursor-pointer ring-1 ring-slate-200 dark:ring-slate-800"
-                                                    onClick={() => setPreviewImage(img)}
-                                                />
-                                                <div className="absolute inset-0 bg-indigo-600/10 opacity-0 group-hover:opacity-100 rounded-2xl transition-all flex items-center justify-center pointer-events-none backdrop-blur-[1px]">
-                                                    <div className="bg-white/95 p-2 rounded-xl shadow-xl transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
-                                                        <Search className="w-4 h-4 text-indigo-600" />
-                                                    </div>
+                            {/* Premium Ticketing-Style Comments Section */}
+                            <div className="mb-6 flex flex-col h-[600px] bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                                {/* Header */}
+                                <div className="flex items-center gap-2 px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 z-20">
+                                    <MessageSquare className="w-4 h-4 text-indigo-600" />
+                                    <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight">Discussion</h3>
+                                    <span className="ml-auto text-xs font-medium text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                                        {sortedComments.length}
+                                    </span>
+                                </div>
+
+                                {/* Input Box - Top (Fixed) */}
+                                <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/50 z-10">
+                                    {/* Reply Preview Bar */}
+                                    {replyingTo && (
+                                        <div className="mb-3 px-3 py-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border-l-2 border-indigo-500 flex items-start justify-between">
+                                            <div className="flex-1">
+                                                <div className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 mb-0.5 uppercase tracking-wide">
+                                                    Replying to {replyingTo.author}
+                                                </div>
+                                                <div className="text-xs text-slate-600 dark:text-slate-300 line-clamp-1 italic">
+                                                    "{replyingTo.text}"
                                                 </div>
                                             </div>
-                                        ))}
+                                            <button
+                                                onClick={() => setReplyingTo(null)}
+                                                className="text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 ml-2"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* Attachment Previews */}
+                                    {commentAttachments.length > 0 && (
+                                        <div className="mb-3 flex flex-wrap gap-2">
+                                            {commentAttachments.map((img, idx) => (
+                                                <div key={idx} className="relative group">
+                                                    <img
+                                                        src={img}
+                                                        alt={`Preview ${idx}`}
+                                                        className="w-12 h-12 rounded md:rounded-lg object-cover shadow-sm ring-1 ring-slate-200 dark:ring-slate-700"
+                                                    />
+                                                    <button
+                                                        onClick={() => setCommentAttachments(prev => prev.filter((_, i) => i !== idx))}
+                                                        className="absolute -top-1.5 -right-1.5 bg-white text-slate-500 hover:text-red-500 rounded-full p-0.5 shadow-md border border-slate-100 opacity-0 group-hover:opacity-100 transition-all transform scale-90 active:scale-95"
+                                                    >
+                                                        <X className="w-3 h-3" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    <div className="flex items-start gap-3">
+                                        <Avatar className="w-8 h-8 mt-1 border border-slate-100 dark:border-slate-800 shadow-sm hidden md:block">
+                                            <AvatarImage src={employees.find(e => e.id === loggedInEmpId)?.photoUrl} />
+                                            <AvatarFallback className="bg-indigo-100 text-indigo-600 text-xs font-bold">
+                                                {loggedInName?.[0]}
+                                            </AvatarFallback>
+                                        </Avatar>
+
+                                        <div className="flex-1 relative group">
+                                            <textarea
+                                                value={newComment}
+                                                onChange={(e) => {
+                                                    setNewComment(e.target.value);
+                                                    const target = e.target as HTMLTextAreaElement;
+                                                    target.style.height = 'auto';
+                                                    target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+                                                }}
+                                                placeholder="Add a comment... (Markdown supported)"
+                                                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none min-h-[42px] max-h-32 custom-scrollbar placeholder:text-slate-400"
+                                                rows={1}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                                        e.preventDefault();
+                                                        if (newComment.trim() || commentAttachments.length > 0) {
+                                                            handleAddComment();
+                                                            const target = e.target as HTMLTextAreaElement;
+                                                            target.style.height = 'auto';
+                                                        }
+                                                    }
+                                                }}
+                                            />
+
+                                            <div className="absolute right-2 bottom-2 flex items-center gap-1">
+                                                <label className="cursor-pointer p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md transition-all">
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        multiple
+                                                        className="hidden"
+                                                        onChange={handleImageUpload}
+                                                    />
+                                                    <Paperclip className="w-4 h-4" />
+                                                </label>
+                                                <Button
+                                                    onClick={() => {
+                                                        handleAddComment();
+                                                        const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
+                                                        if (textarea) textarea.style.height = 'auto';
+                                                    }}
+                                                    disabled={!newComment.trim() && commentAttachments.length === 0}
+                                                    size="sm"
+                                                    className="h-7 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all text-xs font-medium"
+                                                >
+                                                    Send
+                                                </Button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            )}
+
+                                {/* Comments List - Ticketing Style */}
+                                <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/30 dark:bg-slate-900/30">
+                                    {sortedComments.length === 0 ? (
+                                        <div className="flex flex-col items-center justify-center py-20 opacity-60">
+                                            <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
+                                                <MessageSquare className="w-6 h-6 text-slate-400" />
+                                            </div>
+                                            <p className="text-sm font-medium text-slate-500">No comments yet</p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {sortedComments.slice(0, visibleCommentsCount).map((comment: any) => {
+                                                const commentAuthor = employees.find(e => e.id === comment.authorId);
+                                                const isOwnMessage = comment.authorId === loggedInEmpId || comment.author === loggedInName;
+                                                const upvotesCount = comment.upvotes ? Object.keys(comment.upvotes).length : 0;
+                                                const isUpvoted = comment.upvotes && comment.upvotes[loggedInEmpId];
+
+                                                return (
+                                                    <div key={comment.id} id={`msg-${comment.id}`} className="group px-6 py-4 border-b border-slate-100 dark:border-slate-800 hover:bg-white dark:hover:bg-slate-800/50 transition-colors">
+                                                        <div className="flex items-start gap-3">
+                                                            <Avatar className="w-8 h-8 border border-slate-200 dark:border-slate-700 shadow-sm shrink-0">
+                                                                <AvatarImage src={commentAuthor?.photoUrl} />
+                                                                <AvatarFallback className="bg-indigo-50 text-indigo-600 text-[10px] font-bold">
+                                                                    {comment.author?.[0]}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+
+                                                            <div className="flex-1 min-w-0">
+                                                                {/* Meta Row */}
+                                                                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                                                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                                                                        {comment.author}
+                                                                    </span>
+                                                                    <span className="text-xs text-slate-400 font-medium">
+                                                                        {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                    </span>
+                                                                    {comment.isPinned && (
+                                                                        <span className="flex items-center gap-1 text-[10px] font-bold bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded border border-amber-100 uppercase tracking-wider">
+                                                                            <Pin className="w-2.5 h-2.5 fill-current" /> Pinned
+                                                                        </span>
+                                                                    )}
+                                                                    {isOwnMessage && (
+                                                                        <span className="text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">You</span>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Attached Images - Inline Grid */}
+                                                                {comment.attachments && comment.attachments.length > 0 && (
+                                                                    <div className="flex flex-wrap gap-2 mb-2">
+                                                                        {comment.attachments.map((img: string, idx: number) => (
+                                                                            <img
+                                                                                key={idx}
+                                                                                src={img}
+                                                                                alt="Attached"
+                                                                                onClick={() => setPreviewImage(img)}
+                                                                                className="h-16 w-auto rounded border border-slate-200 dark:border-slate-700 cursor-pointer hover:opacity-90 transition-opacity"
+                                                                            />
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Reply Context (Compact) */}
+                                                                {comment.replyTo && (
+                                                                    <div
+                                                                        onClick={() => {
+                                                                            const originalMsg = document.getElementById(`msg-${comment.replyTo.id}`);
+                                                                            if (originalMsg) {
+                                                                                originalMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                                                originalMsg.classList.add('bg-indigo-50/50');
+                                                                                setTimeout(() => originalMsg.classList.remove('bg-indigo-50/50'), 2000);
+                                                                            }
+                                                                        }}
+                                                                        className="mb-1 text-xs text-slate-500 bg-slate-50 dark:bg-slate-900 border-l-2 border-slate-300 pl-2 py-1 cursor-pointer hover:text-indigo-600 truncate"
+                                                                    >
+                                                                        <Reply className="w-3 h-3 inline mr-1 -mt-0.5" />
+                                                                        Replying to <span className="font-semibold">{comment.replyTo.author}</span>: {comment.replyTo.text}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Message Body - Clean Text (End of text actions) */}
+                                                                <div className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap break-words">
+                                                                    {comment.text}
+
+                                                                    {/* Inline Actions (Float/Inline-Flex at end) */}
+                                                                    <span className="inline-flex items-center gap-3 ml-3 align-middle select-none opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                                                        <button
+                                                                            onClick={() => handleUpvoteComment(comment.id)}
+                                                                            className={`flex items-center gap-1 transition-colors ${isUpvoted ? 'text-indigo-600 font-semibold' : 'text-slate-400 hover:text-indigo-600'}`}
+                                                                            title="Upvote"
+                                                                        >
+                                                                            <ThumbsUp className={`w-3.5 h-3.5 ${isUpvoted ? 'fill-current' : ''}`} />
+                                                                            {upvotesCount > 0 && <span className="text-[10px]">{upvotesCount}</span>}
+                                                                        </button>
+
+                                                                        <button
+                                                                            onClick={() => setReplyingTo(comment)}
+                                                                            className="flex items-center gap-1 text-slate-400 hover:text-indigo-600 transition-colors"
+                                                                            title="Reply"
+                                                                        >
+                                                                            <Reply className="w-3.5 h-3.5" />
+                                                                        </button>
+
+                                                                        {(!isStaff || task.authorId === loggedInEmpId) && (
+                                                                            <button
+                                                                                onClick={() => handlePinComment(comment.id, comment.isPinned)}
+                                                                                className={`transition-colors ${comment.isPinned ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'}`}
+                                                                                title={comment.isPinned ? "Unpin" : "Pin"}
+                                                                            >
+                                                                                <Pin className={`w-3.5 h-3.5 ${comment.isPinned ? 'fill-current' : ''}`} />
+                                                                            </button>
+                                                                        )}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+
+                                            {/* Pagination Logic */}
+                                            {sortedComments.length > visibleCommentsCount && (
+                                                <div className="p-2 flex justify-center bg-slate-50/50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => setVisibleCommentsCount(prev => prev + 5)}
+                                                        className="text-xs text-slate-500 hover:text-indigo-600 hover:bg-white dark:hover:bg-slate-800 shadow-sm border border-transparent hover:border-slate-200 transition-all px-4"
+                                                    >
+                                                        Show more comments ({sortedComments.length - visibleCommentsCount} remaining)
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Right Sidebar - Comments */}
-                <div className={`${showMobileComments ? 'fixed inset-0 z-50 w-full md:relative md:w-96' : 'hidden md:flex'
-                    } w-96 border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex-col`}>
+                {/* Right Sidebar - Task Participants & Full Comments */}
+                <div className={`${isRightSidebarCollapsed ? 'w-0' : 'w-96'
+                    } ${showMobileComments ? 'fixed inset-0 z-50 w-full md:relative md:w-96' : 'hidden md:flex'
+                    } transition-all duration-300 border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden flex-col`}>
+                    {/* Task Participants Section */}
                     <div className="p-4 border-b border-slate-200 dark:border-slate-800">
-                        <div className="flex items-center gap-2 justify-between">
-                            <div className="flex items-center gap-2">
-                                <MessageSquare className="w-5 h-5 text-indigo-500" />
-                                <h3 className="font-bold text-slate-900 dark:text-slate-100">Comments</h3>
-                                <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-full">
-                                    {sortedComments.length}
-                                </span>
-                            </div>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Task Participants</h3>
                             <Button
                                 variant="ghost"
                                 size="icon"
@@ -764,242 +1448,273 @@ const TaskDetail = () => {
                                 <X className="w-4 h-4" />
                             </Button>
                         </div>
-                    </div>
 
-                    {/* Comments List */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
-                        {sortedComments.length === 0 ? (
-                            <div className="text-center py-12">
-                                <MessageSquare className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto mb-3" />
-                                <p className="text-sm text-slate-500 dark:text-slate-400">No comments yet</p>
-                                <p className="text-xs text-slate-400 dark:text-slate-500">Be the first to comment!</p>
-                            </div>
-                        ) : (
-                            sortedComments.map((comment: any) => {
-                                const commentAuthor = employees.find(e => e.id === comment.authorId);
-                                return (
-                                    <div
-                                        key={comment.id}
-                                        className={`relative flex flex-col gap-2 p-3 rounded-2xl transition-all ${comment.isPinned ? 'bg-amber-50/50 border border-amber-100 dark:bg-amber-900/10 dark:border-amber-900/20' : ''
-                                            }`}
-                                    >
-                                        {comment.isPinned && (
-                                            <div className="absolute -top-2 left-4 px-2 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold rounded-full flex items-center gap-1 shadow-sm">
-                                                <Pin className="w-3 h-3 fill-amber-700" /> Pinned
-                                            </div>
-                                        )}
-
-                                        <div className="flex items-start gap-3">
-                                            <Avatar className="w-8 h-8 border-2 border-white dark:border-slate-900 shadow-md">
-                                                <AvatarImage src={commentAuthor?.photoUrl} />
-                                                <AvatarFallback className="bg-indigo-50 text-indigo-600 text-xs font-bold">
-                                                    {comment.author?.[0]}
-                                                </AvatarFallback>
-                                            </Avatar>
-
-                                            <div className="flex-1">
-                                                <div className="flex items-center justify-between mb-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                                                            {comment.author}
-                                                        </span>
-                                                        <span className="w-1 h-1 bg-slate-300 rounded-full" />
-                                                        <span className="text-[10px] text-slate-400">
-                                                            {new Date(comment.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                                                        </span>
-                                                    </div>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-6 w-6 text-slate-400 hover:text-amber-500"
-                                                        onClick={() => handlePinComment(comment.id, comment.isPinned)}
-                                                    >
-                                                        <Pin className={`w-3.5 h-3.5 ${comment.isPinned ? 'fill-amber-500 text-amber-500' : ''}`} />
-                                                    </Button>
+                        <div className="space-y-3">
+                            {/* Creator */}
+                            {author && (
+                                <div className="flex items-center gap-2 p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
+                                    <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center">
+                                        <User className="w-4 h-4 text-emerald-600" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">Creator</p>
+                                        <div className="flex items-center gap-1.5">
+                                            {author.photoUrl ? (
+                                                <img src={author.photoUrl} alt={author.name} className="w-4 h-4 rounded-full" />
+                                            ) : (
+                                                <div className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[8px] font-bold">
+                                                    {author.name.charAt(0)}
                                                 </div>
-
-                                                <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-2xl rounded-tl-none text-sm text-slate-700 dark:text-slate-300">
-                                                    {comment.text}
-
-                                                    {/* Reactions Display */}
-                                                    {comment.reactions && Object.keys(comment.reactions).length > 0 && (
-                                                        <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
-                                                            {Object.entries(comment.reactions).flatMap(([emoji, users]: [string, any]) =>
-                                                                (users as string[]).map(userId => {
-                                                                    const reactor = employees.find(e => e.id === userId);
-                                                                    return (
-                                                                        <div
-                                                                            key={`${emoji}-${userId}`}
-                                                                            className="flex items-center gap-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full px-2 py-1 text-xs"
-                                                                        >
-                                                                            <span>{emoji}</span>
-                                                                            <span className="text-[10px] text-slate-600 dark:text-slate-400">
-                                                                                {reactor?.name?.split(' ')[0] || 'Unknown'}
-                                                                            </span>
-                                                                        </div>
-                                                                    );
-                                                                })
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {/* Comment Actions */}
-                                                <div className="flex items-center gap-2 mt-2">
-                                                    <Popover open={showEmojiPickerFor === comment.id} onOpenChange={(open) => setShowEmojiPickerFor(open ? comment.id : null)}>
-                                                        <PopoverTrigger asChild>
-                                                            <Button variant="ghost" size="sm" className="h-6 text-xs text-slate-500 hover:text-indigo-600">
-                                                                <Smile className="w-3 h-3 mr-1" />
-                                                                React
-                                                            </Button>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-auto p-1 flex gap-1 bg-white dark:bg-slate-900 shadow-xl border-slate-100 rounded-full" align="start">
-                                                            {['👍', '❤️', '😂', '😮', '😢', '😡'].map(emoji => (
-                                                                <button
-                                                                    key={emoji}
-                                                                    className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-lg transition-transform hover:scale-110"
-                                                                    onClick={() => handleReaction(comment.id, emoji)}
-                                                                >
-                                                                    {emoji}
-                                                                </button>
-                                                            ))}
-                                                        </PopoverContent>
-                                                    </Popover>
-
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-6 text-xs text-slate-500 hover:text-indigo-600"
-                                                        onClick={() => setReplyingToCommentId(comment.id)}
-                                                    >
-                                                        <Reply className="w-3 h-3 mr-1" />
-                                                        Reply
-                                                    </Button>
-                                                </div>
-
-                                                {/* Reply Input */}
-                                                {replyingToCommentId === comment.id && (
-                                                    <div className="mt-2 pl-4 animate-in fade-in slide-in-from-top-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <Input
-                                                                autoFocus
-                                                                placeholder="Write a reply..."
-                                                                value={replyText}
-                                                                onChange={(e) => setReplyText(e.target.value)}
-                                                                className="h-8 text-xs bg-slate-100 dark:bg-slate-800"
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter' && replyText.trim()) {
-                                                                        handleReply(comment.id);
-                                                                    }
-                                                                }}
-                                                            />
-                                                            <Button
-                                                                size="sm"
-                                                                className="h-8 w-8 p-0 bg-indigo-600 hover:bg-indigo-700"
-                                                                onClick={() => handleReply(comment.id)}
-                                                            >
-                                                                <ArrowUp className="w-3 h-3" />
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                className="h-8 w-8 p-0"
-                                                                onClick={() => {
-                                                                    setReplyingToCommentId(null);
-                                                                    setReplyText("");
-                                                                }}
-                                                            >
-                                                                <X className="w-3 h-3" />
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {/* Replies */}
-                                                {comment.replies && Object.keys(comment.replies).length > 0 && (
-                                                    <div className="mt-3 pl-4 space-y-2 border-l-2 border-slate-200 dark:border-slate-700">
-                                                        {Object.values(comment.replies).map((reply: any) => {
-                                                            const replyAuthor = employees.find(e => e.id === reply.authorId);
-                                                            return (
-                                                                <div key={reply.id} className="flex items-start gap-2">
-                                                                    <Avatar className="w-6 h-6">
-                                                                        <AvatarImage src={replyAuthor?.photoUrl} />
-                                                                        <AvatarFallback className="text-[10px]">
-                                                                            {reply.author?.[0]}
-                                                                        </AvatarFallback>
-                                                                    </Avatar>
-                                                                    <div className="flex-1">
-                                                                        <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg">
-                                                                            <p className="text-[10px] font-bold text-slate-900 dark:text-slate-100 mb-1">
-                                                                                {reply.author}
-                                                                            </p>
-                                                                            <p className="text-xs text-slate-700 dark:text-slate-300">
-                                                                                {reply.text}
-                                                                            </p>
-                                                                        </div>
-                                                                        <span className="text-[9px] text-slate-400 mt-1 block">
-                                                                            {new Date(reply.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                )}
-                                            </div>
+                                            )}
+                                            <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
+                                                {author.name}
+                                            </p>
                                         </div>
                                     </div>
-                                );
-                            })
-                        )}
+                                </div>
+                            )}
+
+                            {/* Approved By (if status changed from Raised) */}
+                            {task.status !== 'Raised' && task.approvedBy && (
+                                <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                                        <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">Approved By</p>
+                                        <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
+                                            Admin
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Current Assignees */}
+                            {assignedEmployees.length > 0 && (
+                                <div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center">
+                                            <Users className="w-4 h-4 text-indigo-600" />
+                                        </div>
+                                        <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                                            Assigned ({assignedEmployees.length})
+                                        </p>
+                                    </div>
+                                    <div className="space-y-1.5 pl-10">
+                                        {assignedEmployees.map((emp) => (
+                                            <div key={emp.id} className="flex items-center gap-1.5">
+                                                {emp.photoUrl ? (
+                                                    <img src={emp.photoUrl} alt={emp.name} className="w-4 h-4 rounded-full" />
+                                                ) : (
+                                                    <div className="w-4 h-4 rounded-full bg-indigo-500 text-white flex items-center justify-center text-[8px] font-bold">
+                                                        {emp.name.charAt(0)}
+                                                    </div>
+                                                )}
+                                                <p className="text-xs text-slate-700 dark:text-slate-300 truncate">
+                                                    {emp.name}
+                                                </p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Reassignment History */}
+                            {task.reassignmentHistory && task.reassignmentHistory.length > 0 && (
+                                <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+                                            <ArrowUp className="w-4 h-4 text-purple-600 rotate-45" />
+                                        </div>
+                                        <p className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold">
+                                            Reassignment History
+                                        </p>
+                                    </div>
+                                    <div className="space-y-1.5 pl-10">
+                                        {task.reassignmentHistory.map((history: any, idx: number) => {
+                                            const reassignedEmployee = employees.find(e => e.id === history.to);
+                                            return (
+                                                <div key={idx} className="text-xs text-slate-600 dark:text-slate-400">
+                                                    <p className="truncate">→ {reassignedEmployee?.name || 'Unknown'}</p>
+                                                    <p className="text-[9px] text-slate-400">
+                                                        {new Date(history.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                                    </p>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Tester */}
+                            {tester && (
+                                <div className="flex items-center gap-2 p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                                    <div className="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center">
+                                        <CheckCircle2 className="w-4 h-4 text-amber-600" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">Tester</p>
+                                        <div className="flex items-center gap-1.5">
+                                            {tester.photoUrl ? (
+                                                <img src={tester.photoUrl} alt={tester.name} className="w-4 h-4 rounded-full" />
+                                            ) : (
+                                                <div className="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center text-[8px] font-bold">
+                                                    {tester.name.charAt(0)}
+                                                </div>
+                                            )}
+                                            <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
+                                                {tester.name}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Subtask indicator - placeholder for future implementation */}
+                            {task.parentTaskId && (
+                                <div className="flex items-center gap-2 p-2 bg-slate-100 dark:bg-slate-800 rounded-lg border-l-4 border-slate-400">
+                                    <span className="text-xs text-slate-600 dark:text-slate-400">
+                                        📌 Subtask of #{task.parentTaskId.slice(-6)}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
-                    {/* Comment Input */}
-                    <div className="p-4 border-t border-slate-200 dark:border-slate-800">
-                        <div className="flex gap-2">
-                            <textarea
-                                value={newComment}
-                                onChange={(e) => setNewComment(e.target.value)}
-                                placeholder="Write a comment..."
-                                className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                                rows={3}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                                        handleAddComment();
-                                    }
-                                }}
-                            />
-                        </div>
-                        <Button
-                            onClick={handleAddComment}
-                            disabled={!newComment.trim()}
-                            className="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 rounded-2xl"
-                        >
-                            <Send className="w-4 h-4 mr-2" />
-                            Send Comment
-                        </Button>
-                    </div>
+
+
+                    {/* Right Sidebar Toggle Button */}
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="hidden md:flex fixed top-1/2 z-30 -translate-y-1/2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-l-xl rounded-r-none shadow-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                        onClick={() => setIsRightSidebarCollapsed(!isRightSidebarCollapsed)}
+                        style={{ right: isRightSidebarCollapsed ? '0' : '384px' }}
+                    >
+                        {isRightSidebarCollapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                    </Button>
                 </div>
             </div>
 
-            {/* Image Preview Modal */}
+            {/* Enhanced Image Preview Modal with Zoom */}
             {previewImage && (
                 <div
-                    className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
-                    onClick={() => setPreviewImage(null)}
+                    className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
+                    onClick={() => {
+                        setPreviewImage(null);
+                        setImageZoom(1);
+                        setImageTransform({ x: 0, y: 0 });
+                    }}
                 >
+                    {/* Close Button */}
                     <button
-                        className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
-                        onClick={() => setPreviewImage(null)}
+                        className="absolute top-4 right-4 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-all backdrop-blur-sm z-10"
+                        onClick={() => {
+                            setPreviewImage(null);
+                            setImageZoom(1);
+                            setImageTransform({ x: 0, y: 0 });
+                        }}
                     >
                         <X className="w-6 h-6 text-white" />
                     </button>
-                    <img
-                        src={previewImage}
-                        alt="Preview"
-                        className="max-w-full max-h-full object-contain rounded-2xl"
+
+                    {/* Zoom Controls */}
+                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-slate-900/80 backdrop-blur-md px-4 py-3 rounded-2xl shadow-2xl z-10">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setImageZoom(prev => Math.max(0.5, prev - 0.25));
+                            }}
+                            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                            title="Zoom Out"
+                        >
+                            <ZoomOut className="w-5 h-5 text-white" />
+                        </button>
+
+                        <div className="px-3 py-1 bg-white/10 rounded-lg min-w-[80px] text-center">
+                            <span className="text-sm font-semibold text-white">{Math.round(imageZoom * 100)}%</span>
+                        </div>
+
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setImageZoom(prev => Math.min(5, prev + 0.25));
+                            }}
+                            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                            title="Zoom In"
+                        >
+                            <ZoomIn className="w-5 h-5 text-white" />
+                        </button>
+
+                        <div className="w-px h-6 bg-white/20"></div>
+
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setImageZoom(1);
+                                setImageTransform({ x: 0, y: 0 });
+                            }}
+                            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                            title="Reset Zoom"
+                        >
+                            <RotateCcw className="w-5 h-5 text-white" />
+                        </button>
+                    </div>
+
+                    {/* Image Container */}
+                    <div
+                        className="relative w-full h-full flex items-center justify-center overflow-hidden"
                         onClick={(e) => e.stopPropagation()}
-                    />
+                        onWheel={(e) => {
+                            e.preventDefault();
+                            const delta = e.deltaY > 0 ? -0.1 : 0.1;
+                            setImageZoom(prev => Math.max(0.5, Math.min(5, prev + delta)));
+                        }}
+                    >
+                        <img
+                            src={previewImage}
+                            alt="Preview"
+                            className="w-screen h-screen object-contain cursor-move select-none"
+                            style={{
+                                transform: `scale(${imageZoom}) translate(${imageTransform.x}px, ${imageTransform.y}px)`,
+                                transition: 'transform 0.1s ease-out'
+                            }}
+                            draggable={false}
+                            onMouseDown={(e) => {
+                                if (imageZoom <= 1) return;
+                                e.preventDefault();
+                                const startX = e.clientX;
+                                const startY = e.clientY;
+                                const startTransformX = imageTransform.x;
+                                const startTransformY = imageTransform.y;
+
+                                const handleMouseMove = (moveEvent: MouseEvent) => {
+                                    const deltaX = (moveEvent.clientX - startX) / imageZoom;
+                                    const deltaY = (moveEvent.clientY - startY) / imageZoom;
+                                    setImageTransform({
+                                        x: startTransformX + deltaX,
+                                        y: startTransformY + deltaY
+                                    });
+                                };
+
+                                const handleMouseUp = () => {
+                                    document.removeEventListener('mousemove', handleMouseMove);
+                                    document.removeEventListener('mouseup', handleMouseUp);
+                                };
+
+                                document.addEventListener('mousemove', handleMouseMove);
+                                document.addEventListener('mouseup', handleMouseUp);
+                            }}
+                        />
+                    </div>
+
+                    {/* Instructions */}
+                    <div className="absolute top-4 left-4 bg-slate-900/80 backdrop-blur-md px-4 py-2 rounded-xl shadow-lg">
+                        <p className="text-xs text-slate-300">
+                            <span className="font-semibold text-white">Scroll</span> to zoom •
+                            <span className="font-semibold text-white"> Drag</span> to pan
+                        </p>
+                    </div>
                 </div>
             )}
 
@@ -1117,6 +1832,174 @@ const TaskDetail = () => {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
                         <Button onClick={handleUpdateTask}>Save Changes</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Reassign Dialog */}
+            <Dialog open={isReassignOpen} onOpenChange={setIsReassignOpen}>
+                <DialogContent className="max-w-md bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                    <DialogHeader>
+                        <DialogTitle>Reassign Task</DialogTitle>
+                        <DialogDescription>
+                            Select a new employee to assign this task to. They will receive an email notification.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="py-4">
+                        <Label className="mb-2 block">Select Employee</Label>
+                        <Select value={selectedReassignEmployee} onValueChange={setSelectedReassignEmployee}>
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Choose an employee..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <div className="max-h-60 overflow-y-auto">
+                                    {employees
+                                        .filter(emp => emp.role?.toLowerCase() === 'staff')
+                                        .map(emp => (
+                                            <SelectItem key={emp.id} value={emp.id}>
+                                                <div className="flex items-center gap-2">
+                                                    {emp.photoUrl ? (
+                                                        <img src={emp.photoUrl} alt={emp.name} className="w-5 h-5 rounded-full" />
+                                                    ) : (
+                                                        <div className="w-5 h-5 rounded-full bg-indigo-500 text-white flex items-center justify-center text-[8px] font-bold">
+                                                            {emp.name.charAt(0)}
+                                                        </div>
+                                                    )}
+                                                    <span>{emp.name}</span>
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                </div>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => {
+                            setIsReassignOpen(false);
+                            setSelectedReassignEmployee("");
+                        }}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleReassign} disabled={!selectedReassignEmployee}>
+                            Reassign Task
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Share Dialog */}
+            <Dialog open={isShareOpen} onOpenChange={setIsShareOpen}>
+                <DialogContent className="max-w-md bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Share2 className="w-5 h-5 text-blue-600" />
+                            Share Task
+                        </DialogTitle>
+                        <DialogDescription>
+                            Share this task with team members or copy the link
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="py-4 space-y-4">
+                        {/* Task Preview */}
+                        <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div className="flex items-start gap-3">
+                                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0">
+                                    <FileText className="w-5 h-5 text-white" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="font-semibold text-slate-900 dark:text-slate-100 text-sm mb-1 truncate">
+                                        {task.title}
+                                    </h4>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                        {task.status} • {task.priority} Priority
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Share Link */}
+                        <div className="space-y-2">
+                            <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Share Link</Label>
+                            <div className="flex items-center gap-2">
+                                <Input
+                                    value={`${window.location.origin}/tasks/${taskId}`}
+                                    readOnly
+                                    className="flex-1 bg-slate-100 dark:bg-slate-800 text-xs font-mono"
+                                />
+                                <Button
+                                    size="sm"
+                                    onClick={handleCopyLink}
+                                    className="shrink-0 bg-indigo-600 hover:bg-indigo-700"
+                                >
+                                    <Copy className="w-4 h-4 mr-1" />
+                                    Copy
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Share Options */}
+                        <div className="grid grid-cols-2 gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={handleShareTask}
+                                className="w-full justify-start"
+                            >
+                                <Share2 className="w-4 h-4 mr-2" />
+                                Share
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    const subject = encodeURIComponent(`Task: ${task.title}`);
+                                    const body = encodeURIComponent(`Check out this task: ${window.location.origin}/tasks/${taskId}`);
+                                    window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
+                                }}
+                                className="w-full justify-start"
+                            >
+                                <Send className="w-4 h-4 mr-2" />
+                                Email
+                            </Button>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsShareOpen(false)}>
+                            Close
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+                <DialogContent className="sm:max-w-md bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-red-600">
+                            <AlertCircle className="w-5 h-5" />
+                            Delete Task
+                        </DialogTitle>
+                        <DialogDescription className="text-slate-500 dark:text-slate-400">
+                            Are you sure you want to delete this task? This action cannot be undone and will permanently remove the task and all its data.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="mt-4 gap-2 sm:gap-0">
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsDeleteOpen(false)}
+                            className="w-full sm:w-auto"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={confirmDelete}
+                            className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white"
+                        >
+                            Delete Task
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

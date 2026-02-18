@@ -2,7 +2,7 @@
 export const TASK_TYPES = [
     "Development",
     "Testing",
-    "UI / UX",
+    "UI_UX",
     "Product & Planning",
     "Deployment & DevOps",
     "Documentation",
@@ -10,7 +10,7 @@ export const TASK_TYPES = [
     "Operations",
     "Learning & Growth",
     "General",
-    "Meta / Scheduling"
+    "Meta_Scheduling"
 ];
 
 export const TASK_SUB_TYPES: Record<string, string[]> = {
@@ -24,7 +24,7 @@ export const TASK_SUB_TYPES: Record<string, string[]> = {
         "Regression Test", "Manual Testing", "Test Automation",
         "Bug Verification", "QA Review", "UAT (User Acceptance Testing)"
     ],
-    "UI / UX": [
+    "UI_UX": [
         "UI Change", "UX Improvement", "Design Task", "Wireframe",
         "Prototype", "Responsive Fix", "Accessibility (A11y)",
         "Cross-browser Fix", "Design Review", "Branding Update"
@@ -58,7 +58,7 @@ export const TASK_SUB_TYPES: Record<string, string[]> = {
         "Chore", "To-Do", "Follow-up", "Reminder", "Exploration",
         "Experiment", "Blocked Task"
     ],
-    "Meta / Scheduling": [
+    "Meta_Scheduling": [
         "Recurring Task", "One-time Task", "Scheduled Task",
         "Ad-hoc Task", "External Dependency", "Internal Task"
     ]

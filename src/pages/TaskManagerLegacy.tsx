@@ -46,9 +46,29 @@ import {
     Send,
     UserCircle,
     Calendar,
-    Shield
+    Shield,
+    LayoutGrid,
+    List,
+    TableProperties,
+    Workflow,
+    Sliders,
+    Tags,
+    Milestone,
+    Database,
+    Layers,
+    GitBranch,
+    Settings2,
+    Info
 } from 'lucide-react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -67,6 +87,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import BackButton from "@/components/BackButton";
 
 import {
@@ -89,6 +112,20 @@ const StageIcons: Record<string, any> = {
     'Purchase': ClipboardList,
     'Delivery': Truck,
     'Finance': BadgeDollarSign,
+};
+
+const StatusIcons: Record<string, any> = {
+    'Raised': FileText,
+    'Open': Clock,
+    'Pending': Clock,
+    'In Progress': Activity,
+    'Testing': Search,
+    'Resolved': Check,
+    'Reopened': Plus,
+    'Hold': Lock,
+    'On Hold': Lock,
+    'Completed': CheckCircle,
+    'Rejected': X
 };
 
 const TaskCard = ({ task, employees, onClick }: { task: any, employees: any[], onClick: () => void }) => {
@@ -125,21 +162,23 @@ const TaskCard = ({ task, employees, onClick }: { task: any, employees: any[], o
                 } opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
 
             {/* Priority Side Stripe */}
-            <div className={`absolute top-0 left-0 w-1 h-full transition-all duration-300 group-hover:w-1.5 ${task.priority === 'High' ? 'bg-gradient-to-b from-red-500 to-red-600' :
-                task.priority === 'Low' ? 'bg-gradient-to-b from-slate-400 to-slate-500' :
-                    'bg-gradient-to-b from-indigo-500 to-indigo-600'
+            <div className={`absolute top-0 left-0 w-1 h-full transition-all duration-300 group-hover:w-1.5 ${task.priority === 'Critical' ? 'bg-gradient-to-b from-red-600 to-red-700' :
+                task.priority === 'High' ? 'bg-gradient-to-b from-red-500 to-red-600' :
+                    task.priority === 'Low' ? 'bg-gradient-to-b from-slate-400 to-slate-500' :
+                        'bg-gradient-to-b from-indigo-500 to-indigo-600'
                 }`} />
 
             <div className="relative z-10">
                 <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center gap-2">
                         <Badge
-                            variant={task.priority === 'High' ? 'destructive' : 'secondary'}
+                            variant={(task.priority === 'High' || task.priority === 'Critical') ? 'destructive' : 'secondary'}
                             className={`rounded-lg px-2.5 py-1 text-[10px] uppercase tracking-wider font-bold
                                 transition-all duration-300 group-hover:scale-110
-                                ${task.priority === 'High' ? 'bg-red-50 text-red-600 ring-1 ring-red-500/20 dark:bg-red-950/30 dark:text-red-400' :
-                                    task.priority === 'Low' ? 'bg-slate-50 text-slate-600 ring-1 ring-slate-500/20 dark:bg-slate-800 dark:text-slate-400' :
-                                        'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-500/20 dark:bg-indigo-950/30 dark:text-indigo-400'}`}
+                                ${task.priority === 'Critical' ? 'bg-red-100 text-red-700 ring-1 ring-red-600 dark:bg-red-950/50 dark:text-red-400' :
+                                    task.priority === 'High' ? 'bg-red-50 text-red-600 ring-1 ring-red-500/20 dark:bg-red-950/30 dark:text-red-400' :
+                                        task.priority === 'Low' ? 'bg-slate-50 text-slate-600 ring-1 ring-slate-500/20 dark:bg-slate-800 dark:text-slate-400' :
+                                            'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-500/20 dark:bg-indigo-950/30 dark:text-indigo-400'}`}
                         >
                             {task.priority || 'Normal'}
                         </Badge>
@@ -229,21 +268,202 @@ const TaskCard = ({ task, employees, onClick }: { task: any, employees: any[], o
     );
 };
 
+const SubTaskCard = ({ task, employees, onClick }: any) => {
+    const getStatusColor = (status: string) => {
+        switch (status) {
+            case 'Completed': return 'bg-emerald-500';
+            case 'In Progress': return 'bg-indigo-500';
+            case 'Testing': return 'bg-purple-500';
+            case 'On Hold': return 'bg-amber-500';
+            default: return 'bg-slate-400';
+        }
+    };
+
+    return (
+        <div
+            onClick={onClick}
+            className="flex items-center gap-4 p-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl cursor-pointer hover:bg-white dark:hover:bg-slate-900 hover:shadow-md hover:border-indigo-200 transition-all group scale-[0.98] hover:scale-100"
+        >
+            <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${getStatusColor(task.status)} shadow-sm group-hover:scale-125 transition-transform`} />
+
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-[9px] font-mono text-slate-400">{task.taskId}</span>
+                    <Badge variant="outline" className="text-[8px] h-3.5 px-1 uppercase font-black border-slate-200 text-slate-500">
+                        {task.status}
+                    </Badge>
+                </div>
+                <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate group-hover:text-indigo-600 transition-colors">
+                    {task.title}
+                </h4>
+            </div>
+
+            <div className="flex -space-x-1.5 shrink-0">
+                {(task.assignedEmployeeIds || []).slice(0, 2).map((id: string) => {
+                    const emp = employees.find(e => e.id === id);
+                    return (
+                        <Avatar key={id} className="w-6 h-6 border-2 border-white dark:border-slate-800 shadow-sm">
+                            <AvatarImage src={emp?.photoUrl} />
+                            <AvatarFallback className="text-[7px] bg-indigo-50 text-indigo-700 font-bold">{emp?.firstName?.[0]}</AvatarFallback>
+                        </Avatar>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
+
+const TaskListItem = ({ task, employees, onClick }: any) => {
+    const assignee = employees.find(e => e.id === (task.assignedEmployeeIds?.[0]));
+
+    return (
+        <div
+            onClick={onClick}
+            className="group flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl cursor-pointer hover:shadow-lg hover:border-indigo-500/30 transition-all duration-300"
+        >
+            <div className={`w-1 h-10 rounded-full shrink-0 ${task.priority === 'Critical' ? 'bg-red-600 shadow-sm' : task.priority === 'High' ? 'bg-red-500' : task.priority === 'Low' ? 'bg-slate-400' : 'bg-indigo-500'}`} />
+
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] font-mono text-slate-400">{task.taskId}</span>
+                    <Badge variant="outline" className="text-[9px] uppercase font-bold px-1.5 py-0">
+                        {task.status || 'Pending'}
+                    </Badge>
+                </div>
+                <h3 className="font-semibold text-slate-900 dark:text-slate-100 truncate group-hover:text-indigo-600 transition-colors">
+                    {task.title}
+                </h3>
+            </div>
+
+            <div className="flex items-center gap-6 shrink-0 ml-auto sm:ml-0">
+                <div className="flex items-center gap-2">
+                    <div className="flex -space-x-2">
+                        {(task.assignedEmployeeIds || []).slice(0, 3).map((id: string) => {
+                            const emp = employees.find(e => e.id === id);
+                            return (
+                                <Avatar key={id} className="w-6 h-6 border-2 border-white dark:border-slate-800">
+                                    <AvatarImage src={emp?.photoUrl} />
+                                    <AvatarFallback className="text-[8px] bg-slate-100">{emp?.firstName?.[0]}</AvatarFallback>
+                                </Avatar>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <div className="flex flex-col items-end gap-1 min-w-[100px]">
+                    <div className="flex items-center gap-1 text-[10px] text-slate-500">
+                        <Calendar className="w-3 h-3" />
+                        {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No Date'}
+                    </div>
+                    <div className={`h-1 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden`}>
+                        <div className={`h-full ${task.status === 'Completed' ? 'bg-emerald-500' : 'bg-indigo-500'} transition-all`} style={{ width: task.status === 'Completed' ? '100%' : '40%' }} />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const TaskTableRow = ({ task, employees, onClick }: any) => {
+    return (
+        <TableRow onClick={onClick} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 group">
+            <TableCell className="font-mono text-[10px] text-slate-500">{task.taskId}</TableCell>
+            <TableCell className="font-medium min-w-[200px]">{task.title}</TableCell>
+            <TableCell>
+                <div className="flex -space-x-1">
+                    {(task.assignedEmployeeIds || []).slice(0, 3).map((id: string) => {
+                        const emp = employees.find(e => e.id === id);
+                        return (
+                            <Avatar key={id} className="w-5 h-5 border-2 border-white dark:border-slate-800">
+                                <AvatarImage src={emp?.photoUrl} />
+                                <AvatarFallback className="text-[8px] bg-slate-100">{emp?.firstName?.[0]}</AvatarFallback>
+                            </Avatar>
+                        );
+                    })}
+                </div>
+            </TableCell>
+            <TableCell>
+                <Badge variant="secondary" className="text-[10px] uppercase font-bold">
+                    {task.status || 'Pending'}
+                </Badge>
+            </TableCell>
+            <TableCell>
+                <div className="flex items-center gap-1.5">
+                    <div className={`w-2 h-2 rounded-full ${task.priority === 'High' ? 'bg-red-500' : task.priority === 'Low' ? 'bg-slate-400' : 'bg-indigo-500'}`} />
+                    <span className="text-xs">{task.priority || 'Normal'}</span>
+                </div>
+            </TableCell>
+            <TableCell className="text-right text-xs text-slate-500">
+                {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No Date'}
+            </TableCell>
+        </TableRow>
+    );
+};
+
+const TaskListView = ({ tasks, employees, viewMode, onClick }: any) => {
+    if (viewMode === 'grid') {
+        return (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {tasks.map(task => (
+                    <TaskCard key={task.id} task={task} employees={employees} onClick={() => onClick(task)} />
+                ))}
+            </div>
+        );
+    }
+
+    if (viewMode === 'list') {
+        return (
+            <div className="flex flex-col gap-3">
+                {tasks.map(task => (
+                    <TaskListItem key={task.id} task={task} employees={employees} onClick={() => onClick(task)} />
+                ))}
+            </div>
+        );
+    }
+
+    if (viewMode === 'table') {
+        return (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+                <Table>
+                    <TableHeader>
+                        <TableRow className="bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                            <TableHead className="font-bold text-[10px] uppercase tracking-wider text-slate-500">ID</TableHead>
+                            <TableHead className="font-bold text-[10px] uppercase tracking-wider text-slate-500">Title</TableHead>
+                            <TableHead className="font-bold text-[10px] uppercase tracking-wider text-slate-500">Assignees</TableHead>
+                            <TableHead className="font-bold text-[10px] uppercase tracking-wider text-slate-500">Status</TableHead>
+                            <TableHead className="font-bold text-[10px] uppercase tracking-wider text-slate-500">Priority</TableHead>
+                            <TableHead className="font-bold text-[10px] uppercase tracking-wider text-slate-500 text-right">Due Date</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {tasks.map(task => (
+                            <TaskTableRow key={task.id} task={task} employees={employees} onClick={() => onClick(task)} />
+                        ))}
+                    </TableBody>
+                </Table>
+            </div>
+        );
+    }
+
+    return null;
+};
+
 
 const SidebarItem = ({ icon: Icon, label, active, onClick, count }: any) => (
     <button
         onClick={onClick}
-        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all duration-200 font-medium ${active
+        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all duration-200 font-medium ${active
             ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800 animate-in fade-in duration-300'
             : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent'
             }`}
     >
-        <div className="flex items-center gap-3">
-            <Icon className={`w-4 h-4 ${active ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
+        <div className="flex items-center gap-2.5">
+            <Icon className={`w-3.5 h-3.5 ${active ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
             <span className="truncate max-w-[140px]">{label}</span>
         </div>
         {count !== undefined && (
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${active ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${active ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
                 {count}
             </span>
         )}
@@ -257,6 +477,7 @@ const TaskManager = () => {
     const [selectedTask, setSelectedTask] = useState<any | null>(null);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
+    const [parentTaskId, setParentTaskId] = useState<string | null>(null);
     // Default open on desktop (md = 768px), closed on mobile
     const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
 
@@ -297,6 +518,7 @@ const TaskManager = () => {
         status: 'Open'
     });
 
+    const [viewMode, setViewMode] = useState<'grid' | 'list' | 'table'>('grid');
     const [searchQuery, setSearchQuery] = useState("");
     const [employees, setEmployees] = useState<any[]>([]);
     const [departments, setDepartments] = useState<any[]>([]);
@@ -326,6 +548,18 @@ const TaskManager = () => {
     const [editTaskData, setEditTaskData] = useState<any>(null);
     const [commentText, setCommentText] = useState("");
     const [selectedCommenterId, setSelectedCommenterId] = useState<string>(loggedInEmpId || "");
+    const [isAttributeManagerOpen, setIsAttributeManagerOpen] = useState(false);
+    const [taskAttributes, setTaskAttributes] = useState<any>({
+        priorities: TASK_PRIORITIES,
+        statuses: ['Raised', 'Open', 'Pending', 'In Progress', 'Testing', 'Resolved', 'Reopened', 'Hold', 'On Hold', 'Completed'],
+        types: TASK_TYPES,
+        subTypes: TASK_SUB_TYPES,
+        components: TASK_COMPONENTS,
+        versions: ['v1.0', 'v1.1'],
+        settings: {
+            maxAttachments: 10
+        }
+    });
 
     useEffect(() => {
         if (loggedInEmpId) {
@@ -339,6 +573,149 @@ const TaskManager = () => {
     const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
     const [approveAssignee, setApproveAssignee] = useState("");
     const [approveEffort, setApproveEffort] = useState("");
+    const [newItem, setNewItem] = useState("");
+    const [editingAttribute, setEditingAttribute] = useState<{ category: string, index: number, value: string } | null>(null);
+    const [selectedTypeForSub, setSelectedTypeForSub] = useState<string | null>(null);
+
+    const handleAttributeAdd = (category: string) => {
+        if (!newItem.trim()) return;
+        const updated = { ...taskAttributes };
+
+        let currentArray = updated[category];
+        if (!Array.isArray(currentArray)) {
+            currentArray = currentArray ? Object.values(currentArray) : [];
+        }
+
+        let itemToAdd = newItem.trim();
+
+        // Sanitize Task Types to be valid Firebase keys
+        if (category === 'types') {
+            itemToAdd = itemToAdd.replace(/[.#$/[\]]/g, '_');
+        }
+
+        updated[category] = [...currentArray, itemToAdd];
+
+        firebase.database().ref('root/nexus_hr/taskAttribute').set(updated).then(() => {
+            toast({ title: "Added", description: `${newItem} added in real-time.` });
+        });
+        setNewItem("");
+    };
+
+    const handleAttributeEdit = (category: string, index: number, newValue: string) => {
+        if (!newValue.trim()) return;
+        const updated = { ...taskAttributes };
+
+        let currentArray = updated[category];
+        if (!Array.isArray(currentArray)) {
+            currentArray = currentArray ? Object.values(currentArray) : [];
+        }
+        if (!currentArray[index]) return;
+
+        const oldValue = currentArray[index];
+        let normalizedNewValue = newValue.trim();
+
+        if (category === 'types') {
+            normalizedNewValue = normalizedNewValue.replace(/[.#$/[\]]/g, '_');
+        }
+
+        currentArray[index] = normalizedNewValue;
+        updated[category] = currentArray;
+
+        // Maintain Sub-types relationship if a main Type is renamed
+        if (category === 'types' && updated.subTypes) {
+            updated.subTypes = { ...updated.subTypes };
+            if (updated.subTypes[oldValue]) {
+                updated.subTypes[normalizedNewValue] = updated.subTypes[oldValue];
+                delete updated.subTypes[oldValue];
+            }
+        }
+
+        firebase.database().ref('root/nexus_hr/taskAttribute').set(updated).then(() => {
+            toast({ title: "Updated", description: `${category} real-time sync complete.` });
+        });
+        setEditingAttribute(null);
+    };
+
+    const handleAttributeRemove = (category: string, index: number) => {
+        const updated = { ...taskAttributes };
+
+        let currentArray = updated[category];
+        if (!Array.isArray(currentArray)) {
+            currentArray = currentArray ? Object.values(currentArray) : [];
+        }
+        if (!currentArray[index]) return;
+
+        const oldValue = currentArray[index];
+
+        updated[category] = currentArray.filter((_: any, i: number) => i !== index);
+
+        // Clean up Sub-types if a main Type is removed
+        if (category === 'types' && updated.subTypes) {
+            updated.subTypes = { ...updated.subTypes };
+            if (updated.subTypes[oldValue]) {
+                delete updated.subTypes[oldValue];
+            }
+        }
+
+        firebase.database().ref('root/nexus_hr/taskAttribute').set(updated).then(() => {
+            toast({ title: "Removed", description: "Manager data updated." });
+        });
+    };
+
+    const handleSubTypeAdd = (type: string) => {
+        if (!newItem.trim()) return;
+        const updated = { ...taskAttributes };
+        if (!updated.subTypes) updated.subTypes = {};
+
+        let currentSubArray = updated.subTypes[type];
+        if (!Array.isArray(currentSubArray)) {
+            currentSubArray = currentSubArray ? Object.values(currentSubArray) : [];
+        }
+
+        updated.subTypes[type] = [...currentSubArray, newItem.trim()];
+
+        firebase.database().ref('root/nexus_hr/taskAttribute').set(updated).then(() => {
+            toast({ title: "Sub-type Added", description: "Real-time sync complete." });
+        });
+        setNewItem("");
+    };
+
+    const handleSubTypeEdit = (type: string, index: number, newValue: string) => {
+        if (!newValue.trim()) return;
+        const updated = { ...taskAttributes };
+        if (!updated.subTypes) return;
+
+        let currentSubArray = updated.subTypes[type];
+        if (!Array.isArray(currentSubArray)) {
+            currentSubArray = currentSubArray ? Object.values(currentSubArray) : [];
+        }
+
+        if (!currentSubArray[index]) return;
+
+        currentSubArray[index] = newValue.trim();
+        updated.subTypes[type] = currentSubArray;
+
+        firebase.database().ref('root/nexus_hr/taskAttribute').set(updated).then(() => {
+            toast({ title: "Sub-type Updated", description: "Manager data updated." });
+        });
+        setEditingAttribute(null);
+    };
+
+    const handleSubTypeRemove = (type: string, index: number) => {
+        const updated = { ...taskAttributes };
+        if (!updated.subTypes) return;
+
+        let currentSubArray = updated.subTypes[type];
+        if (!Array.isArray(currentSubArray)) {
+            currentSubArray = currentSubArray ? Object.values(currentSubArray) : [];
+        }
+
+        updated.subTypes[type] = currentSubArray.filter((_: any, i: number) => i !== index);
+
+        firebase.database().ref('root/nexus_hr/taskAttribute').set(updated).then(() => {
+            toast({ title: "Sub-type Removed", description: "Manager data updated." });
+        });
+    };
 
     const activeTask = tasks.find(t => t.id === selectedTask?.id) || selectedTask;
 
@@ -366,6 +743,16 @@ const TaskManager = () => {
         };
     }, []);
 
+    // Auto-select team for logged-in user
+    useEffect(() => {
+        if (loggedInEmpId && teams.length > 0 && !selectedTeamId) {
+            const userTeam = teams.find(team => team.memberIds?.includes(loggedInEmpId));
+            if (userTeam) {
+                setSelectedTeamId(userTeam.id);
+            }
+        }
+    }, [loggedInEmpId, teams, selectedTeamId]);
+
     useEffect(() => {
         const db = firebase.database();
         const tasksRef = db.ref('root/nexus_hr/tasks');
@@ -379,9 +766,37 @@ const TaskManager = () => {
             }
         };
 
-        const limitedTasksQuery = tasksRef.limitToLast(200);
-        limitedTasksQuery.on('value', onValueChange);
-        return () => limitedTasksQuery.off('value', onValueChange);
+        tasksRef.on('value', onValueChange);
+        return () => tasksRef.off('value', onValueChange);
+    }, []);
+
+    useEffect(() => {
+        const db = firebase.database();
+        const attrRef = db.ref('root/nexus_hr/taskAttribute');
+
+        const onAttrChange = (snap: any) => {
+            const data = snap.val();
+            if (data) {
+                setTaskAttributes(data);
+            } else {
+                const initial = {
+                    priorities: TASK_PRIORITIES,
+                    statuses: ['Raised', 'Open', 'Pending', 'In Progress', 'Testing', 'Resolved', 'Reopened', 'Hold', 'On Hold', 'Completed'],
+                    types: TASK_TYPES,
+                    subTypes: TASK_SUB_TYPES,
+                    components: TASK_COMPONENTS,
+                    versions: ['v1.0', 'v1.1'],
+                    settings: {
+                        maxAttachments: 10
+                    }
+                };
+                attrRef.set(initial);
+                setTaskAttributes(initial);
+            }
+        };
+
+        attrRef.on('value', onAttrChange);
+        return () => attrRef.off('value', onAttrChange);
     }, []);
 
     const sendTaskNotification = (targetIds: string[], title: string, message: string) => {
@@ -484,10 +899,10 @@ const TaskManager = () => {
         const taskId = 'TSK-' + Date.now();
         const createdNow = new Date().toISOString();
         const db = firebase.database();
-
-        const taskData = {
+        const taskData: any = {
             id: taskId,
             taskId,
+            parentId: parentTaskId,
             title: newTask.title,
             description: newTask.description,
             images: newTask.images || [],
@@ -540,16 +955,11 @@ const TaskManager = () => {
                     );
                 }
 
-                // Cloud Function Push
-                sendCloudFunctionPush(
-                    assignees,
-                    "New Task Assigned 📋",
-                    `You have been assigned: ${newTask.title}`
-                );
             }
 
             toast({ title: "Success", description: "Task created successfully" });
             setIsCreateOpen(false);
+            setParentTaskId(null);
 
             // Reset Form (Preserve previous team/defaults if needed, but clearing mostly)
             setNewTask(prev => ({
@@ -572,42 +982,53 @@ const TaskManager = () => {
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                const img = new Image();
-                img.src = reader.result as string;
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    const maxSize = 800;
-                    let width = img.width;
-                    let height = img.height;
+        if (!file) return;
 
-                    if (width > height) {
-                        if (width > maxSize) {
-                            height *= maxSize / width;
-                            width = maxSize;
-                        }
-                    } else {
-                        if (height > maxSize) {
-                            width *= maxSize / height;
-                            height = maxSize;
-                        }
-                    }
-                    canvas.width = width;
-                    canvas.height = height;
-                    ctx?.drawImage(img, 0, 0, width, height);
-                    const base64 = canvas.toDataURL('image/jpeg', 0.7);
-
-                    setNewTask(prev => ({
-                        ...prev,
-                        images: [...(prev.images || []), base64]
-                    }));
-                }
-            };
-            reader.readAsDataURL(file);
+        const currentCount = newTask.images?.length || 0;
+        const maxLimit = taskAttributes.settings?.maxAttachments || 10;
+        if (currentCount >= maxLimit) {
+            toast({
+                title: "Attachment Limit Reached",
+                description: `You can only add up to ${maxLimit} attachments per task. You can change this in the Attribute Manager.`,
+                variant: "destructive"
+            });
+            return;
         }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const img = new Image();
+            img.src = reader.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const maxSize = 800;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > maxSize) {
+                        height *= maxSize / width;
+                        width = maxSize;
+                    }
+                } else {
+                    if (height > maxSize) {
+                        width *= maxSize / height;
+                        height = maxSize;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                ctx?.drawImage(img, 0, 0, width, height);
+                const base64 = canvas.toDataURL('image/jpeg', 0.7);
+
+                setNewTask(prev => ({
+                    ...prev,
+                    images: [...(prev.images || []), base64]
+                }));
+            }
+        };
+        reader.readAsDataURL(file);
     };
 
     const handleStatusUpdate = (taskId: string, newStatus: string) => {
@@ -714,7 +1135,11 @@ const TaskManager = () => {
             priority: editTaskData.priority,
             dueDate: editTaskData.dueDate,
             testerId: editTaskData.testerId,
-            assignedEmployeeIds: editTaskData.assignedEmployeeIds
+            assignedEmployeeIds: editTaskData.assignedEmployeeIds,
+            taskType: editTaskData.taskType,
+            taskSubType: editTaskData.taskSubType,
+            taskComponent: editTaskData.taskComponent,
+            version: editTaskData.version
         }).then(() => {
             // Send notification to newly assigned members
             const oldAssignees = activeTask?.assignedEmployeeIds || [];
@@ -726,13 +1151,6 @@ const TaskManager = () => {
                     newlyAdded,
                     "Task Assigned to You",
                     `Task "${editTaskData.title}" has been assigned to you.`
-                );
-
-                // Send REAL FCM Push Notification to newly added via Cloud Function
-                sendCloudFunctionPush(
-                    newlyAdded,
-                    "Task Assigned to You 📋",
-                    `You have been assigned a task: ${editTaskData.title}`
                 );
             }
 
@@ -809,7 +1227,11 @@ const TaskManager = () => {
     const [filterStatus, setFilterStatus] = useState<string>("All");
 
     const filteredTasks = tasks.filter(t => {
-        const matchesStatus = filterStatus === 'All' || t.status === filterStatus;
+        const matchesStatus = filterStatus === 'All' ||
+            (filterStatus === 'Open' ? (t.status === 'Open' || t.status === 'Pending') :
+                filterStatus === 'Hold' ? (t.status === 'Hold' || t.status === 'On Hold') :
+                    t.status === filterStatus);
+
         const matchesTeam = !selectedTeamFilter || t.teamId === selectedTeamFilter;
         const matchesEmployee = !selectedEmployeeFilter || (t.assignedEmployeeIds || []).includes(selectedEmployeeFilter);
         const matchesPriority = !selectedPriorityFilter || t.priority === selectedPriorityFilter;
@@ -817,24 +1239,25 @@ const TaskManager = () => {
             t.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             t.taskId?.toLowerCase().includes(searchQuery.toLowerCase());
 
-        // Visibility Logic:
-        // - Admins see all.
-        // - Staff see tasks if:
-        //   1. They created it.
-        //   2. They are assigned to it.
-        //   3. The task is NOT 'Raised' (i.e., it has been approved/opened).
+        // Visibility Logic
         let isVisible = true;
-        if (isStaff) {
+        if (isStaff && filterStatus !== 'All') {
             const isCreator = t.createdBy === loggedInEmpId;
             const isAssigned = (t.assignedEmployeeIds || []).includes(loggedInEmpId);
-            const isPublic = t.status !== 'Raised'; // 'Raised' tasks are private to admin/creator
-
-            if (!isCreator && !isAssigned && !isPublic) {
-                isVisible = false;
-            }
+            const isPublic = t.status !== 'Raised';
+            isVisible = isCreator || isAssigned || isPublic;
         }
 
         return matchesStatus && matchesTeam && matchesEmployee && matchesPriority && matchesSearch && isVisible;
+    }).sort((a, b) => {
+        const priorities = taskAttributes.priorities || ['Critical', 'High', 'Medium', 'Normal', 'Low'];
+        const getPriorityScore = (p: string) => {
+            const index = priorities.indexOf(p);
+            return index === -1 ? 0 : priorities.length - index;
+        };
+        const pA = getPriorityScore(a.priority);
+        const pB = getPriorityScore(b.priority);
+        return pB - pA;
     });
 
     // Segregate tasks into 'My Tasks' and 'Other Tasks'
@@ -865,36 +1288,35 @@ const TaskManager = () => {
                         </div>
                     </div>
 
-                    <ScrollArea className="flex-1 py-4 px-3">
-                        <div className="mb-8">
-                            <div className="flex items-center justify-between px-3 mb-2 group">
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Filters</span>
+                    <ScrollArea className="flex-1 py-1 px-3">
+                        <div className="mb-6">
+                            <div className="flex items-center justify-between px-3 mb-1.5 group">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Filters</span>
                             </div>
-                            <div className="space-y-1">
+                            <div className="space-y-0.5">
                                 <SidebarItem
                                     icon={ClipboardList}
                                     label="All Tasks"
-                                    active={filterStatus === 'All' && !selectedTeamFilter}
-                                    onClick={() => {
-                                        setFilterStatus('All');
-                                        setSelectedTeamFilter(null);
-                                    }}
+                                    active={filterStatus === 'All'}
+                                    onClick={() => setFilterStatus('All')}
                                     count={tasks.length}
                                 />
-                                <SidebarItem icon={FileText} label="Raised" active={filterStatus === 'Raised'} onClick={() => setFilterStatus('Raised')} count={tasks.filter(t => t.status === 'Raised').length} />
-                                <SidebarItem icon={Clock} label="Open" active={filterStatus === 'Open'} onClick={() => setFilterStatus('Open')} count={tasks.filter(t => t.status === 'Open' || t.status === 'Pending').length} />
-                                <SidebarItem icon={Activity} label="In Progress" active={filterStatus === 'In Progress'} onClick={() => setFilterStatus('In Progress')} count={tasks.filter(t => t.status === 'In Progress').length} />
-                                <SidebarItem icon={Search} label="Testing" active={filterStatus === 'Testing'} onClick={() => setFilterStatus('Testing')} count={tasks.filter(t => t.status === 'Testing').length} />
-                                <SidebarItem icon={Check} label="Resolved" active={filterStatus === 'Resolved'} onClick={() => setFilterStatus('Resolved')} count={tasks.filter(t => t.status === 'Resolved').length} />
-                                <SidebarItem icon={Plus} label="Reopened" active={filterStatus === 'Reopened'} onClick={() => setFilterStatus('Reopened')} count={tasks.filter(t => t.status === 'Reopened').length} />
-                                <SidebarItem icon={Lock} label="Hold" active={filterStatus === 'Hold' || filterStatus === 'On Hold'} onClick={() => setFilterStatus('Hold')} count={tasks.filter(t => t.status === 'Hold' || t.status === 'On Hold').length} />
-                                <SidebarItem icon={CheckCircle} label="Completed" active={filterStatus === 'Completed'} onClick={() => setFilterStatus('Completed')} count={tasks.filter(t => t.status === 'Completed').length} />
+                                {(taskAttributes.statuses || []).map((status: string) => (
+                                    <SidebarItem
+                                        key={status}
+                                        icon={StatusIcons[status] || Activity}
+                                        label={status}
+                                        active={filterStatus === status}
+                                        onClick={() => setFilterStatus(status)}
+                                        count={tasks.filter(t => t.status === status).length}
+                                    />
+                                ))}
                             </div>
                         </div>
 
-                        <div className="mb-6">
-                            <div className="flex items-center justify-between px-3 mb-2">
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Workspaces</span>
+                        <div className="mb-5">
+                            <div className="flex items-center justify-between px-3 mb-1.5">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Workspaces</span>
                                 <Button
                                     variant="ghost"
                                     size="icon"
@@ -904,7 +1326,7 @@ const TaskManager = () => {
                                     <Plus className="w-3 h-3" />
                                 </Button>
                             </div>
-                            <div className="space-y-1">
+                            <div className="space-y-0.5">
                                 {teams.map(team => (
                                     <SidebarItem
                                         key={team.id}
@@ -935,11 +1357,12 @@ const TaskManager = () => {
                             </div>
                         </div>
 
-                        <div className="mb-6">
-                            <div className="flex items-center justify-between px-3 mb-2">
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Management</span>
+                        <div className="mb-5">
+                            <div className="flex items-center justify-between px-3 mb-1.5">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Management</span>
                             </div>
                             <SidebarItem icon={Settings} label="Manage Workspaces" active={isTeamModalOpen} onClick={() => setIsTeamModalOpen(true)} />
+                            <SidebarItem icon={Sliders} label="Attribute Manager" active={isAttributeManagerOpen} onClick={() => setIsAttributeManagerOpen(true)} />
                         </div>
                     </ScrollArea>
 
@@ -1066,24 +1489,31 @@ const TaskManager = () => {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All Priorities</SelectItem>
-                                <SelectItem value="High">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 rounded-full bg-red-500" />
-                                        High
-                                    </div>
-                                </SelectItem>
-                                <SelectItem value="Normal">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 rounded-full bg-indigo-500" />
-                                        Normal
-                                    </div>
-                                </SelectItem>
-                                <SelectItem value="Low">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 rounded-full bg-slate-400" />
-                                        Low
-                                    </div>
-                                </SelectItem>
+                                {(taskAttributes.priorities || []).map(p => (
+                                    <SelectItem key={p} value={p}>
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-2 h-2 rounded-full ${p === 'Critical' ? 'bg-red-600' : p === 'High' ? 'bg-red-500' : 'bg-indigo-500'}`} />
+                                            {p}
+                                        </div>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+
+                        {/* Status Filter */}
+                        <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-2 hidden md:block" />
+                        <Select value={filterStatus} onValueChange={(val: any) => setFilterStatus(val)}>
+                            <SelectTrigger className="h-8 w-auto border-slate-200 dark:border-slate-700 gap-2 text-xs whitespace-nowrap hidden md:flex">
+                                <div className="flex items-center gap-2">
+                                    <Activity className="w-3.5 h-3.5" />
+                                    <SelectValue placeholder="Status" />
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent align="end">
+                                <SelectItem value="All">All Statuses</SelectItem>
+                                {(taskAttributes.statuses || []).map(status => (
+                                    <SelectItem key={status} value={status}>{status}</SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
 
@@ -1096,7 +1526,36 @@ const TaskManager = () => {
                             >
                                 <Plus className="w-5 h-5" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="text-slate-500"><HelpCircle className="w-5 h-5" /></Button>
+                            <Button variant="ghost" size="icon" className="text-slate-500">
+                                <HelpCircle className="w-5 h-5" />
+                            </Button>
+
+                            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg ml-2 border border-slate-200 dark:border-slate-700">
+                                <Button
+                                    variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                                    size="icon"
+                                    className={`h-7 w-7 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 shadow-sm' : ''}`}
+                                    onClick={() => setViewMode('grid')}
+                                >
+                                    <LayoutGrid className={`w-4 h-4 ${viewMode === 'grid' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`} />
+                                </Button>
+                                <Button
+                                    variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                                    size="icon"
+                                    className={`h-7 w-7 rounded-md transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 shadow-sm' : ''}`}
+                                    onClick={() => setViewMode('list')}
+                                >
+                                    <List className={`w-4 h-4 ${viewMode === 'list' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`} />
+                                </Button>
+                                <Button
+                                    variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+                                    size="icon"
+                                    className={`h-7 w-7 rounded-md transition-all ${viewMode === 'table' ? 'bg-white dark:bg-slate-700 shadow-sm' : ''}`}
+                                    onClick={() => setViewMode('table')}
+                                >
+                                    <TableProperties className={`w-4 h-4 ${viewMode === 'table' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`} />
+                                </Button>
+                            </div>
                         </div>
                     </header>
 
@@ -1137,33 +1596,29 @@ const TaskManager = () => {
                                                     </Badge>
                                                 </div>
                                             </div>
-                                            {['Raised', 'Open', 'Pending', 'In Progress', 'Testing', 'Resolved', 'Reopened', 'Hold', 'On Hold', 'Completed'].map(status => {
-                                                const tasksInStatus = myTasks.filter(t => (t.status || 'Pending') === status);
-                                                if (tasksInStatus.length === 0) return null;
+                                            {(taskAttributes.priorities || ['Critical', 'High', 'Medium', 'Normal', 'Low']).map(priority => {
+                                                const tasksInPriority = myTasks.filter(t => (t.priority || 'Low') === priority);
+                                                if (tasksInPriority.length === 0) return null;
 
                                                 return (
-                                                    <div key={`my-${status}`} className="space-y-4">
+                                                    <div key={`my-${priority}`} className="space-y-4">
                                                         <div className="flex items-center gap-2 px-1">
-                                                            <div className={`w-3 h-3 rounded-sm ${status === 'Completed' ? 'bg-emerald-500' :
-                                                                status === 'Testing' ? 'bg-purple-500' :
-                                                                    status === 'In Progress' ? 'bg-indigo-500' :
-                                                                        status === 'On Hold' ? 'bg-amber-500' : 'bg-slate-300'
+                                                            <div className={`w-3 h-3 rounded-full ${priority === 'Critical' ? 'bg-red-600 shadow-sm shadow-red-500/50 scale-110' :
+                                                                priority === 'High' ? 'bg-red-500' :
+                                                                    (priority === 'Normal' || priority === 'Medium') ? 'bg-indigo-500' :
+                                                                        'bg-slate-400'
                                                                 }`} />
-                                                            <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500">
-                                                                {status === 'Testing' ? 'QA Testing' : status}
+                                                            <h3 className={`text-sm font-bold uppercase tracking-widest ${priority === 'Critical' ? 'text-red-600' : 'text-slate-500'}`}>
+                                                                {priority} Priority
                                                             </h3>
-                                                            <Badge variant="secondary" className="rounded-full h-5 min-w-[20px] px-1.5">{tasksInStatus.length}</Badge>
+                                                            <Badge variant="secondary" className="rounded-full h-5 min-w-[20px] px-1.5">{tasksInPriority.length}</Badge>
                                                         </div>
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                            {tasksInStatus.map(task => (
-                                                                <TaskCard
-                                                                    key={task.id}
-                                                                    task={task}
-                                                                    employees={employees}
-                                                                    onClick={() => window.open(`/tasks/${task.id}`, '_blank')}
-                                                                />
-                                                            ))}
-                                                        </div>
+                                                        <TaskListView
+                                                            tasks={tasksInPriority}
+                                                            employees={employees}
+                                                            viewMode={viewMode}
+                                                            onClick={(t: any) => window.open(`/tasks/${t.id}`, '_blank')}
+                                                        />
                                                     </div>
                                                 );
                                             })}
@@ -1173,49 +1628,43 @@ const TaskManager = () => {
                                     {/* Other Tasks Section */}
                                     {otherTasks.length > 0 && (
                                         <div className="space-y-6">
-                                            {myTasks.length > 0 && (
-                                                <div className="relative group animate-in fade-in slide-in-from-left-4 duration-700 delay-150">
-                                                    <div className="absolute inset-0 bg-gradient-to-r from-slate-500/10 to-slate-400/10 rounded-xl blur-xl group-hover:blur-2xl transition-all duration-500" />
-                                                    <div className="relative flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-slate-900/50 dark:to-slate-800/30 rounded-xl border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm shadow-lg shadow-slate-500/10 hover:shadow-xl hover:shadow-slate-500/20 transition-all duration-500">
-                                                        <div className="p-2 bg-gradient-to-br from-slate-500 to-slate-600 rounded-lg shadow-lg shadow-slate-500/50 group-hover:scale-110 transition-transform duration-300">
-                                                            <Users className="w-5 h-5 text-white" />
-                                                        </div>
-                                                        <h2 className="text-lg font-bold uppercase tracking-wider bg-gradient-to-r from-slate-600 to-slate-800 dark:from-slate-400 dark:to-slate-600 bg-clip-text text-transparent">
-                                                            Other Tasks
-                                                        </h2>
-                                                        <Badge variant="secondary" className="ml-auto rounded-full h-6 min-w-[24px] px-2.5 bg-gradient-to-r from-slate-500 to-slate-600 text-white font-bold shadow-lg shadow-slate-500/50 group-hover:scale-110 transition-transform duration-300">
-                                                            {otherTasks.length}
-                                                        </Badge>
+                                            <div className="relative group animate-in fade-in slide-in-from-left-4 duration-700 delay-150">
+                                                <div className="absolute inset-0 bg-gradient-to-r from-slate-500/10 to-slate-400/10 rounded-xl blur-xl group-hover:blur-2xl transition-all duration-500" />
+                                                <div className="relative flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-slate-900/50 dark:to-slate-800/30 rounded-xl border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm shadow-lg shadow-slate-500/10 hover:shadow-xl hover:shadow-slate-500/20 transition-all duration-500">
+                                                    <div className="p-2 bg-gradient-to-br from-slate-500 to-slate-600 rounded-lg shadow-lg shadow-slate-500/50 group-hover:scale-110 transition-transform duration-300">
+                                                        <Users className="w-5 h-5 text-white" />
                                                     </div>
+                                                    <h2 className="text-lg font-bold uppercase tracking-wider bg-gradient-to-r from-slate-600 to-slate-800 dark:from-slate-400 dark:to-indigo-600 bg-clip-text text-transparent">
+                                                        Other Tasks
+                                                    </h2>
+                                                    <Badge variant="secondary" className="ml-auto rounded-full h-6 min-w-[24px] px-2.5 bg-gradient-to-r from-slate-500 to-slate-600 text-white font-bold shadow-lg shadow-slate-500/50 group-hover:scale-110 transition-transform duration-300">
+                                                        {otherTasks.length}
+                                                    </Badge>
                                                 </div>
-                                            )}
-                                            {['Raised', 'Open', 'Pending', 'In Progress', 'Testing', 'Resolved', 'Reopened', 'Hold', 'On Hold', 'Completed'].map(status => {
-                                                const tasksInStatus = otherTasks.filter(t => (t.status || 'Pending') === status);
-                                                if (tasksInStatus.length === 0) return null;
+                                            </div>
+                                            {(taskAttributes.priorities || ['Critical', 'High', 'Medium', 'Normal', 'Low']).map(priority => {
+                                                const tasksInPriority = otherTasks.filter(t => (t.priority || 'Low') === priority);
+                                                if (tasksInPriority.length === 0) return null;
 
                                                 return (
-                                                    <div key={`other-${status}`} className="space-y-4">
+                                                    <div key={`other-${priority}`} className="space-y-4">
                                                         <div className="flex items-center gap-2 px-1">
-                                                            <div className={`w-3 h-3 rounded-sm ${status === 'Completed' ? 'bg-emerald-500' :
-                                                                status === 'Testing' ? 'bg-purple-500' :
-                                                                    status === 'In Progress' ? 'bg-indigo-500' :
-                                                                        status === 'On Hold' ? 'bg-amber-500' : 'bg-slate-300'
+                                                            <div className={`w-3 h-3 rounded-full ${priority === 'Critical' ? 'bg-red-600 shadow-sm shadow-red-500/50 scale-110' :
+                                                                priority === 'High' ? 'bg-red-500' :
+                                                                    (priority === 'Normal' || priority === 'Medium') ? 'bg-indigo-500' :
+                                                                        'bg-slate-400'
                                                                 }`} />
-                                                            <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500">
-                                                                {status === 'Testing' ? 'QA Testing' : status}
+                                                            <h3 className={`text-sm font-bold uppercase tracking-widest ${priority === 'Critical' ? 'text-red-600' : 'text-slate-500'}`}>
+                                                                {priority} Priority
                                                             </h3>
-                                                            <Badge variant="secondary" className="rounded-full h-5 min-w-[20px] px-1.5">{tasksInStatus.length}</Badge>
+                                                            <Badge variant="secondary" className="rounded-full h-5 min-w-[20px] px-1.5">{tasksInPriority.length}</Badge>
                                                         </div>
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                            {tasksInStatus.map(task => (
-                                                                <TaskCard
-                                                                    key={task.id}
-                                                                    task={task}
-                                                                    employees={employees}
-                                                                    onClick={() => window.open(`/tasks/${task.id}`, '_blank')}
-                                                                />
-                                                            ))}
-                                                        </div>
+                                                        <TaskListView
+                                                            tasks={tasksInPriority}
+                                                            employees={employees}
+                                                            viewMode={viewMode}
+                                                            onClick={(t: any) => window.open(`/tasks/${t.id}`, '_blank')}
+                                                        />
                                                     </div>
                                                 );
                                             })}
@@ -1241,48 +1690,38 @@ const TaskManager = () => {
                                                     </Badge>
                                                 </div>
                                             </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                {myTasks.map(task => (
-                                                    <TaskCard
-                                                        key={task.id}
-                                                        task={task}
-                                                        employees={employees}
-                                                        onClick={() => window.open(`/tasks/${task.id}`, '_blank')}
-                                                    />
-                                                ))}
-                                            </div>
+                                            <TaskListView
+                                                tasks={myTasks}
+                                                employees={employees}
+                                                viewMode={viewMode}
+                                                onClick={(t: any) => window.open(`/tasks/${t.id}`, '_blank')}
+                                            />
                                         </div>
                                     )}
 
                                     {/* Other Tasks Section for filtered status */}
                                     {otherTasks.length > 0 && (
                                         <div className="space-y-4">
-                                            {myTasks.length > 0 && (
-                                                <div className="relative group animate-in fade-in slide-in-from-left-4 duration-700 delay-150">
-                                                    <div className="absolute inset-0 bg-gradient-to-r from-slate-500/10 to-slate-400/10 rounded-xl blur-xl group-hover:blur-2xl transition-all duration-500" />
-                                                    <div className="relative flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-slate-900/50 dark:to-slate-800/30 rounded-xl border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm shadow-lg shadow-slate-500/10 hover:shadow-xl hover:shadow-slate-500/20 transition-all duration-500">
-                                                        <div className="p-2 bg-gradient-to-br from-slate-500 to-slate-600 rounded-lg shadow-lg shadow-slate-500/50 group-hover:scale-110 transition-transform duration-300">
-                                                            <Users className="w-5 h-5 text-white" />
-                                                        </div>
-                                                        <h2 className="text-lg font-bold uppercase tracking-wider bg-gradient-to-r from-slate-600 to-slate-800 dark:from-slate-400 dark:to-slate-600 bg-clip-text text-transparent">
-                                                            Other Tasks
-                                                        </h2>
-                                                        <Badge variant="secondary" className="ml-auto rounded-full h-6 min-w-[24px] px-2.5 bg-gradient-to-r from-slate-500 to-slate-600 text-white font-bold shadow-lg shadow-slate-500/50 group-hover:scale-110 transition-transform duration-300">
-                                                            {otherTasks.length}
-                                                        </Badge>
+                                            <div className="relative group animate-in fade-in slide-in-from-left-4 duration-700 delay-150">
+                                                <div className="absolute inset-0 bg-gradient-to-r from-slate-500/10 to-slate-400/10 rounded-xl blur-xl group-hover:blur-2xl transition-all duration-500" />
+                                                <div className="relative flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-slate-900/50 dark:to-slate-800/30 rounded-xl border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm shadow-lg shadow-slate-500/10 hover:shadow-xl hover:shadow-slate-500/20 transition-all duration-500">
+                                                    <div className="p-2 bg-gradient-to-br from-slate-500 to-slate-600 rounded-lg shadow-lg shadow-slate-500/50 group-hover:scale-110 transition-transform duration-300">
+                                                        <Users className="w-5 h-5 text-white" />
                                                     </div>
+                                                    <h2 className="text-lg font-bold uppercase tracking-wider bg-gradient-to-r from-slate-600 to-slate-800 dark:from-slate-400 dark:to-indigo-600 bg-clip-text text-transparent">
+                                                        Other Tasks
+                                                    </h2>
+                                                    <Badge variant="secondary" className="ml-auto rounded-full h-6 min-w-[24px] px-2.5 bg-gradient-to-r from-slate-500 to-slate-600 text-white font-bold shadow-lg shadow-slate-500/50 group-hover:scale-110 transition-transform duration-300">
+                                                        {otherTasks.length}
+                                                    </Badge>
                                                 </div>
-                                            )}
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                {otherTasks.map(task => (
-                                                    <TaskCard
-                                                        key={task.id}
-                                                        task={task}
-                                                        employees={employees}
-                                                        onClick={() => window.open(`/tasks/${task.id}`, '_blank')}
-                                                    />
-                                                ))}
                                             </div>
+                                            <TaskListView
+                                                tasks={otherTasks}
+                                                employees={employees}
+                                                viewMode={viewMode}
+                                                onClick={(t: any) => window.open(`/tasks/${t.id}`, '_blank')}
+                                            />
                                         </div>
                                     )}
                                 </div>
@@ -1300,11 +1739,17 @@ const TaskManager = () => {
                                 </div>
                             )}
                         </div>
-                    </ScrollArea>
-                </div>
+                    </ScrollArea >
+                </div >
 
                 {/* CREATE TASK DIALOG */}
-                <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+                < Dialog open={isCreateOpen} onOpenChange={(open) => {
+                    if (!open) {
+                        setParentTaskId(null);
+                        // Also clear form title to avoid confusion if closed
+                    }
+                    setIsCreateOpen(open);
+                }}>
                     <DialogContent className="sm:max-w-[700px] max-h-[85vh] p-0 overflow-hidden border-0 shadow-2xl bg-slate-50 dark:bg-slate-950 flex flex-col">
                         {/* Modern Gradient Header */}
                         <div className="relative p-6 shrink-0 bg-gradient-to-r from-indigo-600 to-purple-700 overflow-hidden">
@@ -1374,16 +1819,29 @@ const TaskManager = () => {
                                                         <SelectValue />
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                        {TASK_PRIORITIES.map(p => (
+                                                        {(taskAttributes.priorities || []).map(p => (
                                                             <SelectItem key={p} value={p}>
                                                                 <div className="flex items-center gap-2">
-                                                                    <div className={`w-2 h-2 rounded-full ${p === 'High' ? 'bg-red-500' : p === 'Normal' ? 'bg-indigo-500' : 'bg-slate-400'}`} />
+                                                                    <div className={`w-2 h-2 rounded-full ${p === 'High' || p === 'Critical' ? 'bg-red-500' : p === 'Low' ? 'bg-slate-400' : 'bg-indigo-500'}`} />
                                                                     {p}
                                                                 </div>
                                                             </SelectItem>
                                                         ))}
                                                     </SelectContent>
                                                 </Select>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label className="text-xs font-bold uppercase text-slate-500">Due Date</Label>
+                                                <div className="relative">
+                                                    <Input
+                                                        type="date"
+                                                        value={newTask.dueDate}
+                                                        onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
+                                                        className="h-10 border-slate-200 dark:border-slate-800 focus:ring-indigo-500 w-full pl-9"
+                                                    />
+                                                    <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -1403,7 +1861,7 @@ const TaskManager = () => {
                                                 <Select value={newTask.taskType} onValueChange={(v) => setNewTask({ ...newTask, taskType: v, taskSubType: '' })}>
                                                     <SelectTrigger><SelectValue placeholder="Select Type" /></SelectTrigger>
                                                     <SelectContent>
-                                                        {TASK_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                                                        {(taskAttributes.types || []).map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                                                     </SelectContent>
                                                 </Select>
                                             </div>
@@ -1417,7 +1875,7 @@ const TaskManager = () => {
                                                 >
                                                     <SelectTrigger><SelectValue placeholder="Select Sub Type" /></SelectTrigger>
                                                     <SelectContent>
-                                                        {(TASK_SUB_TYPES[newTask.taskType] || []).map(st => (
+                                                        {(taskAttributes.subTypes?.[newTask.taskType] || []).map(st => (
                                                             <SelectItem key={st} value={st}>{st}</SelectItem>
                                                         ))}
                                                     </SelectContent>
@@ -1429,18 +1887,19 @@ const TaskManager = () => {
                                                 <Select value={newTask.taskComponent} onValueChange={(v) => setNewTask({ ...newTask, taskComponent: v })}>
                                                     <SelectTrigger><SelectValue placeholder="Select Component" /></SelectTrigger>
                                                     <SelectContent>
-                                                        {TASK_COMPONENTS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                                        {(taskAttributes.components || []).map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                                                     </SelectContent>
                                                 </Select>
                                             </div>
 
                                             <div className="space-y-2">
                                                 <Label className="text-xs font-bold uppercase text-slate-500">Version / Milestone</Label>
-                                                <Input
-                                                    placeholder="e.g. v2.0.1"
-                                                    value={newTask.version}
-                                                    onChange={e => setNewTask({ ...newTask, version: e.target.value })}
-                                                />
+                                                <Select value={newTask.version} onValueChange={(v) => setNewTask({ ...newTask, version: v })}>
+                                                    <SelectTrigger><SelectValue placeholder="Select Version" /></SelectTrigger>
+                                                    <SelectContent>
+                                                        {(taskAttributes.versions || []).map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
                                         </div>
                                     </div>
@@ -1499,8 +1958,10 @@ const TaskManager = () => {
                                                     <PopoverTrigger asChild>
                                                         <Button variant="outline" className="w-full justify-between h-10 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:bg-slate-50">
                                                             {newTask.assignedEmployeeIds.length > 0
-                                                                ? <span className="font-semibold text-indigo-600">{newTask.assignedEmployeeIds.length} Selected</span>
-                                                                : <span className="text-slate-500">Select Employees</span>}
+                                                                ? <span className="font-semibold text-indigo-600">
+                                                                    {employees.find(e => e.id === newTask.assignedEmployeeIds[0])?.firstName || '1 Selected'}
+                                                                </span>
+                                                                : <span className="text-slate-500">Select Employee</span>}
                                                             <div className="p-1 bg-slate-100 dark:bg-slate-800 rounded-md">
                                                                 <Search className="h-3 w-3 opacity-50" />
                                                             </div>
@@ -1513,22 +1974,24 @@ const TaskManager = () => {
                                                                 <CommandEmpty>No employee found.</CommandEmpty>
                                                                 <CommandGroup>
                                                                     {employees
-                                                                        .filter(emp => emp.role !== 'Ride')
-                                                                        .filter(emp => !selectedTeamId || teams.find(t => t.id === selectedTeamId)?.memberIds?.includes(emp.id))
+                                                                        .filter(emp => {
+                                                                            const team = teams.find(t => t.id === selectedTeamId);
+                                                                            return team?.memberIds?.includes(emp.id);
+                                                                        })
                                                                         .map(emp => (
                                                                             <CommandItem
                                                                                 key={emp.id}
                                                                                 onSelect={() => {
-                                                                                    const current = newTask.assignedEmployeeIds || [];
-                                                                                    const updated = current.includes(emp.id)
-                                                                                        ? current.filter(id => id !== emp.id)
-                                                                                        : [...current, emp.id];
-                                                                                    setNewTask({ ...newTask, assignedEmployeeIds: updated });
+                                                                                    // Single select: Replace entire array with this one ID
+                                                                                    // Toggle off if already selected? User said "only 1... can be selected", usually implies radio behavior.
+                                                                                    // But for better UX, clicking again usually does nothing or re-selects.
+                                                                                    // I'll implement "Replace" 
+                                                                                    setNewTask({ ...newTask, assignedEmployeeIds: [emp.id] });
                                                                                 }}
                                                                                 className="flex items-center gap-3 py-2"
                                                                             >
-                                                                                <div className={`flex h-5 w-5 items-center justify-center rounded-md border border-primary transition-colors ${newTask.assignedEmployeeIds.includes(emp.id) ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 dark:border-slate-600'}`}>
-                                                                                    {newTask.assignedEmployeeIds.includes(emp.id) && <Check className="h-3.5 w-3.5" />}
+                                                                                <div className={`flex h-5 w-5 items-center justify-center rounded-full border border-primary transition-colors ${newTask.assignedEmployeeIds.includes(emp.id) ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 dark:border-slate-600'}`}>
+                                                                                    {newTask.assignedEmployeeIds.includes(emp.id) && <div className="w-2.5 h-2.5 rounded-full bg-white" />}
                                                                                 </div>
                                                                                 <Avatar className="w-8 h-8 border border-slate-200">
                                                                                     <AvatarImage src={emp.photoUrl} />
@@ -1552,7 +2015,7 @@ const TaskManager = () => {
                                                 <Select value={newTask.status} onValueChange={(v) => setNewTask({ ...newTask, status: v })}>
                                                     <SelectTrigger className="h-10 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800"><SelectValue /></SelectTrigger>
                                                     <SelectContent>
-                                                        {ADMIN_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                                        {(taskAttributes.statuses || []).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                                                     </SelectContent>
                                                 </Select>
                                             </div>
@@ -1570,10 +2033,10 @@ const TaskManager = () => {
                             </Button>
                         </div>
                     </DialogContent>
-                </Dialog>
+                </Dialog >
 
                 {/* TASK DETAIL DIALOG */}
-                <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+                < Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen} >
                     <DialogContent className="sm:max-w-4xl h-[85vh] p-0 border-0 overflow-hidden flex flex-col bg-white dark:bg-slate-950 shadow-2xl">
                         {activeTask && (
                             <div className="flex flex-col h-full relative">
@@ -1586,28 +2049,43 @@ const TaskManager = () => {
 
                                     <div className="relative z-10">
                                         <div className="flex items-center justify-between mb-4">
-                                            <div className="flex items-center gap-2">
-                                                <Badge variant="outline" className="font-mono bg-white/10 border-white/20 text-indigo-50 backdrop-blur-md">
-                                                    {activeTask.id}
-                                                </Badge>
-                                                <Badge className={
-                                                    activeTask.status === 'Completed' ? 'bg-emerald-400/20 text-emerald-100 border-emerald-400/30' :
-                                                        activeTask.status === 'In Progress' ? 'bg-indigo-400/20 text-indigo-100 border-indigo-400/30' :
-                                                            activeTask.status === 'Testing' ? 'bg-purple-400/20 text-purple-100 border-purple-400/30' :
-                                                                'bg-white/20 text-white border-white/30'
-                                                }>
-                                                    {activeTask.status}
-                                                </Badge>
+                                            <div className="flex flex-col gap-2">
+                                                {activeTask.parentId && (
+                                                    <div
+                                                        className="flex items-center gap-1.5 px-1 group/parent cursor-pointer"
+                                                        onClick={() => {
+                                                            const parent = tasks.find(t => t.id === activeTask.parentId);
+                                                            if (parent) setSelectedTask(parent);
+                                                        }}
+                                                    >
+                                                        <CornerDownRight className="w-3.5 h-3.5 text-indigo-300 group-hover/parent:text-white transition-all transform group-hover/parent:translate-x-0.5" />
+                                                        <span className="text-[10px] font-black uppercase tracking-[0.15em] text-indigo-200 group-hover/parent:text-white transition-colors">
+                                                            Parent: {tasks.find(t => t.id === activeTask.parentId)?.taskId || activeTask.parentId}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                <div className="flex items-center gap-2">
+                                                    <Badge variant="outline" className="font-mono bg-white/10 border-white/20 text-indigo-50 backdrop-blur-md px-2 py-0.5 text-[10px]">
+                                                        {activeTask.taskId || activeTask.id}
+                                                    </Badge>
+                                                    <Badge className={
+                                                        activeTask.status === 'Completed' ? 'bg-emerald-400/20 text-emerald-100 border-emerald-400/30' :
+                                                            activeTask.status === 'In Progress' ? 'bg-indigo-400/20 text-indigo-100 border-indigo-400/30' :
+                                                                activeTask.status === 'Testing' ? 'bg-purple-400/20 text-purple-100 border-purple-400/30' :
+                                                                    'bg-white/20 text-white border-white/30'
+                                                    }>
+                                                        {activeTask.status}
+                                                    </Badge>
+                                                </div>
                                             </div>
                                             <div className="flex items-center gap-1">
                                                 <Button
                                                     variant="ghost"
                                                     className="bg-white/10 hover:bg-white/20 text-white border border-white/20 h-8 rounded-full px-4 text-xs font-bold transition-all"
                                                     onClick={() => {
-                                                        // Pre-fill relevant data for subtask if needed, or just open form
+                                                        setParentTaskId(activeTask.id);
+                                                        setSelectedTeamId(activeTask.teamId);
                                                         setIsCreateOpen(true);
-                                                        // Optional: You might want to set some context that this is a subtask
-                                                        // setParentTaskId(activeTask.id); 
                                                     }}
                                                 >
                                                     Create Subtask
@@ -1743,6 +2221,28 @@ const TaskManager = () => {
                                         </div>
                                     </div>
 
+                                    {/* Subtasks Section */}
+                                    {tasks.filter(t => t.parentId === activeTask.id).length > 0 && (
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-2 text-[11px] uppercase font-black text-slate-400 tracking-[0.2em] px-1">
+                                                <Workflow className="w-3.5 h-3.5 text-indigo-500" />
+                                                Linked Subtasks ({tasks.filter(t => t.parentId === activeTask.id).length})
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                {tasks.filter(t => t.parentId === activeTask.id).map(subTask => (
+                                                    <SubTaskCard
+                                                        key={subTask.id}
+                                                        task={subTask}
+                                                        employees={employees}
+                                                        onClick={() => {
+                                                            setSelectedTask(subTask);
+                                                        }}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Attachments Section */}
                                     {activeTask.images && activeTask.images.length > 0 && (
                                         <div className="space-y-3">
@@ -1795,12 +2295,9 @@ const TaskManager = () => {
                                                         </div>
                                                     </SelectTrigger>
                                                     <SelectContent className="rounded-xl">
-                                                        <SelectItem value="Open">Open</SelectItem>
-                                                        <SelectItem value="Pending">Pending</SelectItem>
-                                                        <SelectItem value="In Progress">In Progress</SelectItem>
-                                                        <SelectItem value="On Hold">On Hold</SelectItem>
-                                                        <SelectItem value="Testing">In Testing</SelectItem>
-                                                        <SelectItem value="Completed">Completed</SelectItem>
+                                                        {(taskAttributes.statuses || []).map((s: string) => (
+                                                            <SelectItem key={s} value={s}>{s}</SelectItem>
+                                                        ))}
                                                     </SelectContent>
                                                 </Select>
                                             </div>
@@ -2143,7 +2640,7 @@ const TaskManager = () => {
                             </div>
                         )}
                     </DialogContent>
-                </Dialog>
+                </Dialog >
 
 
                 {/* TEAM MANAGEMENT DIALOG */}
@@ -2191,7 +2688,8 @@ const TaskManager = () => {
                                                 <CommandEmpty>No employee found.</CommandEmpty>
                                                 <CommandGroup>
                                                     {employees
-                                                        .filter(emp => emp.role !== 'Ride' && emp.department !== 'Logistics')
+                                                        // List ALL employees as requested
+                                                        // .filter(emp => emp.role !== 'Ride' && emp.department !== 'Logistics')
                                                         .map(emp => (
                                                             <CommandItem
                                                                 key={emp.id}
@@ -2446,9 +2944,9 @@ const TaskManager = () => {
                                             <Select value={editTaskData.priority} onValueChange={v => setEditTaskData({ ...editTaskData, priority: v })}>
                                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="Normal">Normal</SelectItem>
-                                                    <SelectItem value="High">High</SelectItem>
-                                                    <SelectItem value="Urgent">Urgent</SelectItem>
+                                                    {(taskAttributes.priorities || []).map((p: string) => (
+                                                        <SelectItem key={p} value={p}>{p}</SelectItem>
+                                                    ))}
                                                 </SelectContent>
                                             </Select>
                                         </div>
@@ -2459,6 +2957,56 @@ const TaskManager = () => {
                                                 value={editTaskData.dueDate}
                                                 onChange={e => setEditTaskData({ ...editTaskData, dueDate: e.target.value })}
                                             />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label>Task Type</Label>
+                                            <Select value={editTaskData.taskType} onValueChange={v => setEditTaskData({ ...editTaskData, taskType: v, taskSubType: "" })}>
+                                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    {(taskAttributes.types || []).map((t: string) => (
+                                                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Sub Type</Label>
+                                            <Select value={editTaskData.taskSubType} onValueChange={v => setEditTaskData({ ...editTaskData, taskSubType: v })} disabled={!editTaskData.taskType}>
+                                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    {(taskAttributes.subTypes?.[editTaskData.taskType] || []).map((st: string) => (
+                                                        <SelectItem key={st} value={st}>{st}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label>Component</Label>
+                                            <Select value={editTaskData.taskComponent} onValueChange={v => setEditTaskData({ ...editTaskData, taskComponent: v })}>
+                                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    {(taskAttributes.components || []).map((c: string) => (
+                                                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Version</Label>
+                                            <Select value={editTaskData.version} onValueChange={v => setEditTaskData({ ...editTaskData, version: v })}>
+                                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    {(taskAttributes.versions || []).map((v: string) => (
+                                                        <SelectItem key={v} value={v}>{v}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                         </div>
                                     </div>
 
@@ -2569,7 +3117,10 @@ const TaskManager = () => {
                                                 <CommandEmpty>No employee found.</CommandEmpty>
                                                 <CommandGroup>
                                                     {employees
-                                                        .filter(emp => emp.role !== 'Ride')
+                                                        .filter(emp => {
+                                                            const team = teams.find(t => t.id === activeTask?.teamId);
+                                                            return team?.memberIds?.includes(emp.id) && emp.role !== 'Ride';
+                                                        })
                                                         .map(emp => (
                                                             <CommandItem
                                                                 key={emp.id}
@@ -2608,8 +3159,405 @@ const TaskManager = () => {
                         </DialogFooter>
                     </DialogContent>
                 </Dialog >
-            </div >
-        </div >
+
+                {/* ATTRIBUTE MANAGER DIALOG */}
+                <Dialog open={isAttributeManagerOpen} onOpenChange={setIsAttributeManagerOpen}>
+                    <DialogContent className="sm:max-w-[800px] h-[85vh] p-0 border-0 overflow-hidden flex flex-col bg-white dark:bg-slate-950 shadow-2xl">
+                        <div className="relative p-6 shrink-0 bg-gradient-to-r from-indigo-600 to-purple-700 overflow-hidden">
+                            <div className="absolute inset-0 bg-white/10 opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
+                            <DialogHeader className="relative z-10 text-white">
+                                <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-3">
+                                    <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm shadow-sm">
+                                        <Sliders className="w-5 h-5 text-white" />
+                                    </div>
+                                    Attribute Manager
+                                </DialogTitle>
+                                <DialogDescription className="text-indigo-100 font-medium opacity-90">
+                                    Manage task categories, statuses, and technical specifications globally.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <button
+                                onClick={() => setIsAttributeManagerOpen(false)}
+                                className="absolute top-4 right-4 p-2 text-white/70 hover:text-white hover:bg-white/20 rounded-full transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <Tabs defaultValue="priorities" className="flex-1 flex overflow-hidden">
+                            <TabsList className="flex flex-col h-full w-48 bg-slate-50 dark:bg-slate-900/50 p-2 rounded-none border-r border-slate-200 dark:border-slate-800 shrink-0">
+                                <TabsTrigger value="priorities" className="w-full justify-start gap-3 py-2.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 shadow-sm"><Tags className="w-4 h-4" /> Priorities</TabsTrigger>
+                                <TabsTrigger value="statuses" className="w-full justify-start gap-3 py-2.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 shadow-sm"><Activity className="w-4 h-4" /> Statuses</TabsTrigger>
+                                <TabsTrigger value="types" className="w-full justify-start gap-3 py-2.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 shadow-sm"><Layers className="w-4 h-4" /> Task Types</TabsTrigger>
+                                <TabsTrigger value="components" className="w-full justify-start gap-3 py-2.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 shadow-sm"><Database className="w-4 h-4" /> Components</TabsTrigger>
+                                <TabsTrigger value="versions" className="w-full justify-start gap-3 py-2.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 shadow-sm"><Milestone className="w-4 h-4" /> Versions</TabsTrigger>
+                                <TabsTrigger value="settings" className="w-full justify-start gap-3 py-2.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 shadow-sm"><Settings2 className="w-4 h-4" /> Settings</TabsTrigger>
+                            </TabsList>
+
+                            <ScrollArea className="flex-1">
+                                <div className="p-8">
+                                    <TabsContent value="priorities" className="mt-0 space-y-6">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div>
+                                                <h3 className="text-lg font-bold">Manage Priorities</h3>
+                                                <p className="text-sm text-slate-500">Define importance levels for tasks.</p>
+                                            </div>
+                                            <Badge variant="outline">{taskAttributes.priorities?.length || 0} levels</Badge>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                placeholder="Enter priority name (e.g., Extreme)"
+                                                value={newItem}
+                                                onChange={(e) => setNewItem(e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleAttributeAdd('priorities')}
+                                            />
+                                            <Button onClick={() => handleAttributeAdd('priorities')} className="bg-indigo-600 hover:bg-indigo-700">
+                                                <Plus className="w-4 h-4 mr-2" /> Add
+                                            </Button>
+                                        </div>
+                                        <div className="grid gap-2">
+                                            {(taskAttributes.priorities || []).map((p: string, i: number) => (
+                                                <div key={i} className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl group transition-all hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                                    {editingAttribute?.category === 'priorities' && editingAttribute?.index === i ? (
+                                                        <div className="flex-1 flex gap-2">
+                                                            <Input
+                                                                autoFocus
+                                                                className="h-8"
+                                                                value={editingAttribute.value}
+                                                                onChange={(e) => setEditingAttribute({ ...editingAttribute, value: e.target.value })}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') handleAttributeEdit('priorities', i, editingAttribute.value);
+                                                                    if (e.key === 'Escape') setEditingAttribute(null);
+                                                                }}
+                                                            />
+                                                            <Button size="sm" onClick={() => handleAttributeEdit('priorities', i, editingAttribute.value)}>Save</Button>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <div className="flex items-center gap-3 cursor-pointer flex-1" onClick={() => setEditingAttribute({ category: 'priorities', index: i, value: p })}>
+                                                                <div className={`w-2 h-2 rounded-full ${p === 'Critical' ? 'bg-red-600' : p === 'High' ? 'bg-red-500' : 'bg-indigo-500'}`} />
+                                                                <span className="font-semibold">{p}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1">
+                                                                <Button variant="ghost" size="icon" onClick={() => setEditingAttribute({ category: 'priorities', index: i, value: p })} className="h-8 w-8 text-slate-400 hover:text-indigo-600">
+                                                                    <Pencil className="w-3.5 h-3.5" />
+                                                                </Button>
+                                                                <Button variant="ghost" size="icon" onClick={() => handleAttributeRemove('priorities', i)} className="text-rose-500 hover:bg-rose-50 rounded-lg h-8 w-8">
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </Button>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </TabsContent>
+
+                                    <TabsContent value="statuses" className="mt-0 space-y-6">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div>
+                                                <h3 className="text-lg font-bold">Task Statuses</h3>
+                                                <p className="text-sm text-slate-500">Define the workflow stages.</p>
+                                            </div>
+                                            <Badge variant="outline">{taskAttributes.statuses?.length || 0} stages</Badge>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                placeholder="New status name..."
+                                                value={newItem}
+                                                onChange={(e) => setNewItem(e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleAttributeAdd('statuses')}
+                                            />
+                                            <Button onClick={() => handleAttributeAdd('statuses')} className="bg-indigo-600 hover:bg-indigo-700">
+                                                <Plus className="w-4 h-4 mr-2" /> Add
+                                            </Button>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {(taskAttributes.statuses || []).map((s: string, i: number) => (
+                                                <div key={i} className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl group hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                                    {editingAttribute?.category === 'statuses' && editingAttribute?.index === i ? (
+                                                        <Input
+                                                            autoFocus
+                                                            className="h-7 text-xs"
+                                                            value={editingAttribute.value}
+                                                            onChange={(e) => setEditingAttribute({ ...editingAttribute, value: e.target.value })}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') handleAttributeEdit('statuses', i, editingAttribute.value);
+                                                                if (e.key === 'Escape') setEditingAttribute(null);
+                                                            }}
+                                                            onBlur={() => setEditingAttribute(null)}
+                                                        />
+                                                    ) : (
+                                                        <>
+                                                            <span className="text-sm font-medium cursor-pointer flex-1" onClick={() => setEditingAttribute({ category: 'statuses', index: i, value: s })}>{s}</span>
+                                                            <div className="flex items-center gap-1">
+                                                                <Button variant="ghost" size="icon" onClick={() => handleAttributeRemove('statuses', i)} className="opacity-0 group-hover:opacity-100 text-rose-500 hover:bg-rose-50 rounded-lg h-7 w-7">
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </Button>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </TabsContent>
+
+                                    <TabsContent value="types" className="mt-0 space-y-6">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="space-y-4">
+                                                <h3 className="font-bold flex items-center gap-2">Main Types</h3>
+                                                <div className="flex gap-2">
+                                                    <Input
+                                                        placeholder="New type..."
+                                                        value={selectedTypeForSub ? "" : newItem}
+                                                        onChange={(e) => setNewItem(e.target.value)}
+                                                        onKeyDown={(e) => !selectedTypeForSub && e.key === 'Enter' && handleAttributeAdd('types')}
+                                                    />
+                                                    <Button onClick={() => handleAttributeAdd('types')} disabled={!!selectedTypeForSub} className="bg-indigo-600">
+                                                        <Plus className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    {(taskAttributes.types || []).map((t: string, i: number) => (
+                                                        <div
+                                                            key={i}
+                                                            onClick={() => setSelectedTypeForSub(t)}
+                                                            className={`flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-all ${selectedTypeForSub === t ? 'bg-indigo-50 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-200' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                                                        >
+                                                            {editingAttribute?.category === 'types' && editingAttribute?.index === i ? (
+                                                                <Input
+                                                                    autoFocus
+                                                                    className="h-7 text-xs flex-1"
+                                                                    value={editingAttribute.value}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    onChange={(e) => setEditingAttribute({ ...editingAttribute, value: e.target.value })}
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter') handleAttributeEdit('types', i, editingAttribute.value);
+                                                                        if (e.key === 'Escape') setEditingAttribute(null);
+                                                                    }}
+                                                                />
+                                                            ) : (
+                                                                <span className="text-sm font-bold">{t}</span>
+                                                            )}
+                                                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                                                <Badge variant="secondary" className="text-[10px] h-4">{taskAttributes.subTypes?.[t]?.length || 0}</Badge>
+                                                                <Button variant="ghost" size="icon" onClick={() => setEditingAttribute({ category: 'types', index: i, value: t })} className="h-6 w-6 text-slate-400 hover:text-indigo-600"><Pencil className="w-3 h-3" /></Button>
+                                                                <Button variant="ghost" size="icon" onClick={() => handleAttributeRemove('types', i)} className="h-6 w-6 text-rose-500"><Trash2 className="w-3.5 h-3.5" /></Button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-4 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                                                {selectedTypeForSub ? (
+                                                    <div className="space-y-4">
+                                                        <div className="flex items-center justify-between">
+                                                            <h3 className="font-bold text-sm uppercase tracking-wider text-slate-500">Sub Types for {selectedTypeForSub}</h3>
+                                                            <Button variant="ghost" size="sm" onClick={() => setSelectedTypeForSub(null)} className="h-6 text-[10px]">Back</Button>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <Input
+                                                                placeholder="Add sub-type..."
+                                                                value={newItem}
+                                                                onChange={(e) => setNewItem(e.target.value)}
+                                                                onKeyDown={(e) => e.key === 'Enter' && handleSubTypeAdd(selectedTypeForSub)}
+                                                                className="h-8 text-xs"
+                                                            />
+                                                            <Button onClick={() => handleSubTypeAdd(selectedTypeForSub)} className="h-8 w-8 bg-purple-600"><Plus className="w-4 h-4" /></Button>
+                                                        </div>
+                                                        <div className="grid gap-1">
+                                                            {(taskAttributes.subTypes?.[selectedTypeForSub] || []).map((st: string, idx: number) => (
+                                                                <div key={idx} className="flex items-center justify-between p-2 bg-white dark:bg-slate-900 border rounded-lg group">
+                                                                    {editingAttribute?.category === `subTypes-${selectedTypeForSub}` && editingAttribute?.index === idx ? (
+                                                                        <Input
+                                                                            autoFocus
+                                                                            className="h-6 text-[10px] flex-1 mr-2"
+                                                                            value={editingAttribute.value}
+                                                                            onChange={(e) => setEditingAttribute({ ...editingAttribute, value: e.target.value })}
+                                                                            onKeyDown={(e) => {
+                                                                                if (e.key === 'Enter') handleSubTypeEdit(selectedTypeForSub, idx, editingAttribute.value);
+                                                                                if (e.key === 'Escape') setEditingAttribute(null);
+                                                                            }}
+                                                                        />
+                                                                    ) : (
+                                                                        <span className="text-xs flex-1 cursor-pointer" onClick={() => setEditingAttribute({ category: `subTypes-${selectedTypeForSub}`, index: idx, value: st })}>{st}</span>
+                                                                    )}
+                                                                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
+                                                                        <Button variant="ghost" size="icon" onClick={() => setEditingAttribute({ category: `subTypes-${selectedTypeForSub}`, index: idx, value: st })} className="h-5 w-5 text-slate-400"><Pencil className="w-2.5 h-2.5" /></Button>
+                                                                        <Button variant="ghost" size="icon" onClick={() => handleSubTypeRemove(selectedTypeForSub, idx)} className="h-5 w-5 text-rose-500"><Trash2 className="w-3 h-3" /></Button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="h-full flex flex-col items-center justify-center py-12 text-slate-400">
+                                                        <GitBranch className="w-8 h-8 opacity-20 mb-2" />
+                                                        <p className="text-xs font-medium">Select a main type to manage sub-types</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </TabsContent>
+
+                                    <TabsContent value="components" className="mt-0 space-y-6">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h3 className="text-lg font-bold">Task Components</h3>
+                                            <Badge variant="outline">{taskAttributes.components?.length || 0} items</Badge>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                placeholder="e.g. Frontend App, Mobile, API..."
+                                                value={newItem}
+                                                onChange={(e) => setNewItem(e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleAttributeAdd('components')}
+                                            />
+                                            <Button onClick={() => handleAttributeAdd('components')} className="bg-indigo-600">
+                                                <Plus className="w-4 h-4 mr-2" /> Add
+                                            </Button>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                            {(taskAttributes.components || []).map((c: string, i: number) => (
+                                                <div key={i} className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl group transition-all hover:border-indigo-300">
+                                                    {editingAttribute?.category === 'components' && editingAttribute?.index === i ? (
+                                                        <Input
+                                                            autoFocus
+                                                            className="h-8 text-xs flex-1"
+                                                            value={editingAttribute.value}
+                                                            onChange={(e) => setEditingAttribute({ ...editingAttribute, value: e.target.value })}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') handleAttributeEdit('components', i, editingAttribute.value);
+                                                                if (e.key === 'Escape') setEditingAttribute(null);
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <>
+                                                            <span className="text-sm font-bold flex-1 cursor-pointer" onClick={() => setEditingAttribute({ category: 'components', index: i, value: c })}>{c}</span>
+                                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                                                                <Button variant="ghost" size="icon" onClick={() => handleAttributeRemove('components', i)} className="text-rose-500 h-8 w-8"><Trash2 className="w-4 h-4" /></Button>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </TabsContent>
+
+                                    <TabsContent value="versions" className="mt-0 space-y-6">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h3 className="text-lg font-bold">Release Versions / Milestones</h3>
+                                            <Badge variant="outline">{taskAttributes.versions?.length || 0} versions</Badge>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                placeholder="e.g. v1.0.0, Winter-24, Milestone 1..."
+                                                value={newItem}
+                                                onChange={(e) => setNewItem(e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleAttributeAdd('versions')}
+                                            />
+                                            <Button onClick={() => handleAttributeAdd('versions')} className="bg-gradient-to-r from-purple-600 to-indigo-600">
+                                                <Plus className="w-4 h-4 mr-2" /> Add
+                                            </Button>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {(taskAttributes.versions || []).map((v: string, i: number) => (
+                                                <div key={i} className="flex items-center justify-between p-4 bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 border rounded-2xl group shadow-sm transition-all hover:border-indigo-200">
+                                                    {editingAttribute?.category === 'versions' && editingAttribute?.index === i ? (
+                                                        <Input
+                                                            autoFocus
+                                                            className="h-8 text-sm flex-1 mr-2"
+                                                            value={editingAttribute.value}
+                                                            onChange={(e) => setEditingAttribute({ ...editingAttribute, value: e.target.value })}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') handleAttributeEdit('versions', i, editingAttribute.value);
+                                                                if (e.key === 'Escape') setEditingAttribute(null);
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={() => setEditingAttribute({ category: 'versions', index: i, value: v })}>
+                                                            <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg">
+                                                                <Milestone className="w-4 h-4 text-indigo-600" />
+                                                            </div>
+                                                            <span className="font-bold text-sm tracking-tight">{v}</span>
+                                                        </div>
+                                                    )}
+                                                    <div className="flex items-center gap-1">
+                                                        <Button variant="ghost" size="icon" onClick={() => handleAttributeRemove('versions', i)} className="opacity-0 group-hover:opacity-100 text-rose-500 h-8 w-8 transition-all">
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </TabsContent>
+
+                                    <TabsContent value="settings" className="mt-0 space-y-8">
+                                        <div className="space-y-4">
+                                            <h3 className="text-lg font-bold flex items-center gap-2">
+                                                <Settings2 className="w-5 h-5 text-slate-400" />
+                                                Task Settings
+                                            </h3>
+                                            <div className="bg-white dark:bg-slate-900 border rounded-2xl p-6 space-y-6">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="space-y-0.5">
+                                                        <Label className="text-base font-bold">Max Attachments per Task</Label>
+                                                        <p className="text-sm text-slate-500">Limit the number of files users can upload per task.</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        <Input
+                                                            type="number"
+                                                            className="w-20 font-bold"
+                                                            value={taskAttributes.settings?.maxAttachments || 10}
+                                                            onChange={(e) => {
+                                                                const updated = { ...taskAttributes };
+                                                                updated.settings = { ...updated.settings, maxAttachments: parseInt(e.target.value) || 0 };
+                                                                firebase.database().ref('root/nexus_hr/taskAttribute').set(updated).then(() => {
+                                                                    toast({ title: "Updated", description: "Attachment limit updated." });
+                                                                });
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <Separator />
+                                                <div className="flex items-center justify-between">
+                                                    <div className="space-y-0.5">
+                                                        <Label className="text-base font-bold">Enable Auto-Prioritization</Label>
+                                                        <p className="text-sm text-slate-500">AI suggested priority based on description.</p>
+                                                    </div>
+                                                    <Switch
+                                                        checked={taskAttributes.settings?.autoPrioritize || false}
+                                                        onCheckedChange={(val) => {
+                                                            const updated = { ...taskAttributes };
+                                                            updated.settings = { ...updated.settings, autoPrioritize: val };
+                                                            firebase.database().ref('root/nexus_hr/taskAttribute').set(updated).then(() => {
+                                                                toast({ title: "Updated", description: `Auto-prioritization ${val ? 'enabled' : 'disabled'}.` });
+                                                            });
+                                                        }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="p-6 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-2xl flex gap-4">
+                                            <Info className="w-6 h-6 text-amber-500 shrink-0" />
+                                            <div className="space-y-1">
+                                                <p className="text-sm font-bold text-amber-900 dark:text-amber-400 uppercase tracking-wider text-[10px]">Important Note</p>
+                                                <p className="text-sm text-amber-800 dark:text-amber-500 leading-relaxed font-medium">Changes made here are applied dynamically across the Task Manager. Deleting an attribute used by existing tasks won't erase them from the history but will remove them as options for new tasks.</p>
+                                            </div>
+                                        </div>
+                                    </TabsContent>
+                                </div>
+                            </ScrollArea>
+                        </Tabs>
+
+                        <div className="p-6 bg-slate-50 dark:bg-slate-900 border-t flex justify-between items-center shrink-0">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Pastel Portal / Attribute Engine v1.0</p>
+                            <Button onClick={() => setIsAttributeManagerOpen(false)} className="bg-slate-900 dark:bg-white dark:text-slate-900 hover:bg-slate-800 font-bold px-8">Close Manager</Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            </div>
+        </div>
     );
 };
 

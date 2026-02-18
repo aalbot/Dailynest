@@ -30,8 +30,44 @@ const Gateway = () => {
         phone: '',
         password: '',
         confirmPassword: '',
-        roleType: 'Staff' as 'Staff' | 'Delivery' | 'External'
+        roleType: 'Staff' as 'Staff' | 'Delivery' | 'External',
+        photoUrl: ''
     });
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const img = new Image();
+                img.src = reader.result as string;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const maxSize = 256; // Standardize size
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > maxSize) {
+                            height *= maxSize / width;
+                            width = maxSize;
+                        }
+                    } else {
+                        if (height > maxSize) {
+                            width *= maxSize / height;
+                            height = maxSize;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx?.drawImage(img, 0, 0, width, height);
+                    setSignupData(prev => ({ ...prev, photoUrl: canvas.toDataURL('image/jpeg', 0.8) }));
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
     useEffect(() => {
         // Redirect if already logged in (session-based)
@@ -171,6 +207,7 @@ const Gateway = () => {
                 phone: signupData.phone,
                 password: signupData.password,
                 status: 'pending',
+                photoUrl: signupData.photoUrl || '',
                 createdAt: new Date().toISOString()
             };
 
@@ -358,6 +395,28 @@ const Gateway = () => {
                                 </form>
                             ) : (
                                 <form onSubmit={handleSignup} className="space-y-4">
+                                    {/* Image Upload */}
+                                    <div className="flex justify-center mb-6">
+                                        <div className="relative group cursor-pointer w-24 h-24">
+                                            <div className={`w-24 h-24 rounded-full border-2 overflow-hidden flex items-center justify-center transition-all ${isDark ? 'bg-white/5 border-slate-700' : 'bg-slate-50 border-slate-200'} group-hover:border-indigo-500`}>
+                                                {signupData.photoUrl ? (
+                                                    <img src={signupData.photoUrl} alt="Profile" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <UserPlus className={`w-8 h-8 ${isDark ? 'text-slate-600' : 'text-slate-400'}`} />
+                                                )}
+                                            </div>
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleImageUpload}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                            />
+                                            <div className="absolute bottom-0 right-0 bg-indigo-500 rounded-full p-1.5 shadow-lg transform translate-x-1 translate-y-1">
+                                                <Sparkles className="w-3 h-3 text-white" />
+                                            </div>
+                                        </div>
+                                        <p className={`text-[10px] mt-2 absolute -bottom-6 font-medium uppercase tracking-wider ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Upload Photo</p>
+                                    </div>
                                     <div className="space-y-1">
                                         <Label className={`text-[10px] font-bold uppercase tracking-[0.2em] ml-1 transition-colors ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{getTranslation("gateway.signup.roleTypeLabel")}</Label>
                                         <Select

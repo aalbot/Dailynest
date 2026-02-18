@@ -367,7 +367,11 @@ const EmployeeManagement = () => {
 
     const filteredEmployees = employees.filter(e => {
         const isRide = e.role === 'Ride' || e.department === 'Logistics';
-        if (isRide) return false;
+        // Only show employees who signed up via Staff Portal (have staffUserId OR FcmToken field)
+        const isStaffPortalUser = !!e.staffUserId || "FcmToken" in e;
+
+        if (isRide || !isStaffPortalUser) return false;
+
         return e.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             e.lastName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             e.role?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -383,15 +387,57 @@ const EmployeeManagement = () => {
         { id: 'delivery_boys', label: 'Delivery Boys', icon: Truck },
     ];
 
+    const handleDeleteAll = () => {
+        if (!confirm("DANGER: This will delete ALL employees AND ALL staff logins. This cannot be undone. \n\nAre you absolutely sure?")) return;
+
+        const db = firebase.database();
+
+        // Delete all employees
+        db.ref('root/nexus_hr/employees').remove()
+            .then(() => {
+                // Delete staff from likely paths
+                Promise.all([
+                    db.ref('staff').remove(),
+                    db.ref('root/staff').remove(),
+                    db.ref('root/staff_tokens').remove() // Clean up tokens too
+                ]).then(() => {
+                    toast({ title: "System Reset", description: "All employees and staff records deleted." });
+                });
+            })
+            .catch(err => {
+                toast({ title: "Error", description: "Failed to delete data. Check console." });
+                console.error(err);
+            });
+    };
+
+    const handleCleanup = () => {
+        if (!confirm("DANGER: This will delete ALL employees except Adithya and Nivin. Continue?")) return;
+
+        const keepNames = ['adithya', 'nivin mathew s'];
+        let deletedCount = 0;
+
+        employees.forEach(e => {
+            const fullName = `${e.firstName} ${e.lastName}`.toLowerCase();
+            const shouldKeep = keepNames.some(k => fullName.includes(k));
+
+            if (!shouldKeep) {
+                firebase.database().ref(`root/nexus_hr/employees/${e.id}`).remove();
+                deletedCount++;
+            }
+        });
+        toast({ title: "Cleanup Done", description: `Deleted ${deletedCount} employees.` });
+    };
+
     return (
         <div className="flex h-screen bg-[#F8FAFC] dark:bg-slate-950 font-sans">
-            {/* Navbar (Fixed) */}
+            {/* ... navbar ... */}
             <div className="fixed top-0 left-0 right-0 z-50">
                 <Navbar />
             </div>
 
             {/* Sidebar - Desktop */}
             <aside className="w-64 hidden md:flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 pt-20 pb-6 fixed top-0 bottom-0 left-0 z-40 transition-all">
+                {/* ... sidebar content ... */}
                 <div className="px-6 mb-6">
                     <BackButton />
                 </div>
@@ -471,9 +517,17 @@ const EmployeeManagement = () => {
                         <div className="flex gap-2">
                             {/* Contextual Actions based on Tab */}
                             {activeTab === 'employees' && (
-                                <Button onClick={() => setIsAddEmpOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20">
-                                    <Plus className="w-4 h-4 mr-2" /> Add Employee
-                                </Button>
+                                <>
+                                    <Button onClick={handleDeleteAll} variant="destructive" className="mr-2">
+                                        <Trash2 className="w-4 h-4 mr-2" /> Delete All Data
+                                    </Button>
+                                    <Button onClick={handleCleanup} variant="destructive" className="mr-2">
+                                        <Trash2 className="w-4 h-4 mr-2" /> Cleanup (Temp)
+                                    </Button>
+                                    <Button onClick={() => setIsAddEmpOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20">
+                                        <Plus className="w-4 h-4 mr-2" /> Add Employee
+                                    </Button>
+                                </>
                             )}
                         </div>
                     </div>
@@ -605,30 +659,39 @@ const EmployeeManagement = () => {
                                                         <Badge variant="outline" className="font-normal">{emp.department}</Badge>
                                                     </TableCell>
                                                     <TableCell>
-                                                        {staffTokens[emp.id] ? (
-                                                            <div
-                                                                className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-emerald-200 bg-emerald-50 w-fit cursor-pointer hover:bg-emerald-100 transition-colors"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    const userTokens = staffTokens[emp.id];
-                                                                    const tokenValue = Object.values(userTokens)[0] && typeof Object.values(userTokens)[0] === 'object'
-                                                                        ? (Object.values(userTokens)[0] as any).token
-                                                                        : "Unknown Token Format";
+                                                        {staffTokens[emp.id] ? (() => {
+                                                            const userTokens = staffTokens[emp.id];
+                                                            const firstEntry = Object.values(userTokens)[0] as any;
+                                                            const tokenValue = firstEntry?.token;
 
-                                                                    if (tokenValue) {
-                                                                        navigator.clipboard.writeText(tokenValue);
-                                                                        toast({ title: "FCM Token Copied", description: "Token copied to clipboard." });
-                                                                    }
-                                                                }}
-                                                                title="Click to copy token"
-                                                            >
-                                                                <span className="relative flex h-2 w-2">
-                                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                                                                </span>
-                                                                <span className="text-[10px] font-medium text-emerald-700">Active</span>
-                                                            </div>
-                                                        ) : (
+                                                            return (
+                                                                <div
+                                                                    className="flex items-center gap-2 cursor-pointer group"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        if (tokenValue) {
+                                                                            alert(`FCM Token:\n${tokenValue}`);
+                                                                            navigator.clipboard.writeText(tokenValue);
+                                                                            toast({ title: "FCM Token Copied", description: "Token copied to clipboard." });
+                                                                        }
+                                                                    }}
+                                                                    title="Click to view full token"
+                                                                >
+                                                                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-emerald-200 bg-emerald-50 w-fit hover:bg-emerald-100 transition-colors">
+                                                                        <span className="relative flex h-2 w-2">
+                                                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                                                        </span>
+                                                                        <span className="text-[10px] font-medium text-emerald-700">Active</span>
+                                                                    </div>
+                                                                    {tokenValue && (
+                                                                        <span className="text-[10px] text-slate-400 font-mono hidden md:inline-block hover:text-indigo-500 transition-colors max-w-[100px] truncate">
+                                                                            {tokenValue.substring(0, 6)}...
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })() : (
                                                             <span className="text-[10px] font-medium text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-full">Inactive</span>
                                                         )}
                                                     </TableCell>

@@ -352,7 +352,17 @@ function Logic(data: PageData, render: () => void) {
 
                 // If staff, automatically create employee record if not exists
                 if (role === 'Staff') {
-                    if (!updatedUser.employeeId) {
+                    // Check Global Employees to prevent duplicates (by Email, since staffUserId is removed)
+                    const allEmployees = await db.get("nexus_hr/employees", {}) || {};
+                    const existingEmp = Object.values(allEmployees).find((e: any) => e.email === updatedUser.email) as any;
+
+                    if (existingEmp) {
+                        // Already exists, just ensure linkage
+                        if (!updatedUser.employeeId) {
+                            updatedUser.employeeId = existingEmp.id;
+                            await db.update(path, { [userKey]: updatedUser });
+                        }
+                    } else if (!updatedUser.employeeId) {
                         const newEmpId = 'EMP-' + Date.now();
                         const nameParts = updatedUser.name ? updatedUser.name.split(' ') : ['Unknown', 'User'];
                         const firstName = nameParts[0];
@@ -369,9 +379,12 @@ function Logic(data: PageData, render: () => void) {
                             salary: 0,
                             status: 'Active',
                             joiningDate: new Date().toISOString().split('T')[0],
-                            photoUrl: `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=random&color=fff&size=128`,
+                            photoUrl: updatedUser.photoUrl || `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=random&color=fff&size=128`,
                             advanceBalance: 0,
-                            staffUserId: userKey
+                            // Removed staffUserId as requested
+                            FcmToken: "",
+                            deviceInfo: "",
+                            lastTokenUpdate: ""
                         };
 
                         await db.update(`nexus_hr/employees/${newEmpId}`, newEmployee);
