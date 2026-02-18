@@ -630,8 +630,27 @@ const TaskManager = () => {
             }
         }
 
-        firebase.database().ref('root/nexus_hr/taskAttribute').set(updated).then(() => {
-            toast({ title: "Updated", description: `${category} real-time sync complete.` });
+        const updates: any = {};
+        updates['root/nexus_hr/taskAttribute'] = updated;
+
+        // Update tasks that use this attribute
+        if (tasks && tasks.length > 0) {
+            tasks.forEach(task => {
+                let field = '';
+                if (category === 'priorities' && task.priority === oldValue) field = 'priority';
+                else if (category === 'statuses' && task.status === oldValue) field = 'status';
+                else if (category === 'types' && task.taskType === oldValue) field = 'taskType';
+                else if (category === 'components' && task.taskComponent === oldValue) field = 'taskComponent';
+                else if (category === 'versions' && task.version === oldValue) field = 'version';
+
+                if (field) {
+                    updates[`root/nexus_hr/tasks/${task.id}/${field}`] = normalizedNewValue;
+                }
+            });
+        }
+
+        firebase.database().ref().update(updates).then(() => {
+            toast({ title: "Updated", description: `${category} renamed and all related tasks updated.` });
         });
         setEditingAttribute(null);
     };
@@ -692,11 +711,26 @@ const TaskManager = () => {
 
         if (!currentSubArray[index]) return;
 
-        currentSubArray[index] = newValue.trim();
+        const oldValue = currentSubArray[index];
+        const normalizedNewValue = newValue.trim();
+
+        currentSubArray[index] = normalizedNewValue;
         updated.subTypes[type] = currentSubArray;
 
-        firebase.database().ref('root/nexus_hr/taskAttribute').set(updated).then(() => {
-            toast({ title: "Sub-type Updated", description: "Manager data updated." });
+        const updates: any = {};
+        updates['root/nexus_hr/taskAttribute'] = updated;
+
+        // Update tasks that use this sub-type
+        if (tasks && tasks.length > 0) {
+            tasks.forEach(task => {
+                if (task.taskType === type && task.taskSubType === oldValue) {
+                    updates[`root/nexus_hr/tasks/${task.id}/taskSubType`] = normalizedNewValue;
+                }
+            });
+        }
+
+        firebase.database().ref().update(updates).then(() => {
+            toast({ title: "Sub-type Updated", description: "Renamed and all related tasks updated." });
         });
         setEditingAttribute(null);
     };
@@ -3176,12 +3210,7 @@ const TaskManager = () => {
                                     Manage task categories, statuses, and technical specifications globally.
                                 </DialogDescription>
                             </DialogHeader>
-                            <button
-                                onClick={() => setIsAttributeManagerOpen(false)}
-                                className="absolute top-4 right-4 p-2 text-white/70 hover:text-white hover:bg-white/20 rounded-full transition-colors"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
+
                         </div>
 
                         <Tabs defaultValue="priorities" className="flex-1 flex overflow-hidden">
@@ -3325,17 +3354,19 @@ const TaskManager = () => {
                                                             className={`flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-all ${selectedTypeForSub === t ? 'bg-indigo-50 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-200' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                                                         >
                                                             {editingAttribute?.category === 'types' && editingAttribute?.index === i ? (
-                                                                <Input
-                                                                    autoFocus
-                                                                    className="h-7 text-xs flex-1"
-                                                                    value={editingAttribute.value}
-                                                                    onClick={(e) => e.stopPropagation()}
-                                                                    onChange={(e) => setEditingAttribute({ ...editingAttribute, value: e.target.value })}
-                                                                    onKeyDown={(e) => {
-                                                                        if (e.key === 'Enter') handleAttributeEdit('types', i, editingAttribute.value);
-                                                                        if (e.key === 'Escape') setEditingAttribute(null);
-                                                                    }}
-                                                                />
+                                                                <div className="flex items-center gap-2 flex-1 mr-2" onClick={(e) => e.stopPropagation()}>
+                                                                    <Input
+                                                                        autoFocus
+                                                                        className="h-7 text-xs"
+                                                                        value={editingAttribute.value}
+                                                                        onChange={(e) => setEditingAttribute({ ...editingAttribute, value: e.target.value })}
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === 'Enter') handleAttributeEdit('types', i, editingAttribute.value);
+                                                                            if (e.key === 'Escape') setEditingAttribute(null);
+                                                                        }}
+                                                                    />
+                                                                    <Button size="sm" className="h-7 px-2 text-xs" onClick={() => handleAttributeEdit('types', i, editingAttribute.value)}>Save</Button>
+                                                                </div>
                                                             ) : (
                                                                 <span className="text-sm font-bold">{t}</span>
                                                             )}
@@ -3370,16 +3401,19 @@ const TaskManager = () => {
                                                             {(taskAttributes.subTypes?.[selectedTypeForSub] || []).map((st: string, idx: number) => (
                                                                 <div key={idx} className="flex items-center justify-between p-2 bg-white dark:bg-slate-900 border rounded-lg group">
                                                                     {editingAttribute?.category === `subTypes-${selectedTypeForSub}` && editingAttribute?.index === idx ? (
-                                                                        <Input
-                                                                            autoFocus
-                                                                            className="h-6 text-[10px] flex-1 mr-2"
-                                                                            value={editingAttribute.value}
-                                                                            onChange={(e) => setEditingAttribute({ ...editingAttribute, value: e.target.value })}
-                                                                            onKeyDown={(e) => {
-                                                                                if (e.key === 'Enter') handleSubTypeEdit(selectedTypeForSub, idx, editingAttribute.value);
-                                                                                if (e.key === 'Escape') setEditingAttribute(null);
-                                                                            }}
-                                                                        />
+                                                                        <div className="flex items-center gap-2 flex-1 mr-2">
+                                                                            <Input
+                                                                                autoFocus
+                                                                                className="h-6 text-[10px]"
+                                                                                value={editingAttribute.value}
+                                                                                onChange={(e) => setEditingAttribute({ ...editingAttribute, value: e.target.value })}
+                                                                                onKeyDown={(e) => {
+                                                                                    if (e.key === 'Enter') handleSubTypeEdit(selectedTypeForSub, idx, editingAttribute.value);
+                                                                                    if (e.key === 'Escape') setEditingAttribute(null);
+                                                                                }}
+                                                                            />
+                                                                            <Button size="sm" className="h-6 px-2 text-[10px]" onClick={() => handleSubTypeEdit(selectedTypeForSub, idx, editingAttribute.value)}>Save</Button>
+                                                                        </div>
                                                                     ) : (
                                                                         <span className="text-xs flex-1 cursor-pointer" onClick={() => setEditingAttribute({ category: `subTypes-${selectedTypeForSub}`, index: idx, value: st })}>{st}</span>
                                                                     )}

@@ -49,7 +49,7 @@ const FALLBACK_DATA = {
     "products": { "PBBCGBR009": { "categoryCode": "CBB0013", "name": "Colgate Soft Toothbrush" } }
 };
 
-type Tab = 'dashboard' | 'business' | 'users' | 'stocks';
+type Tab = 'dashboard' | 'business' | 'users' | 'stocks' | 'orders';
 type TimeData = { date: string; count: number; revenue: number };
 
 const Dashboard = () => {
@@ -335,6 +335,9 @@ const Dashboard = () => {
                     {[
                         { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
                         { id: 'business', label: 'Business & Finance', icon: IndianRupee },
+                        { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
+                        { id: 'business', label: 'Business & Finance', icon: IndianRupee },
+                        { id: 'orders', label: 'Orders Analysis', icon: ShoppingBasket },
                         { id: 'users', label: 'Users & Orders', icon: Users },
                         { id: 'stocks', label: 'Inventory & Stocks', icon: Package }
                     ].map(item => (
@@ -362,7 +365,7 @@ const Dashboard = () => {
                         <div className="absolute right-0 top-0 bottom-0 w-[280px] bg-white dark:bg-slate-900 p-6 flex flex-col h-full" onClick={e => e.stopPropagation()}>
                             <div className="flex justify-between items-center mb-8"><h2 className="text-xl font-bold dark:text-white">Menu</h2><button onClick={() => setSidebarOpen(false)}><X className="dark:text-white" /></button></div>
                             <nav className="space-y-2">
-                                {['dashboard', 'business', 'users', 'stocks'].map(t => (
+                                {['dashboard', 'business', 'orders', 'users', 'stocks'].map(t => (
                                     <button key={t} onClick={() => { setActiveTab(t as Tab); setSidebarOpen(false); }} className={`w-full text-left p-3 rounded-lg capitalize ${activeTab === t ? 'bg-blue-50 text-blue-600' : 'hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-white'}`}>{t}</button>
                                 ))}
                             </nav>
@@ -502,6 +505,141 @@ const Dashboard = () => {
                                 <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
                                     <h3 className="text-lg font-bold mb-4">Revenue Methodology</h3>
                                     <div className="h-64 flex justify-center"><Pie data={{ labels: revenueChartData.labels, datasets: [{ data: revenueChartData.values, backgroundColor: ['#3b82f6', '#10b981', '#f59e0b'] }] }} options={{ responsive: true, maintainAspectRatio: false }} /></div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'orders' && (
+                        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            {/* KPI Metrics */}
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-xl"><IndianRupee size={20} /></div>
+                                        <span className="text-xs font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">+12%</span>
+                                    </div>
+                                    <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Total Sales</p>
+                                    <h3 className="text-2xl font-black text-slate-800 dark:text-slate-100 mt-1">{fmtMoney(financialStats.totalRevenue)}</h3>
+                                </div>
+                                <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="p-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 rounded-xl"><Package size={20} /></div>
+                                    </div>
+                                    <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Total Orders</p>
+                                    <h3 className="text-2xl font-black text-slate-800 dark:text-slate-100 mt-1">{stats.totalOrders}</h3>
+                                </div>
+                                <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="p-3 bg-orange-50 dark:bg-orange-900/20 text-orange-600 rounded-xl"><Activity size={20} /></div>
+                                    </div>
+                                    <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Avg Order Value</p>
+                                    <h3 className="text-2xl font-black text-slate-800 dark:text-slate-100 mt-1">{fmtMoney(financialStats.avgOrder)}</h3>
+                                </div>
+                                <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-xl"><AlertTriangle size={20} /></div>
+                                    </div>
+                                    <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Cancelled</p>
+                                    <h3 className="text-2xl font-black text-slate-800 dark:text-slate-100 mt-1">{stats.cancelledOrders}</h3>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                {/* Sales Trend Chart */}
+                                <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <div>
+                                            <h3 className="text-lg font-bold">Revenue Trend</h3>
+                                            <p className="text-sm text-slate-500">Daily sales performance over time</p>
+                                        </div>
+                                    </div>
+                                    <div className="h-80 w-full">
+                                        <Line
+                                            data={{
+                                                labels: chartData.map(d => d.date),
+                                                datasets: [
+                                                    {
+                                                        label: 'Revenue',
+                                                        data: chartData.map(d => d.revenue),
+                                                        borderColor: '#8b5cf6',
+                                                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                                                        tension: 0.4,
+                                                        fill: true,
+                                                    }
+                                                ]
+                                            }}
+                                            options={{
+                                                responsive: true,
+                                                maintainAspectRatio: false,
+                                                scales: {
+                                                    y: {
+                                                        beginAtZero: true,
+                                                        grid: { color: 'rgba(0,0,0,0.05)' }
+                                                    },
+                                                    x: { grid: { display: false } }
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Top Products List */}
+                                <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col">
+                                    <h3 className="text-lg font-bold mb-4">Top Selling Products</h3>
+                                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-4">
+                                        {topProducts.map((prod, idx) => (
+                                            <div key={idx} className="flex items-center gap-4 group">
+                                                <div className="w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500 font-bold text-xs shrink-0">#{idx + 1}</div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-bold truncate text-slate-700 dark:text-slate-200 group-hover:text-blue-600 transition-colors">{prod.name}</p>
+                                                    <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full mt-1 overflow-hidden">
+                                                        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(prod.count / (topProducts[0]?.count || 1)) * 100}%` }}></div>
+                                                    </div>
+                                                </div>
+                                                <span className="text-xs font-bold text-slate-500 whitespace-nowrap">{prod.count} sold</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Recent Transactions Table */}
+                            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+                                <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                                    <h3 className="text-lg font-bold">Recent Transactions</h3>
+                                    <button className="text-sm text-blue-600 font-bold hover:underline">View All</button>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 uppercase text-xs font-bold">
+                                            <tr>
+                                                <th className="p-4">Order ID</th>
+                                                <th className="p-4">Date & Time</th>
+                                                <th className="p-4">Amount</th>
+                                                <th className="p-4">Payment</th>
+                                                <th className="p-4">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                            {detailedRevenue.sort((a, b) => b.date - a.date).slice(0, 10).map((order, idx) => (
+                                                <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                                    <td className="p-4 font-medium text-slate-700 dark:text-slate-300">#{order.id}</td>
+                                                    <td className="p-4 text-slate-500">
+                                                        {new Date(order.date).toLocaleDateString()}
+                                                        <span className="text-xs ml-2 opacity-50">{new Date(order.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                    </td>
+                                                    <td className="p-4 font-bold">{fmtMoney(order.amount)}</td>
+                                                    <td className="p-4">
+                                                        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${order.method === 'COD' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
+                                                            {order.method}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4"><span className="text-emerald-600 flex items-center gap-1 text-xs font-bold"><CheckCircle size={14} /> Completed</span></td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
