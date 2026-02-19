@@ -1275,7 +1275,7 @@ const TaskManager = () => {
 
         // Visibility Logic
         let isVisible = true;
-        if (isStaff && filterStatus !== 'All') {
+        if (isStaff) {
             const isCreator = t.createdBy === loggedInEmpId;
             const isAssigned = (t.assignedEmployeeIds || []).includes(loggedInEmpId);
             const isPublic = t.status !== 'Raised';
@@ -1283,7 +1283,18 @@ const TaskManager = () => {
         }
 
         return matchesStatus && matchesTeam && matchesEmployee && matchesPriority && matchesSearch && isVisible;
-    }).sort((a, b) => {
+    });
+
+    const visibleTasksCount = tasks.filter(t => {
+        if (!isStaff) return true;
+        const isCreator = t.createdBy === loggedInEmpId;
+        const isAssigned = (t.assignedEmployeeIds || []).includes(loggedInEmpId);
+        const isPublic = t.status !== 'Raised';
+        return isCreator || isAssigned || isPublic;
+    }).length;
+
+    // Sort visible tasks
+    const sortedTasks = filteredTasks.sort((a, b) => {
         const priorities = taskAttributes.priorities || ['Critical', 'High', 'Medium', 'Normal', 'Low'];
         const getPriorityScore = (p: string) => {
             const index = priorities.indexOf(p);
@@ -1331,9 +1342,15 @@ const TaskManager = () => {
                                 <SidebarItem
                                     icon={ClipboardList}
                                     label="All Tasks"
-                                    active={filterStatus === 'All'}
-                                    onClick={() => setFilterStatus('All')}
-                                    count={tasks.length}
+                                    active={filterStatus === 'All' && !selectedTeamFilter}
+                                    onClick={() => {
+                                        setFilterStatus('All');
+                                        setSelectedTeamFilter(null);
+                                        setSelectedEmployeeFilter(null);
+                                        setFilterPriority(null);
+                                        setSearchQuery("");
+                                    }}
+                                    count={visibleTasksCount}
                                 />
                                 {(taskAttributes.statuses || []).map((status: string) => (
                                     <SidebarItem
@@ -1613,97 +1630,66 @@ const TaskManager = () => {
 
                             {filterStatus === 'All' ? (
                                 <div className="space-y-12">
-                                    {/* My Tasks Section */}
-                                    {myTasks.length > 0 && (
-                                        <div className="space-y-6">
-                                            <div className="relative group animate-in fade-in slide-in-from-left-4 duration-700">
-                                                <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-xl blur-xl group-hover:blur-2xl transition-all duration-500" />
-                                                <div className="relative flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-indigo-50 to-indigo-100/50 dark:from-indigo-950/50 dark:to-indigo-900/30 rounded-xl border border-indigo-200/50 dark:border-indigo-800/50 backdrop-blur-sm shadow-lg shadow-indigo-500/10 hover:shadow-xl hover:shadow-indigo-500/20 transition-all duration-500">
-                                                    <div className="p-2 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg shadow-lg shadow-indigo-500/50 group-hover:scale-110 transition-transform duration-300">
-                                                        <UserCircle className="w-5 h-5 text-white" />
-                                                    </div>
-                                                    <h2 className="text-lg font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-600 to-indigo-800 dark:from-indigo-400 dark:to-indigo-600 bg-clip-text text-transparent">
-                                                        My Tasks
-                                                    </h2>
-                                                    <Badge variant="secondary" className="ml-auto rounded-full h-6 min-w-[24px] px-2.5 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-bold shadow-lg shadow-indigo-500/50 group-hover:scale-110 transition-transform duration-300">
-                                                        {myTasks.length}
-                                                    </Badge>
-                                                </div>
-                                            </div>
-                                            {(taskAttributes.priorities || ['Critical', 'High', 'Medium', 'Normal', 'Low']).map(priority => {
-                                                const tasksInPriority = myTasks.filter(t => (t.priority || 'Low') === priority);
-                                                if (tasksInPriority.length === 0) return null;
+                                    {(() => {
+                                        const priorities = (taskAttributes.priorities && taskAttributes.priorities.length > 0) ? taskAttributes.priorities : ['Critical', 'High', 'Medium', 'Normal', 'Low'];
+                                        // Track which tasks have been shown
+                                        const shownTaskIds = new Set();
 
-                                                return (
-                                                    <div key={`my-${priority}`} className="space-y-4">
-                                                        <div className="flex items-center gap-2 px-1">
-                                                            <div className={`w-3 h-3 rounded-full ${priority === 'Critical' ? 'bg-red-600 shadow-sm shadow-red-500/50 scale-110' :
-                                                                priority === 'High' ? 'bg-red-500' :
-                                                                    (priority === 'Normal' || priority === 'Medium') ? 'bg-indigo-500' :
-                                                                        'bg-slate-400'
-                                                                }`} />
-                                                            <h3 className={`text-sm font-bold uppercase tracking-widest ${priority === 'Critical' ? 'text-red-600' : 'text-slate-500'}`}>
-                                                                {priority} Priority
-                                                            </h3>
-                                                            <Badge variant="secondary" className="rounded-full h-5 min-w-[20px] px-1.5">{tasksInPriority.length}</Badge>
+                                        return (
+                                            <>
+                                                {priorities.map((priority: string) => {
+                                                    const tasksInPriority = filteredTasks.filter(t => (t.priority || 'Low') === priority);
+                                                    if (tasksInPriority.length === 0) return null;
+                                                    tasksInPriority.forEach(t => shownTaskIds.add(t.id));
+
+                                                    return (
+                                                        <div key={`all-${priority}`} className="space-y-4">
+                                                            <div className="flex items-center gap-2 px-1">
+                                                                <div className={`w-3 h-3 rounded-full ${priority === 'Critical' ? 'bg-red-600 shadow-sm shadow-red-500/50 scale-110' :
+                                                                    priority === 'High' ? 'bg-red-500' :
+                                                                        (priority === 'Normal' || priority === 'Medium') ? 'bg-indigo-500' :
+                                                                            'bg-slate-400'
+                                                                    }`} />
+                                                                <h3 className={`text-sm font-bold uppercase tracking-widest ${priority === 'Critical' ? 'text-red-600' : 'text-slate-500'}`}>
+                                                                    {priority} Priority
+                                                                </h3>
+                                                                <Badge variant="secondary" className="rounded-full h-5 min-w-[20px] px-1.5">{tasksInPriority.length}</Badge>
+                                                            </div>
+                                                            <TaskListView
+                                                                tasks={tasksInPriority}
+                                                                employees={employees}
+                                                                viewMode={viewMode}
+                                                                onClick={(t: any) => window.open(`/tasks/${t.id}`, '_blank')}
+                                                            />
                                                         </div>
-                                                        <TaskListView
-                                                            tasks={tasksInPriority}
-                                                            employees={employees}
-                                                            viewMode={viewMode}
-                                                            onClick={(t: any) => window.open(`/tasks/${t.id}`, '_blank')}
-                                                        />
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
+                                                    );
+                                                })}
 
-                                    {/* Other Tasks Section */}
-                                    {otherTasks.length > 0 && (
-                                        <div className="space-y-6">
-                                            <div className="relative group animate-in fade-in slide-in-from-left-4 duration-700 delay-150">
-                                                <div className="absolute inset-0 bg-gradient-to-r from-slate-500/10 to-slate-400/10 rounded-xl blur-xl group-hover:blur-2xl transition-all duration-500" />
-                                                <div className="relative flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-slate-900/50 dark:to-slate-800/30 rounded-xl border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm shadow-lg shadow-slate-500/10 hover:shadow-xl hover:shadow-slate-500/20 transition-all duration-500">
-                                                    <div className="p-2 bg-gradient-to-br from-slate-500 to-slate-600 rounded-lg shadow-lg shadow-slate-500/50 group-hover:scale-110 transition-transform duration-300">
-                                                        <Users className="w-5 h-5 text-white" />
-                                                    </div>
-                                                    <h2 className="text-lg font-bold uppercase tracking-wider bg-gradient-to-r from-slate-600 to-slate-800 dark:from-slate-400 dark:to-indigo-600 bg-clip-text text-transparent">
-                                                        Other Tasks
-                                                    </h2>
-                                                    <Badge variant="secondary" className="ml-auto rounded-full h-6 min-w-[24px] px-2.5 bg-gradient-to-r from-slate-500 to-slate-600 text-white font-bold shadow-lg shadow-slate-500/50 group-hover:scale-110 transition-transform duration-300">
-                                                        {otherTasks.length}
-                                                    </Badge>
-                                                </div>
-                                            </div>
-                                            {(taskAttributes.priorities || ['Critical', 'High', 'Medium', 'Normal', 'Low']).map(priority => {
-                                                const tasksInPriority = otherTasks.filter(t => (t.priority || 'Low') === priority);
-                                                if (tasksInPriority.length === 0) return null;
-
-                                                return (
-                                                    <div key={`other-${priority}`} className="space-y-4">
-                                                        <div className="flex items-center gap-2 px-1">
-                                                            <div className={`w-3 h-3 rounded-full ${priority === 'Critical' ? 'bg-red-600 shadow-sm shadow-red-500/50 scale-110' :
-                                                                priority === 'High' ? 'bg-red-500' :
-                                                                    (priority === 'Normal' || priority === 'Medium') ? 'bg-indigo-500' :
-                                                                        'bg-slate-400'
-                                                                }`} />
-                                                            <h3 className={`text-sm font-bold uppercase tracking-widest ${priority === 'Critical' ? 'text-red-600' : 'text-slate-500'}`}>
-                                                                {priority} Priority
-                                                            </h3>
-                                                            <Badge variant="secondary" className="rounded-full h-5 min-w-[20px] px-1.5">{tasksInPriority.length}</Badge>
+                                                {/* Render inconsistencies / other priorities */}
+                                                {(() => {
+                                                    const otherTasks = filteredTasks.filter(t => !shownTaskIds.has(t.id));
+                                                    if (otherTasks.length === 0) return null;
+                                                    return (
+                                                        <div key="all-other" className="space-y-4">
+                                                            <div className="flex items-center gap-2 px-1">
+                                                                <div className="w-3 h-3 rounded-full bg-slate-400" />
+                                                                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500">
+                                                                    Uncategorized
+                                                                </h3>
+                                                                <Badge variant="secondary" className="rounded-full h-5 min-w-[20px] px-1.5">{otherTasks.length}</Badge>
+                                                            </div>
+                                                            <TaskListView
+                                                                tasks={otherTasks}
+                                                                employees={employees}
+                                                                viewMode={viewMode}
+                                                                onClick={(t: any) => window.open(`/tasks/${t.id}`, '_blank')}
+                                                            />
                                                         </div>
-                                                        <TaskListView
-                                                            tasks={tasksInPriority}
-                                                            employees={employees}
-                                                            viewMode={viewMode}
-                                                            onClick={(t: any) => window.open(`/tasks/${t.id}`, '_blank')}
-                                                        />
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
+                                                    );
+                                                })()}
+                                            </>
+                                        );
+                                    })()}
                                 </div>
                             ) : (
                                 <div className="space-y-12">
@@ -1743,7 +1729,7 @@ const TaskManager = () => {
                                                         <Users className="w-5 h-5 text-white" />
                                                     </div>
                                                     <h2 className="text-lg font-bold uppercase tracking-wider bg-gradient-to-r from-slate-600 to-slate-800 dark:from-slate-400 dark:to-indigo-600 bg-clip-text text-transparent">
-                                                        Other Tasks
+                                                        Team Tasks
                                                     </h2>
                                                     <Badge variant="secondary" className="ml-auto rounded-full h-6 min-w-[24px] px-2.5 bg-gradient-to-r from-slate-500 to-slate-600 text-white font-bold shadow-lg shadow-slate-500/50 group-hover:scale-110 transition-transform duration-300">
                                                         {otherTasks.length}

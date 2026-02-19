@@ -1449,133 +1449,168 @@ const TaskDetail = () => {
                             </Button>
                         </div>
 
-                        <div className="space-y-3">
-                            {/* Creator */}
-                            {author && (
-                                <div className="flex items-center gap-2 p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
-                                    <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center">
-                                        <User className="w-4 h-4 text-emerald-600" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">Creator</p>
-                                        <div className="flex items-center gap-1.5">
-                                            {author.photoUrl ? (
-                                                <img src={author.photoUrl} alt={author.name} className="w-4 h-4 rounded-full" />
-                                            ) : (
-                                                <div className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[8px] font-bold">
-                                                    {author.name.charAt(0)}
-                                                </div>
-                                            )}
-                                            <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
-                                                {author.name}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
+                        <div className="space-y-6 relative pl-2 pt-2">
+                            {/* Vertical Line */}
+                            <div className="absolute left-[19px] top-3 bottom-4 w-0.5 bg-slate-200 dark:bg-slate-800" />
 
-                            {/* Approved By (if status changed from Raised) */}
-                            {task.status !== 'Raised' && task.approvedBy && (
-                                <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-                                        <CheckCircle2 className="w-4 h-4 text-blue-600" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">Approved By</p>
-                                        <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
-                                            Admin
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Current Assignees */}
-                            {assignedEmployees.length > 0 && (
-                                <div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center">
-                                            <Users className="w-4 h-4 text-indigo-600" />
-                                        </div>
-                                        <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                                            Assigned ({assignedEmployees.length})
-                                        </p>
-                                    </div>
-                                    <div className="space-y-1.5 pl-10">
-                                        {assignedEmployees.map((emp) => (
-                                            <div key={emp.id} className="flex items-center gap-1.5">
-                                                {emp.photoUrl ? (
-                                                    <img src={emp.photoUrl} alt={emp.name} className="w-4 h-4 rounded-full" />
-                                                ) : (
-                                                    <div className="w-4 h-4 rounded-full bg-indigo-500 text-white flex items-center justify-center text-[8px] font-bold">
-                                                        {emp.name.charAt(0)}
-                                                    </div>
-                                                )}
-                                                <p className="text-xs text-slate-700 dark:text-slate-300 truncate">
-                                                    {emp.name}
-                                                </p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Reassignment History */}
-                            {task.reassignmentHistory && task.reassignmentHistory.length > 0 && (
-                                <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
-                                            <ArrowUp className="w-4 h-4 text-purple-600 rotate-45" />
-                                        </div>
-                                        <p className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold">
-                                            Reassignment History
-                                        </p>
-                                    </div>
-                                    <div className="space-y-1.5 pl-10">
-                                        {task.reassignmentHistory.map((history: any, idx: number) => {
-                                            const reassignedEmployee = employees.find(e => e.id === history.to);
-                                            return (
-                                                <div key={idx} className="text-xs text-slate-600 dark:text-slate-400">
-                                                    <p className="truncate">→ {reassignedEmployee?.name || 'Unknown'}</p>
-                                                    <p className="text-[9px] text-slate-400">
-                                                        {new Date(history.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                                                    </p>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Tester */}
-                            {tester && (
-                                <div className="flex items-center gap-2 p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
-                                    <div className="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center">
-                                        <CheckCircle2 className="w-4 h-4 text-amber-600" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">Tester</p>
-                                        <div className="flex items-center gap-1.5">
-                                            {tester.photoUrl ? (
-                                                <img src={tester.photoUrl} alt={tester.name} className="w-4 h-4 rounded-full" />
-                                            ) : (
-                                                <div className="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center text-[8px] font-bold">
-                                                    {tester.name.charAt(0)}
-                                                </div>
-                                            )}
-                                            <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
-                                                {tester.name}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Subtask indicator - placeholder for future implementation */}
+                            {/* Subtask Context */}
                             {task.parentTaskId && (
-                                <div className="flex items-center gap-2 p-2 bg-slate-100 dark:bg-slate-800 rounded-lg border-l-4 border-slate-400">
-                                    <span className="text-xs text-slate-600 dark:text-slate-400">
-                                        📌 Subtask of #{task.parentTaskId.slice(-6)}
+                                <div className="relative pl-8 animate-in slide-in-from-left-2 duration-300">
+                                    <div className="absolute left-[13px] top-1.5 w-3 h-3 rounded-full bg-slate-400 ring-4 ring-white dark:ring-slate-900 z-10" />
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Subtask Context</span>
+                                        <div className="mt-1 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-800 flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                                            <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+                                                Parent Task #{task.parentTaskId.slice(-6)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Creator */}
+                            <div className="relative pl-8 group animate-in slide-in-from-left-2 duration-300 delay-100">
+                                <div className="absolute left-[13px] top-1.5 w-3 h-3 rounded-full bg-emerald-500 ring-4 ring-white dark:ring-slate-900 z-10 group-hover:scale-110 transition-transform" />
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1">
+                                        Created • {new Date(task.createdAt).toLocaleDateString()}
                                     </span>
+                                    {author ? (
+                                        <div className="flex items-center gap-3 p-2 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/50 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                                            <Avatar className="w-8 h-8 rounded-full border border-slate-200">
+                                                <AvatarImage src={author.photoUrl} />
+                                                <AvatarFallback className="bg-emerald-100 text-emerald-600 font-bold text-xs">
+                                                    {author.name.charAt(0)}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div>
+                                                <p className="text-xs font-bold text-slate-900 dark:text-slate-100">{author.name}</p>
+                                                <p className="text-[10px] text-slate-500 capitalize">{author.role || 'Creator'}</p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-3 p-2 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/50 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                                            <Avatar className="w-8 h-8 rounded-full border border-slate-200">
+                                                <AvatarFallback className="bg-indigo-100 text-indigo-600 font-bold text-xs">
+                                                    A
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div>
+                                                <p className="text-xs font-bold text-slate-900 dark:text-slate-100">Admin</p>
+                                                <p className="text-[10px] text-slate-500 capitalize">Administrator</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Initial Assignment (if history exists) */}
+                            {task.reassignmentHistory && task.reassignmentHistory.length > 0 && (
+                                <>
+                                    <div className="relative pl-8 animate-in slide-in-from-left-2 duration-300 delay-150">
+                                        <div className="absolute left-[13px] top-1.5 w-3 h-3 rounded-full bg-slate-300 ring-4 ring-white dark:ring-slate-900 z-10" />
+                                        <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1 block">Originally Assigned</span>
+                                        <div className="flex -space-x-2 overflow-hidden py-1">
+                                            {(task.reassignmentHistory[0].from || []).map((empId: string, idx: number) => {
+                                                const emp = employees.find(e => e.id === empId);
+                                                if (!emp) return null;
+                                                return (
+                                                    <Avatar key={idx} className="w-8 h-8 border-2 border-white dark:border-slate-900 ring-1 ring-slate-200" title={emp.name}>
+                                                        <AvatarImage src={emp.photoUrl} />
+                                                        <AvatarFallback className="text-[10px]">{emp.name[0]}</AvatarFallback>
+                                                    </Avatar>
+                                                );
+                                            })}
+                                            {(!task.reassignmentHistory[0].from || task.reassignmentHistory[0].from.length === 0) && (
+                                                <span className="text-xs text-slate-400 italic pl-1">Unassigned</span>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* History Steps */}
+                                    {task.reassignmentHistory.map((h: any, i: number) => {
+                                        const assignedTo = employees.find(e => e.id === h.to);
+                                        const reassignedBy = employees.find(e => e.id === h.reassignedBy);
+                                        return (
+                                            <div className="relative pl-8 group animate-in slide-in-from-left-2 duration-300" style={{ animationDelay: `${200 + (i * 50)}ms` }} key={i}>
+                                                <div className="absolute left-[13px] top-1.5 w-3 h-3 rounded-full bg-purple-400 ring-4 ring-white dark:ring-slate-900 z-10 group-hover:scale-110 transition-transform" />
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1">
+                                                        Reassigned • {new Date(h.timestamp).toLocaleDateString()}
+                                                    </span>
+                                                    <div className="p-2 bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800/30 rounded-xl relative">
+                                                        <div className="flex items-center gap-3">
+                                                            <Avatar className="w-8 h-8 border border-white shadow-sm">
+                                                                <AvatarImage src={assignedTo?.photoUrl} />
+                                                                <AvatarFallback>{assignedTo?.name?.[0]}</AvatarFallback>
+                                                            </Avatar>
+                                                            <div>
+                                                                <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                                                                    {assignedTo?.name || 'Unknown'}
+                                                                </p>
+                                                                <p className="text-[10px] text-purple-600 dark:text-purple-400">
+                                                                    by {reassignedBy?.name || 'Admin'}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </>
+                            )}
+
+                            {/* Current Owner */}
+                            <div className="relative pl-8 group animate-in slide-in-from-left-2 duration-300 delay-300">
+                                <div className="absolute left-[13px] top-1.5 w-3 h-3 rounded-full bg-indigo-500 ring-4 ring-white dark:ring-slate-900 z-10 animate-pulse" />
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-400 tracking-wider mb-1">
+                                        Current Owner
+                                    </span>
+                                    <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none text-white space-y-2">
+                                        {assignedEmployees.length > 0 ? assignedEmployees.map(emp => (
+                                            <div key={emp.id} className="flex items-center gap-3">
+                                                <Avatar className="w-8 h-8 border-2 border-white/20 shadow-inner">
+                                                    <AvatarImage src={emp.photoUrl} />
+                                                    <AvatarFallback className="bg-white/20 text-white text-xs">
+                                                        {emp.name.charAt(0)}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                <div>
+                                                    <p className="text-sm font-bold text-white">{emp.name}</p>
+                                                    <p className="text-[10px] text-indigo-100 opacity-80">{emp.role || 'Team Member'}</p>
+                                                </div>
+                                            </div>
+                                        )) : (
+                                            <p className="text-xs text-white/80 italic">Currently Unassigned</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Tester (Parallel track) */}
+                            {tester && (
+                                <div className="relative pl-8 group animate-in slide-in-from-left-2 duration-300 delay-500">
+                                    <div className="absolute left-[13px] top-1.5 w-3 h-3 rounded-full bg-amber-500 ring-4 ring-white dark:ring-slate-900 z-10" />
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 tracking-wider mb-1">
+                                            Quality Assurance
+                                        </span>
+                                        <div className="flex items-center gap-3 p-2 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800/30 rounded-xl">
+                                            <Avatar className="w-8 h-8 border border-amber-200">
+                                                <AvatarImage src={tester.photoUrl} />
+                                                <AvatarFallback className="bg-amber-100 text-amber-600 text-xs">
+                                                    {tester.name[0]}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div>
+                                                <p className="text-xs font-bold text-slate-900 dark:text-slate-100">{tester.name}</p>
+                                                <p className="text-[10px] text-amber-600">Tester</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -1855,7 +1890,7 @@ const TaskDetail = () => {
                             <SelectContent>
                                 <div className="max-h-60 overflow-y-auto">
                                     {employees
-                                        .filter(emp => emp.role?.toLowerCase() === 'staff')
+                                        .filter(emp => emp.role !== 'Ride')
                                         .map(emp => (
                                             <SelectItem key={emp.id} value={emp.id}>
                                                 <div className="flex items-center gap-2">
