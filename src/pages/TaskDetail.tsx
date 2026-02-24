@@ -55,9 +55,20 @@ const TaskDetail = () => {
     const [filterEmployee, setFilterEmployee] = useState<string>("all");
     const [filterPriority, setFilterPriority] = useState<string>("all");
 
-    // Mobile view toggles
     const [showMobileComments, setShowMobileComments] = useState(false);
     const [showMobileTasks, setShowMobileTasks] = useState(false);
+
+    // Subtask Creation State
+    const [isSubtaskModalOpen, setIsSubtaskModalOpen] = useState(false);
+    const [newSubtask, setNewSubtask] = useState({
+        title: '',
+        description: '',
+        priority: 'Normal',
+        dueDate: '',
+        assignedEmployeeIds: [] as string[],
+        effortDays: '',
+        images: [] as string[]
+    });
 
     const loggedInEmpId = sessionStorage.getItem("employee_id") || "";
     const loggedInName = sessionStorage.getItem("staff_name") || "";
@@ -98,6 +109,128 @@ const TaskDetail = () => {
             empRef.off();
         };
     }, [taskId]);
+
+    const handleSubtaskImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const img = new window.Image();
+            img.src = reader.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const maxSize = 800;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > maxSize) {
+                        height *= maxSize / width;
+                        width = maxSize;
+                    }
+                } else {
+                    if (height > maxSize) {
+                        width *= maxSize / height;
+                        height = maxSize;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                ctx?.drawImage(img, 0, 0, width, height);
+                const base64 = canvas.toDataURL('image/jpeg', 0.7);
+
+                setNewSubtask(prev => ({
+                    ...prev,
+                    images: [...(prev.images || []), base64]
+                }));
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleCreateSubtask = async () => {
+        if (!newSubtask.title.trim()) {
+            toast.error("Title is required");
+            return;
+        }
+
+        if (newSubtask.assignedEmployeeIds.length === 0) {
+            toast.error("Please assign at least one member");
+            return;
+        }
+
+        const taskId_new = 'TSK-' + Date.now();
+        const createdNow = new Date().toISOString();
+        const db = firebase.database();
+
+        const taskData: any = {
+            id: taskId_new,
+            taskId: taskId_new,
+            parentId: task.id,
+            title: newSubtask.title,
+            description: newSubtask.description,
+            images: newSubtask.images || [],
+            priority: newSubtask.priority,
+            dueDate: newSubtask.dueDate || null,
+            effortDays: newSubtask.effortDays,
+
+            assignedEmployeeIds: newSubtask.assignedEmployeeIds,
+            teamId: task.teamId || '',
+
+            createdAt: createdNow,
+            assignedDate: createdNow,
+            createdBy: loggedInEmpId || 'admin',
+            creatorName: loggedInName || 'Admin',
+
+            status: 'Pending',
+            currentStage: 'Office',
+
+            // Inherit some metadata from parent if available
+            taskType: task.taskType || '',
+            taskSubType: 'Sub-task',
+            taskComponent: task.taskComponent || '',
+            version: task.version || ''
+        };
+
+        try {
+            await db.ref(`root/nexus_hr/tasks/${taskId_new}`).set(taskData);
+
+            // Send notification to assigned members
+            if (newSubtask.assignedEmployeeIds.length > 0) {
+                const recipients = newSubtask.assignedEmployeeIds
+                    .map(id => employees.find(e => e.id === id))
+                    .filter(emp => emp && emp.email)
+                    .map(emp => ({ email: emp.email }));
+
+                if (recipients.length > 0) {
+                    await sendTaskUpdateEmail(
+                        recipients,
+                        `Subtask Assigned: ${newSubtask.title}`,
+                        `<h2>${newSubtask.title}</h2><p>You have been assigned a new subtask for: ${task.title}</p><p>${newSubtask.description}</p>`,
+                        newSubtask.images.length > 0,
+                        `New Subtask: ${newSubtask.title}`
+                    );
+                }
+            }
+
+            toast.success("Subtask created successfully");
+            setIsSubtaskModalOpen(false);
+            setNewSubtask({
+                title: '',
+                description: '',
+                priority: 'Normal',
+                dueDate: '',
+                assignedEmployeeIds: [],
+                effortDays: '',
+                images: []
+            });
+        } catch (error) {
+            console.error("Error creating subtask:", error);
+            toast.error("Failed to create subtask");
+        }
+    };
 
     // Auto-scroll to top when comments change (since newest are at top)
     useEffect(() => {
@@ -845,6 +978,14 @@ const TaskDetail = () => {
                                             {t.priority}
                                         </Badge>
                                     </div>
+                                    {t.parentId && (
+                                        <div className="flex items-center gap-1 mb-2">
+                                            <Badge className="bg-indigo-600 hover:bg-indigo-700 text-white border-0 text-[8px] h-4 font-black px-1">SUBTASK</Badge>
+                                            <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                                                Parent: <span className="font-semibold">#{t.parentId.slice(-6)}</span>
+                                            </span>
+                                        </div>
+                                    )}
                                     <div className="flex items-center gap-2 mb-2">
                                         <div className={`w-2 h-2 rounded-full ${getStatusColor(t.status)}`}></div>
                                         <span className="text-xs text-slate-600 dark:text-slate-400">{t.status}</span>
@@ -962,7 +1103,7 @@ const TaskDetail = () => {
 
                                 {/* Action Buttons */}
                                 <div className="flex items-center gap-2 w-full md:w-auto">
-                                    {!isStaff && task.status === 'Raised' && (
+                                    {task.status === 'Raised' && (
                                         <Button
                                             size="sm"
                                             className="bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-lg shadow-green-200 dark:shadow-none flex-1 md:flex-initial"
@@ -978,7 +1119,7 @@ const TaskDetail = () => {
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => window.open("/tasks", "_blank")}
+                                        onClick={() => setIsSubtaskModalOpen(true)}
                                         className="rounded-xl flex-1 md:flex-initial"
                                     >
                                         <Plus className="w-4 h-4 mr-2" />
@@ -1024,6 +1165,22 @@ const TaskDetail = () => {
                                     </Button>
                                 </div>
                             </div>
+
+                            {task.parentId && (
+                                <div className="flex items-center gap-2 mb-2 p-2 bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100/50 dark:border-indigo-800/30 rounded-xl animate-in slide-in-from-top-1 duration-300">
+                                    <Badge className="bg-indigo-600 hover:bg-indigo-700 text-white border-0 text-[9px] h-4 font-black">SUBTASK</Badge>
+                                    <div className="text-[10px] text-indigo-700 dark:text-indigo-300 font-bold flex items-center gap-1.5 uppercase tracking-wider">
+                                        <span>Part of parent:</span>
+                                        <button
+                                            onClick={() => navigate(`/tasks/${task.parentId}`)}
+                                            className="hover:underline flex items-center gap-1 text-indigo-500"
+                                        >
+                                            <Link className="w-3 h-3" />
+                                            #{task.parentId.slice(-6)}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Task Meta Info - Single Row with Assigned, Created, Due Date */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6 mt-6">
@@ -2034,6 +2191,140 @@ const TaskDetail = () => {
                             className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white"
                         >
                             Delete Task
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Create Subtask Dialog */}
+            <Dialog open={isSubtaskModalOpen} onOpenChange={setIsSubtaskModalOpen}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Plus className="w-5 h-5 text-indigo-600" />
+                            Create Subtask
+                        </DialogTitle>
+                        <DialogDescription>
+                            Link a new subtask to: <span className="font-bold text-slate-900 dark:text-slate-100">{task.title}</span>
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-xs font-bold uppercase text-slate-500">Subtask Title <span className="text-red-500">*</span></Label>
+                                <Input
+                                    placeholder="Enter subtask title..."
+                                    value={newSubtask.title}
+                                    onChange={(e) => setNewSubtask({ ...newSubtask, title: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-xs font-bold uppercase text-slate-500">Priority</Label>
+                                <Select
+                                    value={newSubtask.priority}
+                                    onValueChange={(val) => setNewSubtask({ ...newSubtask, priority: val })}
+                                >
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Low">Low</SelectItem>
+                                        <SelectItem value="Normal">Normal</SelectItem>
+                                        <SelectItem value="High">High</SelectItem>
+                                        <SelectItem value="Crucial">Crucial</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-xs font-bold uppercase text-slate-500">Description</Label>
+                            <textarea
+                                className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-800 dark:border-slate-700"
+                                placeholder="Describe the work needed..."
+                                value={newSubtask.description}
+                                onChange={(e) => setNewSubtask({ ...newSubtask, description: e.target.value })}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-xs font-bold uppercase text-slate-500">Due Date</Label>
+                                <Input
+                                    type="date"
+                                    value={newSubtask.dueDate}
+                                    onChange={(e) => setNewSubtask({ ...newSubtask, dueDate: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-xs font-bold uppercase text-slate-500">Effort (Days)</Label>
+                                <Input
+                                    type="number"
+                                    placeholder="e.g. 1"
+                                    value={newSubtask.effortDays}
+                                    onChange={(e) => setNewSubtask({ ...newSubtask, effortDays: e.target.value })}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-xs font-bold uppercase text-slate-500">Assign To <span className="text-red-500">*</span></Label>
+                            <Select
+                                value={newSubtask.assignedEmployeeIds[0] || ""}
+                                onValueChange={(val) => setNewSubtask({ ...newSubtask, assignedEmployeeIds: [val] })}
+                            >
+                                <SelectTrigger className="w-full h-11 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                                    <SelectValue placeholder="Choose an employee..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <div className="max-h-60 overflow-y-auto">
+                                        {employees
+                                            .filter(emp => emp.role !== 'Ride' && emp.department !== 'Logistics')
+                                            .map(emp => (
+                                                <SelectItem key={emp.id} value={emp.id}>
+                                                    <div className="flex items-center gap-2">
+                                                        <Avatar className="w-6 h-6">
+                                                            <AvatarImage src={emp.photoUrl} />
+                                                            <AvatarFallback className="text-[10px] bg-slate-100">{emp.name?.[0]}</AvatarFallback>
+                                                        </Avatar>
+                                                        <span className="font-medium">{emp.name}</span>
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                    </div>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Image Upload for Subtask */}
+                        <div className="space-y-2">
+                            <Label className="text-xs font-bold uppercase text-slate-500">Attachments</Label>
+                            <div className="flex flex-wrap gap-2">
+                                {newSubtask.images.map((img, i) => (
+                                    <div key={i} className="relative group">
+                                        <img src={img} alt="Subtask attachment" className="w-16 h-16 object-cover rounded-lg border border-slate-200 dark:border-slate-800" />
+                                        <button
+                                            onClick={() => setNewSubtask(prev => ({ ...prev, images: prev.images.filter((_, idx) => idx !== i) }))}
+                                            className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                                <label className="w-16 h-16 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all">
+                                    <Plus className="w-5 h-5 text-slate-400" />
+                                    <input type="file" className="hidden" accept="image/*" onChange={handleSubtaskImageUpload} />
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter className="bg-slate-50 dark:bg-slate-900/50 -mx-6 -mb-6 p-4 border-t border-slate-100 dark:border-slate-800">
+                        <Button variant="outline" onClick={() => setIsSubtaskModalOpen(false)}>Cancel</Button>
+                        <Button
+                            onClick={handleCreateSubtask}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 dark:shadow-none min-w-[120px]"
+                        >
+                            Create Subtask
                         </Button>
                     </DialogFooter>
                 </DialogContent>

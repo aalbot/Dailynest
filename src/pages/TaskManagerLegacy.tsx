@@ -23,6 +23,7 @@ import {
     Menu,
     ChevronDown,
     PanelLeftClose,
+    Link,
     X,
     MoreHorizontal,
     Trash2,
@@ -195,9 +196,20 @@ const TaskCard = ({ task, employees, onClick }: { task: any, employees: any[], o
                     )}
                 </div>
 
-                <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-3 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-300 line-clamp-2 leading-snug">
+                <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-300 line-clamp-2 leading-snug">
                     {task.title}
                 </h3>
+
+                {task.parentId && (
+                    <div className="flex items-center gap-1.5 mb-3">
+                        <Badge variant="outline" className="text-[8px] h-4 px-1.5 uppercase font-black bg-indigo-50 text-indigo-600 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-800">
+                            Subtask
+                        </Badge>
+                        <span className="text-[10px] text-slate-400 font-medium">
+                            of #{task.parentId.slice(-6)}
+                        </span>
+                    </div>
+                )}
 
                 <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-auto pt-3 border-t border-slate-100 dark:border-slate-800">
                     <div className="flex items-center gap-2 overflow-hidden w-full">
@@ -333,6 +345,11 @@ const TaskListItem = ({ task, employees, onClick }: any) => {
                 </div>
                 <h3 className="font-semibold text-slate-900 dark:text-slate-100 truncate group-hover:text-indigo-600 transition-colors">
                     {task.title}
+                    {task.parentId && (
+                        <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800 text-[8px] font-black uppercase tracking-tighter">
+                            SUB #{(task.parentId).slice(-6)}
+                        </span>
+                    )}
                 </h3>
             </div>
 
@@ -369,7 +386,17 @@ const TaskTableRow = ({ task, employees, onClick }: any) => {
     return (
         <TableRow onClick={onClick} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 group">
             <TableCell className="font-mono text-[10px] text-slate-500">{task.taskId}</TableCell>
-            <TableCell className="font-medium min-w-[200px]">{task.title}</TableCell>
+            <TableCell className="font-medium min-w-[200px]">
+                <div className="flex flex-col">
+                    <span>{task.title}</span>
+                    {task.parentId && (
+                        <span className="text-[9px] text-indigo-500 font-bold uppercase tracking-tighter flex items-center gap-1">
+                            <Link className="w-2 h-2" />
+                            Sub of #{task.parentId.slice(-6)}
+                        </span>
+                    )}
+                </div>
+            </TableCell>
             <TableCell>
                 <div className="flex -space-x-1">
                     {(task.assignedEmployeeIds || []).slice(0, 3).map((id: string) => {
@@ -515,7 +542,7 @@ const TaskManager = () => {
         version: '',
         effortDays: '',
         images: [] as string[],
-        status: 'Open'
+        status: 'Pending'
     });
 
     const [viewMode, setViewMode] = useState<'grid' | 'list' | 'table'>('grid');
@@ -924,8 +951,8 @@ const TaskManager = () => {
             return;
         }
 
-        // Admin validation: must assign
-        if (!isStaff && (!newTask.assignedEmployeeIds || newTask.assignedEmployeeIds.length === 0)) {
+        // All users must assign at least one member
+        if (!newTask.assignedEmployeeIds || newTask.assignedEmployeeIds.length === 0) {
             toast({ title: "Error", description: "Please assign at least one member", variant: "destructive" });
             return;
         }
@@ -952,8 +979,8 @@ const TaskManager = () => {
             // Meta
             createdAt: createdNow,
             assignedDate: (newTask.assignedEmployeeIds?.length ?? 0) > 0 ? createdNow : null,
-            createdBy: isStaff ? loggedInEmpId : 'admin',
-            creatorName: isStaff ? loggedInName : 'Admin',
+            createdBy: loggedInEmpId || 'admin',
+            creatorName: loggedInName || 'Admin',
 
             // Taxonomy
             taskType: newTask.taskType,
@@ -961,8 +988,8 @@ const TaskManager = () => {
             taskComponent: newTask.taskComponent,
             version: newTask.version,
 
-            // Status Logic: Employee -> Raised, Admin -> Open (or selected)
-            status: isStaff ? 'Raised' : (newTask.status || 'Open'),
+            // All tasks now start as Pending (or selected)
+            status: newTask.status || 'Pending',
 
             // Legacy / Default fields
             currentStage: 'Office'
@@ -1009,7 +1036,7 @@ const TaskManager = () => {
                 version: '',
                 effortDays: '',
                 images: [],
-                status: isStaff ? 'Raised' : 'Open'
+                status: 'Pending'
             }));
         });
     };
@@ -1278,20 +1305,14 @@ const TaskManager = () => {
         if (isStaff) {
             const isCreator = t.createdBy === loggedInEmpId;
             const isAssigned = (t.assignedEmployeeIds || []).includes(loggedInEmpId);
-            const isPublic = t.status !== 'Raised';
-            isVisible = isCreator || isAssigned || isPublic;
+            const isPublic = true; // All tasks are visible to everyone
+            isVisible = true;
         }
 
         return matchesStatus && matchesTeam && matchesEmployee && matchesPriority && matchesSearch && isVisible;
     });
 
-    const visibleTasksCount = tasks.filter(t => {
-        if (!isStaff) return true;
-        const isCreator = t.createdBy === loggedInEmpId;
-        const isAssigned = (t.assignedEmployeeIds || []).includes(loggedInEmpId);
-        const isPublic = t.status !== 'Raised';
-        return isCreator || isAssigned || isPublic;
-    }).length;
+    const visibleTasksCount = tasks.length;
 
     // Sort visible tasks
     const sortedTasks = filteredTasks.sort((a, b) => {
@@ -1347,7 +1368,7 @@ const TaskManager = () => {
                                         setFilterStatus('All');
                                         setSelectedTeamFilter(null);
                                         setSelectedEmployeeFilter(null);
-                                        setFilterPriority(null);
+                                        setSelectedPriorityFilter(null);
                                         setSearchQuery("");
                                     }}
                                     count={visibleTasksCount}
@@ -1964,11 +1985,11 @@ const TaskManager = () => {
                                 </div>
 
                                 {/* ADMIN ONLY SECTIONS */}
-                                {!isStaff && (
+                                {true && (
                                     <div className="border border-indigo-100 dark:border-indigo-900/50 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-xl p-5 space-y-5">
                                         <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-300">
-                                            <Shield className="w-5 h-5" />
-                                            <span className="text-xs font-black uppercase tracking-widest">Admin Controls</span>
+                                            <Users className="w-5 h-5" />
+                                            <span className="text-xs font-black uppercase tracking-widest">Assignment & Status</span>
                                         </div>
 
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -2049,7 +2070,7 @@ const TaskManager = () => {
                         <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-end gap-3 shrink-0">
                             <Button variant="ghost" onClick={() => setIsCreateOpen(false)} className="hover:bg-slate-100">Cancel</Button>
                             <Button onClick={handleCreateTask} className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] min-w-[140px]">
-                                {isStaff ? 'Create Request' : 'Create Task'}
+                                Create Task
                             </Button>
                         </div>
                     </DialogContent>
@@ -2214,7 +2235,7 @@ const TaskManager = () => {
                                             </div>
                                         </div>
                                         {/* ADMIN APPROVE BUTTON */}
-                                        {!isStaff && activeTask.status === 'Raised' && (
+                                        {activeTask.status === 'Raised' && (
                                             <div className="mt-4">
                                                 <Button
                                                     onClick={() => setIsApproveDialogOpen(true)}
