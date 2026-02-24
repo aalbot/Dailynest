@@ -856,10 +856,20 @@ const TaskDetail = () => {
     }
 
     const assignedEmployees = employees.filter(e => task.assignedEmployeeIds?.includes(e.id));
-    const author = task.authorId === 'admin'
-        ? { name: 'Admin', photoUrl: '', id: 'admin' }
-        : employees.find(e => e.id === task.authorId);
+    const author = (task.authorId === 'admin' || task.createdBy === 'admin')
+        ? { name: 'Admin', photoUrl: '', id: 'admin', role: 'Administrator' }
+        : employees.find(e => e.id === (task.authorId || task.createdBy));
     const tester = employees.find(e => e.id === task.testerId);
+
+    // Parent task participants for subtasks
+    const parentTask = task.parentId ? tasks.find((t: any) => t.id === task.parentId) : null;
+    const parentAuthor = parentTask
+        ? (parentTask.createdBy === 'admin' || parentTask.authorId === 'admin'
+            ? { name: 'Admin', photoUrl: '', id: 'admin', role: 'Administrator' }
+            : employees.find(e => e.id === (parentTask.createdBy || parentTask.authorId)))
+        : null;
+    const parentAssigned = parentTask ? employees.filter(e => parentTask.assignedEmployeeIds?.includes(e.id)) : [];
+    const parentTester = parentTask ? employees.find(e => e.id === parentTask.testerId) : null;
 
     // Sort comments: pinned first, then by upvotes (highest first), then by date (newest first)
     const sortedComments = task.comments
@@ -1610,29 +1620,73 @@ const TaskDetail = () => {
                             {/* Vertical Line */}
                             <div className="absolute left-[19px] top-3 bottom-4 w-0.5 bg-slate-200 dark:bg-slate-800" />
 
-                            {/* Subtask Context */}
-                            {task.parentTaskId && (
-                                <div className="relative pl-8 animate-in slide-in-from-left-2 duration-300">
-                                    <div className="absolute left-[13px] top-1.5 w-3 h-3 rounded-full bg-slate-400 ring-4 ring-white dark:ring-slate-900 z-10" />
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Subtask Context</span>
-                                        <div className="mt-1 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-800 flex items-center gap-2">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                                            <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
-                                                Parent Task #{task.parentTaskId.slice(-6)}
-                                            </p>
+                            {/* Parent Task Participants */}
+                            {parentTask && (
+                                <div className="space-y-4 mb-4">
+                                    <div className="relative pl-8 animate-in slide-in-from-left-2 duration-300">
+                                        <div className="absolute left-[13px] top-1.5 w-3 h-3 rounded-full bg-indigo-600 ring-4 ring-white dark:ring-slate-900 z-10" />
+                                        <div className="flex flex-col">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <Badge className="bg-indigo-600 text-white border-0 text-[8px] h-4 font-black px-1">PARENT TASK</Badge>
+                                                <span className="text-[10px] uppercase font-bold text-indigo-700 dark:text-indigo-400 tracking-wider">#{parentTask.id.slice(-6)}</span>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                {/* Parent Owner */}
+                                                <div className="flex items-center gap-2 p-2 bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100/50 dark:border-indigo-800/30 rounded-xl">
+                                                    <div className="flex -space-x-1.5 overflow-hidden">
+                                                        {parentAssigned.slice(0, 3).map(emp => (
+                                                            <Avatar key={emp.id} className="w-5 h-5 border border-white dark:border-slate-800">
+                                                                <AvatarImage src={emp.photoUrl} />
+                                                                <AvatarFallback className="text-[8px]">{emp.name[0]}</AvatarFallback>
+                                                            </Avatar>
+                                                        ))}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate">
+                                                            {parentAssigned.length > 0 ? parentAssigned[0].name + (parentAssigned.length > 1 ? ` +${parentAssigned.length - 1}` : '') : 'Unassigned'}
+                                                        </p>
+                                                        <p className="text-[8px] text-indigo-500 uppercase font-black tracking-tighter">Current Owner</p>
+                                                    </div>
+                                                </div>
+
+                                                {/* Parent Creator & Tester */}
+                                                <div className="flex items-center gap-3 px-1">
+                                                    {parentAuthor && (
+                                                        <div className="flex items-center gap-1.5" title={`Creator: ${parentAuthor.name}`}>
+                                                            <Avatar className="w-4 h-4">
+                                                                <AvatarImage src={parentAuthor.photoUrl} />
+                                                                <AvatarFallback className="text-[7px]">{parentAuthor.name[0]}</AvatarFallback>
+                                                            </Avatar>
+                                                            <span className="text-[8px] font-bold text-slate-500">Creator</span>
+                                                        </div>
+                                                    )}
+                                                    {parentTester && (
+                                                        <div className="flex items-center gap-1.5" title={`Tester: ${parentTester.name}`}>
+                                                            <Avatar className="w-4 h-4">
+                                                                <AvatarImage src={parentTester.photoUrl} />
+                                                                <AvatarFallback className="text-[7px]">{parentTester.name[0]}</AvatarFallback>
+                                                            </Avatar>
+                                                            <span className="text-[8px] font-bold text-amber-500">Tester</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
+                                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
                                 </div>
                             )}
 
-                            {/* Creator */}
                             <div className="relative pl-8 group animate-in slide-in-from-left-2 duration-300 delay-100">
                                 <div className="absolute left-[13px] top-1.5 w-3 h-3 rounded-full bg-emerald-500 ring-4 ring-white dark:ring-slate-900 z-10 group-hover:scale-110 transition-transform" />
                                 <div className="flex flex-col">
-                                    <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1">
-                                        Created • {new Date(task.createdAt).toLocaleDateString()}
-                                    </span>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        {task.parentId && <Badge className="bg-slate-100 text-slate-600 border-slate-200 text-[8px] h-3.5 px-1 font-black uppercase">Subtask</Badge>}
+                                        <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
+                                            Created • {new Date(task.createdAt).toLocaleDateString()}
+                                        </span>
+                                    </div>
                                     {author ? (
                                         <div className="flex items-center gap-3 p-2 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/50 rounded-xl shadow-sm hover:shadow-md transition-shadow">
                                             <Avatar className="w-8 h-8 rounded-full border border-slate-200">
@@ -1723,8 +1777,9 @@ const TaskDetail = () => {
                             <div className="relative pl-8 group animate-in slide-in-from-left-2 duration-300 delay-300">
                                 <div className="absolute left-[13px] top-1.5 w-3 h-3 rounded-full bg-indigo-500 ring-4 ring-white dark:ring-slate-900 z-10 animate-pulse" />
                                 <div className="flex flex-col">
-                                    <span className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-400 tracking-wider mb-1">
-                                        Current Owner
+                                    <span className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-400 tracking-wider mb-1 flex items-center gap-2">
+                                        {task.parentId && <div className="w-1 h-1 rounded-full bg-indigo-500 animate-pulse" />}
+                                        Current {task.parentId ? 'Subtask' : 'Task'} Owner
                                     </span>
                                     <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none text-white space-y-2">
                                         {assignedEmployees.length > 0 ? assignedEmployees.map(emp => (
