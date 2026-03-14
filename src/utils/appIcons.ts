@@ -10,7 +10,9 @@ import {
     Book, GraduationCap, Calculator, Pencil, Edit,
     Search, Home, Building, Building2, Store, Truck,
     Archive, Trash, Bell, Flag, Bookmark, Share,
-    Code, Terminal, Cpu, Layout, Layers, Grid
+    Code, Terminal, Cpu, Layout, Layers, Grid,
+    TrendingUp, LayoutDashboard, Sparkles, ClipboardList, Package,
+    Crown, Keyboard, Grid3X3, ShieldAlert
 } from "lucide-react";
 
 export const iconMap: Record<string, any> = {
@@ -25,7 +27,9 @@ export const iconMap: Record<string, any> = {
     Book, GraduationCap, Calculator, Pencil, Edit,
     Search, Home, Building, Building2, Store, Truck,
     Archive, Trash, Bell, Flag, Bookmark, Share,
-    Code, Terminal, Cpu, Layout, Layers, Grid
+    Code, Terminal, Cpu, Layout, Layers, Grid,
+    TrendingUp, LayoutDashboard, Sparkles, ClipboardList, Package,
+    Crown, Keyboard, Grid3X3, ShieldAlert
 };
 
 export const iconList = Object.keys(iconMap);

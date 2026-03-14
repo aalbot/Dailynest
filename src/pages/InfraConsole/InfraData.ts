@@ -8,7 +8,7 @@ export interface InfraState {
     isScanning: boolean;
     isCleaning: boolean;
     isMigrating: boolean;
-    activeTab: "status" | "backup" | "restore" | "cleanup" | "logs" | "migration" | "firebase" | "branding";
+    activeTab: "status" | "backup" | "restore" | "cleanup" | "apps" | "logs" | "migration" | "firebase" | "branding";
     lastBackup: any | null;
     migrations: any[];
     orphans: OrphanedFile[];

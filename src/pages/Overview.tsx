@@ -60,7 +60,7 @@ const CellRenderer = ({ value, column }: { value: any, column: string }) => {
     if (isImage && looksLikeUrl) {
         return (
             <div className="h-12 w-12 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-                <img src={value} alt="img" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                <img decoding="async" loading="lazy" src={value} alt="img" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
             </div>
         );
     }

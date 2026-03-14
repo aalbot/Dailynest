@@ -2,12 +2,14 @@ import React, { useState, useCallback } from "react";
 import Navbar from "@/components/Navbar";
 import BackButton from "@/components/BackButton";
 import AuditTrail from "./components/AuditTrail";
+import AppsManager from "./components/AppsManager";
 import { useInfraLogic } from "./InfraLogic";
 import { createInitialState as getInitialData } from "./InfraData";
+import { useNavigate } from "react-router-dom";
 import {
     Activity, ArrowRight, BarChart3, Check, ChevronDown, Clock, Cloud, Database, FileCode, Folder, FolderOpen,
     HardDrive, History as HistoryIcon, RefreshCcw, Save, Server, Shield, Terminal, Trash2, UploadCloud, AlertTriangle, Play,
-    RotateCcw, Upload, Archive, Download, Zap, ShieldAlert, Lock as LockIcon, Search, ExternalLink, FileArchive, Sparkles
+    RotateCcw, Upload, Archive, Download, Zap, ShieldAlert, Lock as LockIcon, Search, ExternalLink, FileArchive, Sparkles, Grid3X3
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +23,16 @@ const InfraConsole = () => {
     const [data, setData] = useState(getInitialData());
     const forceUpdate = useCallback(() => setData({ ...data }), [data]);
     const { dispatch } = useInfraLogic(data, forceUpdate);
+    const navigate = useNavigate();
+
+    // Enforce Superadmin Access Only
+    React.useEffect(() => {
+        const role = sessionStorage.getItem("user_role");
+        if (role !== "superadmin") {
+            toast.error("Unauthorized Access: Superadmin clearance required.");
+            navigate("/apps");
+        }
+    }, [navigate]);
 
     // Refresh system health metrics
     React.useEffect(() => {
@@ -82,6 +94,9 @@ const InfraConsole = () => {
                                     </TabsTrigger>
                                     <TabsTrigger value="cleanup" className="w-full justify-start gap-3 px-4 py-4 rounded-2xl data-[state=active]:bg-slate-100 dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-none font-bold text-slate-600 dark:text-slate-400 transition-all text-red-500">
                                         <Trash2 size={18} /> Maintenance
+                                    </TabsTrigger>
+                                    <TabsTrigger value="apps" className="w-full justify-start gap-3 px-4 py-4 rounded-2xl data-[state=active]:bg-slate-100 dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-none font-bold text-slate-600 dark:text-slate-400 transition-all text-blue-500">
+                                        <Grid3X3 size={18} /> Manage Apps
                                     </TabsTrigger>
                                     <TabsTrigger value="logs" className="w-full justify-start gap-3 px-4 py-4 rounded-2xl data-[state=active]:bg-slate-100 dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-none font-bold text-slate-600 dark:text-slate-400 transition-all">
                                         <HistoryIcon size={18} /> Audit Trail
@@ -611,6 +626,12 @@ const InfraConsole = () => {
                             </div>
                         )}
 
+                        {data.activeTab === "apps" && (
+                            <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+                                <AppsManager />
+                            </div>
+                        )}
+
                         {data.activeTab === "migration" && (
                             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
                                 <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-xl rounded-3xl overflow-hidden">
@@ -953,8 +974,7 @@ const InfraConsole = () => {
                                             <div className="p-6 rounded-3xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
                                                 <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">Preview</h4>
                                                 <div className="flex items-center gap-3 p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
-                                                    <img
-                                                        src={data.brandingConfig.logoUrl || "/logo.png"}
+                                                    <img decoding="async" loading="lazy"                                                         src={data.brandingConfig.logoUrl || "/logo.png"}
                                                         alt="Logo Preview"
                                                         className="w-9 h-9 rounded-xl object-contain"
                                                         onError={(e) => {

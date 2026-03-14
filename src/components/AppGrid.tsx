@@ -20,6 +20,7 @@ import {
   Grid3X3,
   Bell,
   ShieldAlert,
+  MessageSquare,
 } from "lucide-react";
 import AppIcon from "./AppIcon";
 import { AddAppModal } from "./AddAppModal";
@@ -55,6 +56,7 @@ const initialApps = [
   { icon: Bell, label: "Notification", colorClass: "app-icon-red", path: "/notifications", key: "apps.notifications" },
   { icon: Users, label: "Onboard", colorClass: "app-icon-cyan", path: "/staffes", key: "apps.staff" },
   { icon: ShieldAlert, label: "Infra", colorClass: "app-icon-red", path: "/infra", key: "apps.infra" },
+  { icon: MessageSquare, label: "Broadcast", colorClass: "app-icon-emerald", path: "/broadcast", key: "apps.broadcast" },
 ];
 
 const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolean; searchQuery?: string }) => {
@@ -67,6 +69,7 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
   // RBAC State
   const [userRole, setUserRole] = useState<string | null>(null);
   const [allowedApps, setAllowedApps] = useState<string[]>([]);
+  const [systemOverrides, setSystemOverrides] = useState<Record<string, any>>({});
 
   useEffect(() => {
     // Check RBAC
@@ -89,8 +92,14 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
     };
 
     appsRef.on("value", onValueChange);
+
+    const overridesRef = db.ref("root/system_apps");
+    const onOverridesChange = (snap: any) => setSystemOverrides(snap.val() || {});
+    overridesRef.on("value", onOverridesChange);
+
     return () => {
       appsRef.off("value", onValueChange);
+      overridesRef.off("value", onOverridesChange);
     };
   }, []);
 
@@ -104,15 +113,21 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
 
   // Helper to check if an app should be visible
   const isAppVisible = (path: string) => {
-    if (userRole === "admin") return true;
-    if (userRole === "staff") return allowedApps.includes(path);
+    const override = systemOverrides[path.replace(/\//g, '_')];
+    if (override?.isHidden) return false;
+
+    if (userRole === "superadmin") return true;
+    if (userRole === "admin") return path !== "/infra";
+    if (userRole === "staff") return allowedApps.includes(path) && path !== "/infra";
     if (userRole === "delivery") return path === "/delivery";
     return false;
   };
 
-  const filteredInitialApps = initialApps.filter(app =>
-    isAppVisible(app.path) && app.label.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredInitialApps = initialApps.filter(app => {
+    const override = systemOverrides[app.path.replace(/\//g, '_')];
+    const finalLabel = override?.name || app.label;
+    return isAppVisible(app.path) && finalLabel.toLowerCase().includes(searchQuery.toLowerCase());
+  });
   const filteredCustomApps = customApps.filter(app => {
     const path = app.path || "/";
     return isAppVisible(path) && app.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -126,7 +141,13 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
       <div className="flex flex-col h-full w-full overflow-hidden">
         <div className="flex-1 overflow-y-auto p-2 sm:p-5 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20">
           <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-12 justify-items-center">
-            {filteredInitialApps.map((app, index) => (
+            {filteredInitialApps.map((app, index) => {
+              const override = systemOverrides[app.path.replace(/\//g, '_')];
+              const Icon = (override?.icon && iconMap[override.icon]) ? iconMap[override.icon] : app.icon;
+              const finalLabel = override?.name || app.label;
+              const finalColor = override?.color || app.colorClass;
+
+              return (
               <div key={app.label} className={isManaging ? "opacity-50 pointer-events-none grayscale" : ""}>
                 <Link
                   to={app.path}
@@ -134,14 +155,14 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
                   rel={app.path === '/delivery' ? "noopener noreferrer" : undefined}
                 >
                   <AppIcon
-                    icon={app.icon}
-                    label={getTranslation(app.key, {}, app.label)}
-                    colorClass={app.colorClass}
+                    icon={Icon}
+                    label={getTranslation(app.key, {}, finalLabel)}
+                    colorClass={finalColor}
                     delay={150 + index * 50}
                   />
                 </Link>
               </div>
-            ))}
+            )})}
 
             {filteredCustomApps.map((app, index) => {
               const Icon = iconMap[app.icon] || Package;
@@ -166,7 +187,7 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
                   </Link>
 
                   {/* Edit/Delete Overlay */}
-                  {isManaging && userRole === "admin" && (
+                  {isManaging && (userRole === "admin" || userRole === "superadmin") && (
                     <div className="absolute -top-2 -right-2 flex gap-1 z-20 animate-in zoom-in-50 duration-200">
                       <button
                         onClick={() => {
@@ -192,7 +213,7 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
             })}
 
             {/* Add App Button - Only for Admin */}
-            {userRole === "admin" && (
+            {(userRole === "admin" || userRole === "superadmin") && (
               <button
                 onClick={() => {
                   setCurrentAppToEdit(null);

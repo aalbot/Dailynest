@@ -59,7 +59,8 @@ import {
     Layers,
     GitBranch,
     Settings2,
-    Info
+    Info,
+    Loader2
 } from 'lucide-react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import {
@@ -499,6 +500,7 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, count }: any) => (
 
 const TaskManager = () => {
     const { toast } = useToast();
+    const [isLoading, setIsLoading] = useState(true);
     const [tasks, setTasks] = useState<any[]>([]);
     const [filterRole, setFilterRole] = useState<string>("All");
     const [selectedTask, setSelectedTask] = useState<any | null>(null);
@@ -825,6 +827,7 @@ const TaskManager = () => {
             } else {
                 setTasks([]);
             }
+            setIsLoading(false);
         };
 
         tasksRef.on('value', onValueChange);
@@ -1329,6 +1332,37 @@ const TaskManager = () => {
     // Segregate tasks into 'My Tasks' and 'Other Tasks'
     const myTasks = filteredTasks.filter(t => (t.assignedEmployeeIds || []).includes(loggedInEmpId));
     const otherTasks = filteredTasks.filter(t => !(t.assignedEmployeeIds || []).includes(loggedInEmpId));
+
+    if (isLoading) return (
+        <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-50 dark:bg-[#020617] relative overflow-hidden">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500/10 dark:bg-blue-600/5 blur-[120px] rounded-full animate-pulse" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-indigo-500/10 dark:bg-indigo-600/5 blur-[80px] rounded-full animate-pulse delay-700" />
+            
+            <div className="relative flex flex-col items-center gap-6 z-10">
+                <div className="relative">
+                    <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full animate-ping" />
+                    <div className="relative bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-2xl border border-white/20 dark:border-slate-800 backdrop-blur-xl">
+                        <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+                    </div>
+                </div>
+                
+                <div className="flex flex-col items-center gap-2">
+                    <h2 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">Syncing Workspace</h2>
+                    <p className="text-sm font-medium text-slate-400 dark:text-slate-500 animate-pulse">Fetching your latest tasks...</p>
+                </div>
+                
+                <div className="flex gap-1">
+                    {[0, 1, 2].map((i) => (
+                        <div 
+                            key={i} 
+                            className="w-1.5 h-1.5 rounded-full bg-blue-500/40 animate-bounce" 
+                            style={{ animationDelay: `${i * 0.15}s` }} 
+                        />
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
 
     return (
         <div className="flex flex-col h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-indigo-50/30 dark:from-slate-950 dark:via-slate-950 dark:to-indigo-950/20 font-sans transition-colors duration-300">
@@ -1964,7 +1998,7 @@ const TaskManager = () => {
                                             <div className="flex flex-wrap gap-3">
                                                 {(newTask.images || []).map((img, idx) => (
                                                     <div key={idx} className="relative group w-20 h-20 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm">
-                                                        <img src={img} alt="attachment" className="w-full h-full object-cover" />
+                                                        <img decoding="async" loading="lazy" src={img} alt="attachment" className="w-full h-full object-cover" />
                                                         <button
                                                             onClick={() => setNewTask(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== idx) }))}
                                                             className="absolute top-1 right-1 bg-red-500/90 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-600 backdrop-blur-sm"
@@ -2294,8 +2328,7 @@ const TaskManager = () => {
                                             <div className="flex gap-3 overflow-x-auto pb-4 -mx-1 px-1 custom-scrollbar">
                                                 {activeTask.images.map((img: string, i: number) => (
                                                     <div key={i} className="group relative shrink-0">
-                                                        <img
-                                                            src={img}
+                                                        <img decoding="async" loading="lazy"                                                             src={img}
                                                             alt="Attachment"
                                                             className="w-28 h-28 object-cover rounded-2xl border-2 border-white dark:border-slate-800 shadow-md transition-all hover:scale-105 cursor-pointer ring-1 ring-slate-200 dark:ring-slate-800"
                                                             onClick={() => setPreviewImage(img)}
@@ -2924,8 +2957,7 @@ const TaskManager = () => {
                 < Dialog open={!!previewImage} onOpenChange={(open) => !open && setPreviewImage(null)}>
                     <DialogContent className="sm:max-w-[90vw] sm:max-h-[90vh] p-0 overflow-hidden bg-transparent border-none shadow-none flex items-center justify-center">
                         <div className="relative group max-w-full max-h-full">
-                            <img
-                                src={previewImage || ''}
+                            <img decoding="async" loading="lazy"                                 src={previewImage || ''}
                                 alt="Attachment Preview"
                                 className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl transition-all duration-300"
                             />

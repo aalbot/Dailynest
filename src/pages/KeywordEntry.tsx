@@ -244,8 +244,7 @@ const KeywordEntry = () => {
                                     <div className="flex items-start gap-4 mb-4">
                                         <div className="w-16 h-16 rounded-xl bg-slate-100 dark:bg-slate-800 flex-shrink-0 border border-slate-200 dark:border-slate-700 overflow-hidden relative">
                                             {p.pic ? (
-                                                <img
-                                                    src={p.pic}
+                                                <img decoding="async" loading="lazy"                                                     src={p.pic}
                                                     alt={p.name}
                                                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                                     onError={(e) => (e.target as HTMLImageElement).style.display = 'none'}

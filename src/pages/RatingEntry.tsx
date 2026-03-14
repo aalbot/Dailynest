@@ -262,8 +262,7 @@ const ProductCard = ({ product, onSave }: { product: Product, onSave: (p: Produc
     return (
         <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden hover:shadow-xl hover:shadow-amber-500/10 dark:hover:shadow-amber-900/20 transition-all duration-300 group flex flex-col">
             <div className="relative aspect-square overflow-hidden bg-slate-100 dark:bg-slate-800">
-                <img
-                    src={product.pic}
+                <img decoding="async" loading="lazy"                     src={product.pic}
                     className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500"
                     onError={(e) => (e.currentTarget.src = 'https://via.placeholder.com/300?text=No+Wait+Img')}
                     alt={product.name}

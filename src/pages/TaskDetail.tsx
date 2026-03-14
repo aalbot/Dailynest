@@ -1013,8 +1013,7 @@ const TaskDetail = () => {
                                                 {taskAssignees.slice(0, 3).map((emp, idx) => (
                                                     <div key={emp.id} className="relative" style={{ zIndex: 3 - idx }}>
                                                         {emp.photoUrl ? (
-                                                            <img
-                                                                src={emp.photoUrl}
+                                                            <img decoding="async" loading="lazy"                                                                 src={emp.photoUrl}
                                                                 alt={emp.name}
                                                                 className="w-5 h-5 rounded-full border-2 border-white dark:border-slate-900 object-cover"
                                                                 title={emp.name}
@@ -1202,7 +1201,7 @@ const TaskDetail = () => {
                                         {assignedEmployees.length > 0 ? (
                                             <div className="flex items-center gap-1.5">
                                                 {assignedEmployees[0].photoUrl ? (
-                                                    <img src={assignedEmployees[0].photoUrl} alt={assignedEmployees[0].name} className="w-5 h-5 rounded-full object-cover" />
+                                                    <img decoding="async" loading="lazy" src={assignedEmployees[0].photoUrl} alt={assignedEmployees[0].name} className="w-5 h-5 rounded-full object-cover" />
                                                 ) : (
                                                     <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-[8px] font-bold">
                                                         {assignedEmployees[0].name.charAt(0)}
@@ -1309,8 +1308,7 @@ const TaskDetail = () => {
                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                                         {task.images.map((img: string, i: number) => (
                                             <div key={i} className="group relative">
-                                                <img
-                                                    src={img}
+                                                <img decoding="async" loading="lazy"                                                     src={img}
                                                     alt={`Attachment ${i + 1}`}
                                                     className="w-full aspect-square object-cover rounded-xl border-2 border-white dark:border-slate-800 shadow-md transition-all hover:scale-105 cursor-pointer ring-1 ring-slate-200 dark:ring-slate-700"
                                                     onClick={() => setPreviewImage(img)}
@@ -1382,8 +1380,7 @@ const TaskDetail = () => {
                                         <div className="mb-3 flex flex-wrap gap-2">
                                             {commentAttachments.map((img, idx) => (
                                                 <div key={idx} className="relative group">
-                                                    <img
-                                                        src={img}
+                                                    <img decoding="async" loading="lazy"                                                         src={img}
                                                         alt={`Preview ${idx}`}
                                                         className="w-12 h-12 rounded md:rounded-lg object-cover shadow-sm ring-1 ring-slate-200 dark:ring-slate-700"
                                                     />
@@ -1508,8 +1505,7 @@ const TaskDetail = () => {
                                                                 {comment.attachments && comment.attachments.length > 0 && (
                                                                     <div className="flex flex-wrap gap-2 mb-2">
                                                                         {comment.attachments.map((img: string, idx: number) => (
-                                                                            <img
-                                                                                key={idx}
+                                                                            <img decoding="async" loading="lazy"                                                                                 key={idx}
                                                                                 src={img}
                                                                                 alt="Attached"
                                                                                 onClick={() => setPreviewImage(img)}
@@ -1918,8 +1914,7 @@ const TaskDetail = () => {
                             setImageZoom(prev => Math.max(0.5, Math.min(5, prev + delta)));
                         }}
                     >
-                        <img
-                            src={previewImage}
+                        <img decoding="async" loading="lazy"                             src={previewImage}
                             alt="Preview"
                             className="w-screen h-screen object-contain cursor-move select-none"
                             style={{
@@ -2107,7 +2102,7 @@ const TaskDetail = () => {
                                             <SelectItem key={emp.id} value={emp.id}>
                                                 <div className="flex items-center gap-2">
                                                     {emp.photoUrl ? (
-                                                        <img src={emp.photoUrl} alt={emp.name} className="w-5 h-5 rounded-full" />
+                                                        <img decoding="async" loading="lazy" src={emp.photoUrl} alt={emp.name} className="w-5 h-5 rounded-full" />
                                                     ) : (
                                                         <div className="w-5 h-5 rounded-full bg-indigo-500 text-white flex items-center justify-center text-[8px] font-bold">
                                                             {emp.name.charAt(0)}
@@ -2356,7 +2351,7 @@ const TaskDetail = () => {
                             <div className="flex flex-wrap gap-2">
                                 {newSubtask.images.map((img, i) => (
                                     <div key={i} className="relative group">
-                                        <img src={img} alt="Subtask attachment" className="w-16 h-16 object-cover rounded-lg border border-slate-200 dark:border-slate-800" />
+                                        <img decoding="async" loading="lazy" src={img} alt="Subtask attachment" className="w-16 h-16 object-cover rounded-lg border border-slate-200 dark:border-slate-800" />
                                         <button
                                             onClick={() => setNewSubtask(prev => ({ ...prev, images: prev.images.filter((_, idx) => idx !== i) }))}
                                             className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"

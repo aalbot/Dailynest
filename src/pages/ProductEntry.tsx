@@ -352,7 +352,7 @@ const ProductEntry = () => {
                                     <div className="flex gap-4 items-center">
                                         <div onClick={() => fileInputRefCat.current?.click()} className="flex-1 h-32 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl flex flex-col items-center justify-center text-slate-400 cursor-pointer hover:border-violet-500 hover:text-violet-500 transition-colors bg-slate-50/50 dark:bg-slate-800/50 relative overflow-hidden group">
                                             {catForm.pic ? (
-                                                <img src={catForm.pic} alt="Preview" className="w-full h-full object-cover absolute inset-0 group-hover:opacity-50 transition-opacity" />
+                                                <img decoding="async" loading="lazy" src={catForm.pic} alt="Preview" className="w-full h-full object-cover absolute inset-0 group-hover:opacity-50 transition-opacity" />
                                             ) : (
                                                 <ImageIcon size={24} />
                                             )}
@@ -389,7 +389,7 @@ const ProductEntry = () => {
                             <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
                                 {categories.map(cat => (
                                     <div key={cat.code} className="flex items-center gap-3 p-2 rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group">
-                                        <img src={cat.pic || "https://via.placeholder.com/40"} alt={cat.name} className="w-10 h-10 rounded-lg object-cover bg-slate-100 dark:bg-slate-800" />
+                                        <img decoding="async" loading="lazy" src={cat.pic || "https://via.placeholder.com/40"} alt={cat.name} className="w-10 h-10 rounded-lg object-cover bg-slate-100 dark:bg-slate-800" />
                                         <div className="flex-1 min-w-0">
                                             <div className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{cat.name}</div>
                                             <div className="text-xs text-slate-500 dark:text-slate-400 font-mono">{cat.code} (Sort: {cat.ratingKey})</div>
@@ -475,7 +475,7 @@ const ProductEntry = () => {
                                         <label className="text-xs font-semibold text-slate-500 uppercase">Image</label>
                                         <div onClick={() => fileInputRefProd.current?.click()} className="h-32 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl flex flex-col items-center justify-center text-slate-400 cursor-pointer hover:border-violet-500 hover:text-violet-500 transition-colors bg-slate-50/50 dark:bg-slate-800/50 relative overflow-hidden group">
                                             {prodForm.pic ? (
-                                                <img src={prodForm.pic} alt="Preview" className="w-full h-full object-cover absolute inset-0 group-hover:opacity-50 transition-opacity" />
+                                                <img decoding="async" loading="lazy" src={prodForm.pic} alt="Preview" className="w-full h-full object-cover absolute inset-0 group-hover:opacity-50 transition-opacity" />
                                             ) : (
                                                 <div className="flex flex-col items-center gap-2 font-medium text-xs">
                                                     <Upload size={20} />
@@ -547,7 +547,7 @@ const ProductEntry = () => {
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                         {filteredProducts.map(p => (
                                             <div key={p.code} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 flex gap-3 group hover:shadow-md transition-all">
-                                                <img src={p.pic || "https://via.placeholder.com/60"} alt={p.name} className="w-16 h-16 rounded-lg object-cover bg-slate-100 dark:bg-slate-800" />
+                                                <img decoding="async" loading="lazy" src={p.pic || "https://via.placeholder.com/60"} alt={p.name} className="w-16 h-16 rounded-lg object-cover bg-slate-100 dark:bg-slate-800" />
                                                 <div className="flex-1 min-w-0 flex flex-col">
                                                     <div className="font-semibold text-slate-800 dark:text-slate-100 truncate">{p.name}</div>
                                                     <div className="text-xs text-slate-500 font-mono mb-1">{p.code}</div>

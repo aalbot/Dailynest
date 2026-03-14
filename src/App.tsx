@@ -27,6 +27,7 @@ const NotificationManager = lazy(() => import("./pages/NotificationManager"));
 const Staffes = lazy(() => import("./pages/Staffes"));
 const InfraConsole = lazy(() => import("./pages/InfraConsole"));
 const StaffActionTestPage = lazy(() => import("./pages/StaffActionTestPage"));
+const Broadcast = lazy(() => import("./pages/Broadcast"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 import ScrollToTop from "./components/ScrollToTop";
@@ -92,6 +93,7 @@ const App = () => (
                     <Route path="/staffes" element={<Staffes />} />
                     <Route path="/infra" element={<InfraConsole />} />
                     <Route path="/staff-test" element={<StaffActionTestPage />} />
+                    <Route path="/broadcast" element={<Broadcast />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>

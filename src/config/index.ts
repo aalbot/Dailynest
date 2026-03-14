@@ -51,5 +51,14 @@ export const CONFIG = {
     },
     ASSETS: {
         notificationSound: "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"
-    }
+    },
+    /** WhatsApp Business (Facebook Graph API) – used by Broadcast to send custom messages */
+    WHATSAPP: {
+        apiVersion: "v22.0",
+        phoneNumberId: "1038973879298324",
+        accessToken: "EAANjGOjb1tEBQ5aA0n0PlQ8L2Ji3U2Mzs4zTRQFJgGMtMtSXOcrGdpKswpTil0d22bFcVvrIyVkrS0bcTSkoeVm1HscloZCGNFhcdYPB63ZC3m95Yaamz9YZCR6c02ZApiYhOCywX4BzDcv4w1uTTwMuuNZBWS0Tg2Wxp2MgKiCIM4acalKVuOmsayaN0q6SZBVYIwggapZBDipj3vWNv2T06bZCnRn0CF64zdsS4mSFJbZCTJp7CoObfZAPBBZAAZACGZB1zlmczIoIg0ZCsgSQ6ZC6eWQ",
+        getMessagesUrl(): string {
+            return `https://graph.facebook.com/${this.apiVersion}/${this.phoneNumberId}/messages`;
+        },
+    },
 };

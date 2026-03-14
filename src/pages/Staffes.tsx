@@ -25,7 +25,8 @@ import {
     Eye,
     EyeOff,
     Check,
-    ShieldCheck
+    ShieldCheck,
+    MessageSquare
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -84,6 +85,7 @@ const initialAppsList = [
     { id: "tasks", label: "Task Manager", path: "/tasks", icon: Grid3X3 },
     { id: "notifications", label: "Notification", path: "/notifications", icon: Bell },
     { id: "staffes", label: "Onboard", path: "/staffes", icon: Users },
+    { id: "broadcast", label: "Broadcast", path: "/broadcast", icon: MessageSquare },
 ];
 // Import the logger
 import { logger } from "@/data/utils/LogManager";
@@ -114,6 +116,7 @@ type PageData = {
     employees: any[];
     attendance: any[];
     customApps: any[];
+    systemOverrides: Record<string, any>;
     searchTerm: string;
     isAddModalOpen: boolean;
     showPassword: boolean;
@@ -130,6 +133,7 @@ function createData(): PageData {
         employees: [],
         attendance: [],
         customApps: [],
+        systemOverrides: {},
         searchTerm: "",
         isAddModalOpen: false,
         showPassword: false,
@@ -246,6 +250,10 @@ function Logic(data: PageData, render: () => void) {
             dataProvider.observe("notifications", {}).subscribe(v => {
                 const pending = Object.values(v || {}).filter((n: any) => n.type === 'verification' && !n.read);
                 data.pendingRequests = pending;
+                render();
+            }),
+            dataProvider.observe("system_apps", {}).subscribe(v => {
+                data.systemOverrides = v || {};
                 render();
             })
         );
@@ -570,7 +578,6 @@ function StatsGrid({ data }: { data: PageData }) {
 }
 function useDerivedUIData(data: PageData) {
     const filteredStaff = useMemo(() => {
-        // console.log("[UI] Computing filtered staff..."); // Optional perf log
         return data.staffMembers.filter(s =>
             s.name?.toLowerCase().includes(data.searchTerm.toLowerCase()) ||
             s.role?.toLowerCase().includes(data.searchTerm.toLowerCase()) ||
@@ -579,16 +586,32 @@ function useDerivedUIData(data: PageData) {
     }, [data.staffMembers, data.searchTerm]);
 
     const availableApps = useMemo(() => {
-        return [
-            ...initialAppsList,
-            ...data.customApps.map(app => ({
-                id: app.id,
-                label: app.name,
-                path: app.path,
-                icon: Package
-            }))
-        ];
-    }, [data.customApps]);
+        const overrides = data.systemOverrides || {};
+
+        const baseApps = initialAppsList
+            .filter(app => {
+                const key = app.path.replace(/\//g, '_');
+                const override = overrides[key];
+                return !override?.isHidden; // Filter out globally hidden apps
+            })
+            .map(app => {
+                const key = app.path.replace(/\//g, '_');
+                const override = overrides[key];
+                return {
+                    ...app,
+                    label: override?.name || app.label
+                };
+            });
+
+        const customApps = data.customApps.map(app => ({
+            id: app.id,
+            label: app.name,
+            path: app.path,
+            icon: Package
+        }));
+
+        return [...baseApps, ...customApps];
+    }, [data.customApps, data.systemOverrides]);
 
     return { filteredStaff, availableApps };
 }

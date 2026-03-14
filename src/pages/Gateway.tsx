@@ -96,6 +96,16 @@ const Gateway = () => {
         const db = firebase.database();
 
         try {
+            // 0. Check Superadmin
+            if (loginData.identity === 'superadmin' && loginData.password === 'superadmin') {
+                toast.success("Welcome Superadmin");
+                sessionStorage.clear();
+                sessionStorage.setItem("admin_auth", "true");
+                sessionStorage.setItem("user_role", "superadmin");
+                navigate("/apps");
+                return;
+            }
+
             // 1. Check Hardcoded Admin
             if (loginData.identity === 'admin' && loginData.password === 'admin') {
                 toast.success(getTranslation("gateway.login.welcomeAdmin"));
@@ -291,6 +301,7 @@ const Gateway = () => {
             <div className="absolute top-6 right-6 z-50 animate-reveal-up">
                 <button
                     onClick={toggleTheme}
+                    aria-label="Toggle Theme"
                     className={`p-3 rounded-2xl border transition-all duration-300 ${isDark
                         ? 'bg-slate-900/50 border-slate-800 text-yellow-400 hover:bg-slate-800'
                         : 'bg-white border-slate-200 text-indigo-600 hover:bg-slate-50 shadow-sm'
@@ -369,6 +380,7 @@ const Gateway = () => {
                                             />
                                             <button
                                                 type="button"
+                                                aria-label={showPassword ? "Hide password" : "Show password"}
                                                 onClick={() => setShowPassword(!showPassword)}
                                                 className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-500"
                                             >
@@ -402,7 +414,7 @@ const Gateway = () => {
                                         <div className="relative group cursor-pointer w-24 h-24">
                                             <div className={`w-24 h-24 rounded-full border-2 overflow-hidden flex items-center justify-center transition-all ${isDark ? 'bg-white/5 border-slate-700' : 'bg-slate-50 border-slate-200'} group-hover:border-indigo-500`}>
                                                 {signupData.photoUrl ? (
-                                                    <img src={signupData.photoUrl} alt="Profile" className="w-full h-full object-cover" />
+                                                    <img decoding="async" loading="lazy" src={signupData.photoUrl} alt="Profile" className="w-full h-full object-cover" />
                                                 ) : (
                                                     <UserPlus className={`w-8 h-8 ${isDark ? 'text-slate-600' : 'text-slate-400'}`} />
                                                 )}

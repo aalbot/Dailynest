@@ -25,7 +25,8 @@ import {
   Sparkles,
   TrendingUp,
   LogIn,
-  Clock
+  Clock,
+  MessageSquare
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useNotification } from "@/contexts/NotificationContext";
@@ -55,6 +56,8 @@ const defaultAppItems = [
   { icon: Grid3X3, label: "Task Manager", path: "/tasks", color: "bg-violet-600" },
   { icon: Bell, label: "Notification", path: "/notifications", color: "bg-red-500" },
   { icon: Users, label: "Staff", path: "/staffes", color: "bg-cyan-600" },
+  { icon: Settings, label: "Infra", path: "/infra", color: "bg-slate-800" },
+  { icon: MessageSquare, label: "Broadcast", path: "/broadcast", color: "bg-emerald-600" },
 ];
 
 const Navbar = () => {
@@ -79,6 +82,7 @@ const Navbar = () => {
   const [liveTimer, setLiveTimer] = useState("00:00:00");
 
   const [customApps, setCustomApps] = useState<any[]>([]);
+  const [systemOverrides, setSystemOverrides] = useState<Record<string, any>>({});
 
   const staffId = sessionStorage.getItem("staff_id");
 
@@ -89,6 +93,9 @@ const Navbar = () => {
       const data = snapshot.val();
       setCustomApps(data ? Object.values(data) : []);
     });
+
+    const overridesRef = db.ref("root/system_apps");
+    overridesRef.on("value", (snap) => setSystemOverrides(snap.val() || {}));
 
     // Staff & Attendance Listener
     let staffRef: firebase.database.Reference | null = null;
@@ -116,6 +123,7 @@ const Navbar = () => {
 
     return () => {
       appsRef.off();
+      overridesRef.off();
       if (staffRef) staffRef.off();
       if (empRef) empRef.off();
       attRef.off();
@@ -204,6 +212,11 @@ const Navbar = () => {
     } catch (error) { toast.error(getTranslation("attendance.checkOutFailed")); }
   };
 
+  const overrideLabel = (path: string, defaultLabel: string) => {
+    const override = systemOverrides[path.replace(/\//g, '_')];
+    return override?.name || defaultLabel;
+  };
+
   const allAppsRaw = [
     ...defaultAppItems.map(app => {
       // Map path to a translation key
@@ -223,14 +236,20 @@ const Navbar = () => {
         "/tasks": "taskManager",
         "/notifications": "notifications",
         "/staffes": "staff",
-        "/staff-test": "test"
+        "/staff-test": "test",
+        "/broadcast": "broadcast"
       };
 
       const key = `apps.${keyMap[app.path] || 'default'}`;
+      const overrodeItem = systemOverrides[app.path.replace(/\//g, '_')];
+
       return {
         ...app,
-        label: getTranslation(key, {}, app.label),
-        openInNewTab: false
+        icon: (overrodeItem?.icon && iconMap[overrodeItem.icon]) ? iconMap[overrodeItem.icon] : app.icon,
+        label: overrideLabel(app.path, getTranslation(key, {}, app.label)),
+        color: overrodeItem?.color || app.color,
+        openInNewTab: false,
+        isHidden: overrodeItem?.isHidden || false
       };
     }),
     ...customApps.map(app => ({
@@ -238,7 +257,8 @@ const Navbar = () => {
       label: app.name,
       path: app.path || "/",
       color: app.colorClass || "bg-blue-500",
-      openInNewTab: app.openInNewTab || false
+      openInNewTab: app.openInNewTab || false,
+      isHidden: false // Explicitly map false for custom apps to satisfy Typescript
     }))
   ];
 
@@ -246,13 +266,17 @@ const Navbar = () => {
   const allowedApps = JSON.parse(sessionStorage.getItem("allowed_apps") || "[]");
   const staffName = sessionStorage.getItem("staff_name");
 
-  const displayName = userRole === "admin" ? "Administrator" : (staffName || "Staff Member");
+  const displayName = userRole === "superadmin" ? "Superadmin" : userRole === "admin" ? "Administrator" : (staffName || "Staff Member");
   const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  const userEmail = userRole === "admin" ? "admin@dailyclub.com" : `${staffName?.toLowerCase().replace(/\s/g, '') || 'staff'}@dailyclub.staff`;
+  const userEmail = userRole === "superadmin" ? "superadmin@dailyclub.com" : userRole === "admin" ? "admin@dailyclub.com" : `${staffName?.toLowerCase().replace(/\s/g, '') || 'staff'}@dailyclub.staff`;
 
   const allApps = allAppsRaw.filter(app => {
-    if (userRole === "admin") return true;
-    if (userRole === "staff") return allowedApps.includes(app.path);
+    // If the app is marked as hidden via Infra, hide it for everyone.
+    if (app.isHidden) return false;
+
+    if (userRole === "superadmin") return true; 
+    if (userRole === "admin") return app.path !== "/infra";
+    if (userRole === "staff") return allowedApps.includes(app.path) && app.path !== "/infra";
     if (userRole === "delivery") return app.path === "/delivery";
     return false;
   });
@@ -290,7 +314,7 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/apps" className="flex items-center gap-3">
-            <img src={branding.logoUrl} alt={branding.appName} className="w-9 h-9 rounded-xl object-contain" />
+            <img decoding="async" loading="lazy" src={branding.logoUrl} alt={branding.appName} className="w-9 h-9 rounded-xl object-contain" />
             <span className="font-bold text-lg tracking-tight text-slate-500 dark:text-slate-400">{branding.appName}</span>
           </Link>
 
@@ -351,6 +375,7 @@ const Navbar = () => {
             {/* Notifications */}
             <div className="relative" ref={notificationRef}>
               <button
+                aria-label="Notifications"
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
                 className={`p-2.5 rounded-full transition-colors relative ${notificationsOpen ? 'bg-secondary' : 'hover:bg-secondary'}`}
               >
@@ -438,6 +463,7 @@ const Navbar = () => {
             {/* App Launcher */}
             <div className="relative">
               <button
+                aria-label="App Launcher"
                 onClick={() => setMenuOpen(!menuOpen)}
                 className={`p-2.5 rounded-full transition-colors ${menuOpen ? "bg-secondary text-primary" : "text-muted-foreground hover:bg-secondary hover:text-primary"
                   }`}
@@ -518,11 +544,12 @@ const Navbar = () => {
             {/* User Profile Dropdown */}
             <div className="relative" ref={profileRef}>
               <button
+                aria-label="User Profile"
                 onClick={() => setProfileOpen(!profileOpen)}
                 className="ml-1 w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold hover:shadow-md transition-shadow uppercase tracking-tighter overflow-hidden border-2 border-white dark:border-slate-800 relative"
               >
                 {staffPhoto ? (
-                  <img src={staffPhoto} alt={displayName} className="w-full h-full object-cover" />
+                  <img decoding="async" loading="lazy" src={staffPhoto} alt={displayName} className="w-full h-full object-cover" />
                 ) : (
                   initials
                 )}
@@ -537,7 +564,7 @@ const Navbar = () => {
                 <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-2 animate-in fade-in zoom-in-95 origin-top-right z-50 overflow-hidden">
                   <div className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 mb-2 flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 overflow-hidden shrink-0 border border-indigo-100 dark:border-indigo-800">
-                      {staffPhoto ? <img src={staffPhoto} className="w-full h-full object-cover" /> : initials}
+                      {staffPhoto ? <img decoding="async" loading="lazy" src={staffPhoto} className="w-full h-full object-cover" alt="Staff Profile" /> : initials}
                     </div>
                     <div>
                       <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{displayName}</p>

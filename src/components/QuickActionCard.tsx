@@ -168,7 +168,7 @@ const QuickActionCard = ({
             <CardContent className="flex-1 flex flex-col gap-4">
                 {/* Main Action Buttons */}
                 <div className="space-y-3">
-                    {userRole === "admin" && (
+                    {(userRole === "admin" || userRole === "superadmin") && (
                         <>
                             <Link
                                 to="/staffes"

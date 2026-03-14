@@ -105,7 +105,7 @@ const AppGallery = () => {
                 </div>
 
                 {/* Mobile Admin Actions */}
-                {userRole === "admin" && (
+                {(userRole === "admin" || userRole === "superadmin") && (
                   <div className="grid grid-cols-2 xl:hidden items-center gap-3 mb-6">
                     <Link
                       to="/staffes"

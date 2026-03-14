@@ -396,7 +396,7 @@ const StockEntry = () => {
                                         onClick={() => loadStockView(p.code)}
                                         className="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors border-b border-slate-100 dark:border-slate-800 last:border-none"
                                     >
-                                        <img src={p.pic || "https://via.placeholder.com/30"} alt={p.name} className="w-10 h-10 rounded-lg object-cover bg-slate-100 dark:bg-slate-800" />
+                                        <img decoding="async" loading="lazy" src={p.pic || "https://via.placeholder.com/30"} alt={p.name} className="w-10 h-10 rounded-lg object-cover bg-slate-100 dark:bg-slate-800" />
                                         <div>
                                             <div className="font-semibold text-slate-900 dark:text-slate-100">{p.name}</div>
                                             <div className="text-xs text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded w-fit">{p.code}</div>
@@ -449,7 +449,7 @@ const StockEntry = () => {
 
                             {currentProduct && (
                                 <div className="flex items-center gap-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-900/30 animate-in fade-in zoom-in-95 duration-300">
-                                    <img src={currentProduct.pic || "https://via.placeholder.com/60"} alt="Preview" className="w-16 h-16 rounded-lg object-cover bg-white" />
+                                    <img decoding="async" loading="lazy" src={currentProduct.pic || "https://via.placeholder.com/60"} alt="Preview" className="w-16 h-16 rounded-lg object-cover bg-white" />
                                     <div>
                                         <div className="font-bold text-blue-700 dark:text-blue-300 text-lg">{currentProduct.name}</div>
                                         <div className="text-sm text-blue-600 dark:text-blue-400 font-mono bg-blue-100 dark:bg-blue-900/40 px-2 py-0.5 rounded w-fit mt-1">{currentProduct.code}</div>
@@ -620,7 +620,7 @@ const StockEntry = () => {
                                                     <div className="text-xl font-bold text-blue-600 dark:text-blue-400 -mt-4">{item.rank}</div>
                                                 </div>
 
-                                                <img src={item.pic || "https://via.placeholder.com/50"} className="w-12 h-12 rounded-lg object-cover bg-white" alt="prod" />
+                                                <img decoding="async" loading="lazy" src={item.pic || "https://via.placeholder.com/50"} className="w-12 h-12 rounded-lg object-cover bg-white" alt="prod" />
 
                                                 <div className="flex-1 min-w-0">
                                                     <div className="font-bold text-slate-800 dark:text-slate-100 truncate">{item.name}</div>

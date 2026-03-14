@@ -369,7 +369,7 @@ const BackOffice = () => {
                                                 className="absolute inset-0 opacity-0 cursor-pointer"
                                             />
                                             {cPicPreview ? (
-                                                <img src={cPicPreview} alt="Preview" className="h-full w-full object-contain rounded-lg p-2" />
+                                                <img decoding="async" loading="lazy" src={cPicPreview} alt="Preview" className="h-full w-full object-contain rounded-lg p-2" />
                                             ) : (
                                                 <>
                                                     <UploadCloud className="text-slate-400 mb-2" />
@@ -398,7 +398,7 @@ const BackOffice = () => {
                                     {categories.map(cat => (
                                         <div key={cat.code} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 hover:shadow-md transition-all group">
                                             <div className="w-14 h-14 bg-slate-100 dark:bg-slate-800 rounded-lg flex-shrink-0 p-2 border border-slate-100 dark:border-slate-800">
-                                                <img src={cat.pic || 'https://via.placeholder.com/50'} alt={cat.name} className="w-full h-full object-contain" />
+                                                <img decoding="async" loading="lazy" src={cat.pic || 'https://via.placeholder.com/50'} alt={cat.name} className="w-full h-full object-contain" />
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <h4 className="font-bold text-slate-900 dark:text-slate-100 truncate">{cat.name}</h4>
@@ -475,7 +475,7 @@ const BackOffice = () => {
                                         {/* Prod Image */}
                                         <div className="relative group cursor-pointer border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl h-32 flex flex-col items-center justify-center hover:border-indigo-500 transition-colors bg-slate-50 dark:bg-slate-800/50">
                                             <input type="file" onChange={e => { const f = e.target.files?.[0]; if (f) { setPFile(f); setPPicPreview(URL.createObjectURL(f)); } }} className="absolute inset-0 opacity-0 cursor-pointer" />
-                                            {pPicPreview ? <img src={pPicPreview} alt="Preview" className="h-full w-full object-contain rounded-lg p-2" /> : <UploadCloud className="text-slate-400" />}
+                                            {pPicPreview ? <img decoding="async" loading="lazy" src={pPicPreview} alt="Preview" className="h-full w-full object-contain rounded-lg p-2" /> : <UploadCloud className="text-slate-400" />}
                                         </div>
 
                                         <div className="flex gap-2 pt-2">
@@ -506,7 +506,7 @@ const BackOffice = () => {
                                     {filteredProducts.map(p => (
                                         <div key={p.code} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-col gap-3 group hover:shadow-lg transition-all">
                                             <div className="aspect-square bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden relative">
-                                                <img src={p.pic || 'https://via.placeholder.com/150'} alt={p.name} className="w-full h-full object-cover" />
+                                                <img decoding="async" loading="lazy" src={p.pic || 'https://via.placeholder.com/150'} alt={p.name} className="w-full h-full object-cover" />
                                                 <span className="absolute top-2 right-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded backdrop-blur-md">Stock: {p.stock}</span>
                                             </div>
                                             <div>
