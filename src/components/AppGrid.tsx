@@ -28,6 +28,7 @@ import firebase from "firebase/compat/app";
 import "firebase/compat/database";
 import { iconMap } from "@/utils/appIcons";
 import { useLang } from "@/contexts/LanguageContext";
+import { normalizeDestinationUrl, isCustomAppExternalDestination } from "@/utils/destinationUrl";
 
 import {
   AlertDialog,
@@ -168,23 +169,38 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
               const Icon = iconMap[app.icon] || Package;
               const colorClass = app.colorGradient || app.colorClass || "bg-blue-500";
               const path = app.path || "/";
+              const openDestination = isCustomAppExternalDestination(path, app.type);
+              const destinationHref = openDestination ? normalizeDestinationUrl(path) : path;
+              const openNewTab =
+                !isManaging &&
+                (openDestination || !!app.openInNewTab);
+
+              const iconEl = (
+                <AppIcon
+                  icon={Icon}
+                  label={app.name}
+                  colorClass={colorClass}
+                  delay={150 + (initialApps.length + index) * 50}
+                />
+              );
 
               return (
                 <div className="relative group/item" key={app.id}>
-                  <Link
-                    to={isManaging ? "#" : path}
-                    onClick={(e) => isManaging && e.preventDefault()}
-                    className={isManaging ? "cursor-default" : ""}
-                    target={(!isManaging && app.openInNewTab) ? "_blank" : undefined}
-                    rel={(!isManaging && app.openInNewTab) ? "noopener noreferrer" : undefined}
-                  >
-                    <AppIcon
-                      icon={Icon}
-                      label={app.name}
-                      colorClass={colorClass}
-                      delay={150 + (initialApps.length + index) * 50}
-                    />
-                  </Link>
+                  {isManaging ? (
+                    <div className="cursor-default">{iconEl}</div>
+                  ) : openDestination ? (
+                    <a href={destinationHref} target="_blank" rel="noopener noreferrer">
+                      {iconEl}
+                    </a>
+                  ) : (
+                    <Link
+                      to={path}
+                      target={openNewTab ? "_blank" : undefined}
+                      rel={openNewTab ? "noopener noreferrer" : undefined}
+                    >
+                      {iconEl}
+                    </Link>
+                  )}
 
                   {/* Edit/Delete Overlay */}
                   {isManaging && (userRole === "admin" || userRole === "superadmin") && (

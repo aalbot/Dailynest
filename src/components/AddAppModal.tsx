@@ -8,6 +8,7 @@ import { Search, ChevronLeft, Loader2, Link as LinkIcon, FileCode } from "lucide
 import firebase from "firebase/compat/app";
 import "firebase/compat/database";
 import { useLang } from "@/contexts/LanguageContext";
+import { normalizeDestinationUrl } from "@/utils/destinationUrl";
 
 interface AddAppModalProps {
     open: boolean;
@@ -27,7 +28,7 @@ export const AddAppModal = ({ open, onOpenChange, initialData }: AddAppModalProp
         color: appColors[0],
         type: "url" as "url" | "html",
         content: "",
-        openInNewTab: false
+        openInNewTab: true
     });
 
     // Effect to reset or populate form
@@ -44,7 +45,7 @@ export const AddAppModal = ({ open, onOpenChange, initialData }: AddAppModalProp
                     color: foundColor,
                     type: initialData.type || "url",
                     content: initialData.type === 'html' ? initialData.htmlContent : initialData.path,
-                    openInNewTab: initialData.openInNewTab || false
+                    openInNewTab: initialData.type === "html" ? (initialData.openInNewTab || false) : true
                 });
             } else {
                 setFormData({
@@ -53,7 +54,7 @@ export const AddAppModal = ({ open, onOpenChange, initialData }: AddAppModalProp
                     color: appColors[0],
                     type: "url",
                     content: "",
-                    openInNewTab: false
+                    openInNewTab: true
                 });
             }
             setStep("form");
@@ -82,10 +83,10 @@ export const AddAppModal = ({ open, onOpenChange, initialData }: AddAppModalProp
                     icon: formData.icon,
                     colorClass: formData.color.class,
                     colorGradient: formData.color.gradient,
-                    path: formData.type === 'url' ? formData.content : `/custom-app/${initialData.id}`,
+                    path: formData.type === 'url' ? normalizeDestinationUrl(formData.content) : `/custom-app/${initialData.id}`,
                     type: formData.type,
                     htmlContent: formData.type === 'html' ? formData.content : null,
-                    openInNewTab: formData.openInNewTab
+                    openInNewTab: formData.type === "url" ? true : formData.openInNewTab
                 });
             } else {
                 // Create
@@ -96,10 +97,10 @@ export const AddAppModal = ({ open, onOpenChange, initialData }: AddAppModalProp
                     icon: formData.icon,
                     colorClass: formData.color.class, // We save the bg class
                     colorGradient: formData.color.gradient, // Save full gradient for detail/fancy views
-                    path: formData.type === 'url' ? formData.content : `/custom-app/${newAppRef.key}`,
+                    path: formData.type === 'url' ? normalizeDestinationUrl(formData.content) : `/custom-app/${newAppRef.key}`,
                     type: formData.type,
                     htmlContent: formData.type === 'html' ? formData.content : null,
-                    openInNewTab: formData.openInNewTab,
+                    openInNewTab: formData.type === "url" ? true : formData.openInNewTab,
                     createdAt: firebase.database.ServerValue.TIMESTAMP
                 });
             }
@@ -171,7 +172,7 @@ export const AddAppModal = ({ open, onOpenChange, initialData }: AddAppModalProp
                                     <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{getTranslation("manageApps.contentType")}</label>
                                     <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
                                         <button
-                                            onClick={() => setFormData({ ...formData, type: "url" })}
+                                            onClick={() => setFormData({ ...formData, type: "url", openInNewTab: true })}
                                             className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-all ${formData.type === "url"
                                                 ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm"
                                                 : "text-slate-500 hover:text-slate-700"
@@ -180,7 +181,7 @@ export const AddAppModal = ({ open, onOpenChange, initialData }: AddAppModalProp
                                             <LinkIcon size={16} /> {getTranslation("manageApps.urlLink")}
                                         </button>
                                         <button
-                                            onClick={() => setFormData({ ...formData, type: "html" })}
+                                            onClick={() => setFormData({ ...formData, type: "html", openInNewTab: false })}
                                             className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-all ${formData.type === "html"
                                                 ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm"
                                                 : "text-slate-500 hover:text-slate-700"
@@ -266,21 +267,23 @@ export const AddAppModal = ({ open, onOpenChange, initialData }: AddAppModalProp
                                     )}
                                 </div>
 
-                                <div className="flex items-center space-x-2 py-2">
-                                    <input
-                                        type="checkbox"
-                                        id="open-new-tab"
-                                        checked={formData.openInNewTab}
-                                        onChange={(e) => setFormData({ ...formData, openInNewTab: e.target.checked })}
-                                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                    />
-                                    <label
-                                        htmlFor="open-new-tab"
-                                        className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer"
-                                    >
-                                        {getTranslation("manageApps.openInNew")}
-                                    </label>
-                                </div>
+                                {formData.type === "html" && (
+                                    <div className="flex items-center space-x-2 py-2">
+                                        <input
+                                            type="checkbox"
+                                            id="open-new-tab"
+                                            checked={formData.openInNewTab}
+                                            onChange={(e) => setFormData({ ...formData, openInNewTab: e.target.checked })}
+                                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <label
+                                            htmlFor="open-new-tab"
+                                            className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer"
+                                        >
+                                            {getTranslation("manageApps.openInNew")}
+                                        </label>
+                                    </div>
+                                )}
                             </div>
 
                             <Button

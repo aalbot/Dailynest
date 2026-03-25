@@ -39,6 +39,7 @@ import SettingsModal from "./SettingsModal";
 import { useLang } from "@/contexts/LanguageContext";
 import { useBranding } from "@/contexts/BrandingContext";
 import { CONFIG } from "@/config";
+import { normalizeDestinationUrl, isCustomAppExternalDestination } from "@/utils/destinationUrl";
 
 const defaultAppItems = [
   { icon: TrendingUp, label: "Dashboard", path: "/dashboard", color: "bg-rose-500" },
@@ -249,17 +250,26 @@ const Navbar = () => {
         label: overrideLabel(app.path, getTranslation(key, {}, app.label)),
         color: overrodeItem?.color || app.color,
         openInNewTab: false,
-        isHidden: overrodeItem?.isHidden || false
+        isHidden: overrodeItem?.isHidden || false,
+        useExternalLink: false,
+        destinationHref: app.path
       };
     }),
-    ...customApps.map(app => ({
-      icon: iconMap[app.icon] || Package,
-      label: app.name,
-      path: app.path || "/",
-      color: app.colorClass || "bg-blue-500",
-      openInNewTab: app.openInNewTab || false,
-      isHidden: false // Explicitly map false for custom apps to satisfy Typescript
-    }))
+    ...customApps.map(app => {
+      const path = app.path || "/";
+      const useExternal = isCustomAppExternalDestination(path, app.type);
+      const destinationHref = useExternal ? normalizeDestinationUrl(path) : path;
+      return {
+        icon: iconMap[app.icon] || Package,
+        label: app.name,
+        path,
+        color: app.colorClass || "bg-blue-500",
+        openInNewTab: useExternal || !!app.openInNewTab,
+        isHidden: false,
+        useExternalLink: useExternal,
+        destinationHref
+      };
+    })
   ];
 
   const userRole = sessionStorage.getItem("user_role");
@@ -351,19 +361,45 @@ const Navbar = () => {
                 <div className="absolute top-full right-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
                   <div className="max-h-64 overflow-y-auto p-1.5 space-y-0.5 custom-scrollbar">
                     {filteredApps.length > 0 ? (
-                      filteredApps.map(item => (
-                        <Link
-                          key={item.path}
-                          to={item.path}
-                          onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
-                          className="flex items-center gap-3 p-2 hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-lg group transition-colors"
-                        >
-                          <div className={`w-8 h-8 rounded-lg ${item.color} flex items-center justify-center text-white shadow-sm`}>
-                            <item.icon size={14} strokeWidth={2.5} />
-                          </div>
-                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{item.label}</span>
-                        </Link>
-                      ))
+                      filteredApps.map(item => {
+                        const newTab = item.openInNewTab || item.path === "/delivery";
+                        const closeSearch = () => { setSearchOpen(false); setSearchQuery(""); };
+                        const rowClass = "flex items-center gap-3 p-2 hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-lg group transition-colors";
+                        const inner = (
+                          <>
+                            <div className={`w-8 h-8 rounded-lg ${item.color} flex items-center justify-center text-white shadow-sm`}>
+                              <item.icon size={14} strokeWidth={2.5} />
+                            </div>
+                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{item.label}</span>
+                          </>
+                        );
+                        if (item.useExternalLink) {
+                          return (
+                            <a
+                              key={item.path}
+                              href={item.destinationHref}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={closeSearch}
+                              className={rowClass}
+                            >
+                              {inner}
+                            </a>
+                          );
+                        }
+                        return (
+                          <Link
+                            key={item.path}
+                            to={item.destinationHref}
+                            target={newTab ? "_blank" : undefined}
+                            rel={newTab ? "noopener noreferrer" : undefined}
+                            onClick={closeSearch}
+                            className={rowClass}
+                          >
+                            {inner}
+                          </Link>
+                        );
+                      })
                     ) : (
                       <div className="p-4 text-center text-xs text-slate-400">{getTranslation("manageApps.noResults")}</div>
                     )}
@@ -504,24 +540,48 @@ const Navbar = () => {
                     {/* Scrollable Content - More Grid spacing */}
                     <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-slate-50/30 dark:bg-transparent">
                       <div className="grid grid-cols-3 gap-3 sm:gap-4">
-                        {allApps.map((item) => (
-                          <Link
-                            key={item.path}
-                            to={item.path}
-                            target={item.openInNewTab || item.path === '/delivery' ? "_blank" : undefined}
-                            rel={item.openInNewTab || item.path === '/delivery' ? "noopener noreferrer" : undefined}
-                            onClick={() => setMenuOpen(false)}
-                            className={`flex flex-col items-center gap-3 p-5 rounded-3xl transition-all duration-300 group hover:bg-white dark:hover:bg-slate-800 hover:shadow-xl hover:shadow-indigo-500/5 ${location.pathname === item.path ? "bg-white dark:bg-slate-800 shadow-md ring-1 ring-slate-200 dark:ring-slate-700" : ""
-                              }`}
-                          >
-                            <div className={`w-16 h-16 rounded-3xl ${item.color} flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:-rotate-3 transition-all duration-500`}>
-                              <item.icon className="w-7 h-7 text-white drop-shadow-md" strokeWidth={2} />
-                            </div>
-                            <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 text-center leading-tight uppercase tracking-[0.1em] group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                              {item.label}
-                            </span>
-                          </Link>
-                        ))}
+                        {allApps.map((item) => {
+                          const newTab = item.openInNewTab || item.path === "/delivery";
+                          const closeMenu = () => setMenuOpen(false);
+                          const tileClass = `flex flex-col items-center gap-3 p-5 rounded-3xl transition-all duration-300 group hover:bg-white dark:hover:bg-slate-800 hover:shadow-xl hover:shadow-indigo-500/5 ${location.pathname === item.path ? "bg-white dark:bg-slate-800 shadow-md ring-1 ring-slate-200 dark:ring-slate-700" : ""
+                            }`;
+                          const tileInner = (
+                            <>
+                              <div className={`w-16 h-16 rounded-3xl ${item.color} flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:-rotate-3 transition-all duration-500`}>
+                                <item.icon className="w-7 h-7 text-white drop-shadow-md" strokeWidth={2} />
+                              </div>
+                              <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 text-center leading-tight uppercase tracking-[0.1em] group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                {item.label}
+                              </span>
+                            </>
+                          );
+                          if (item.useExternalLink) {
+                            return (
+                              <a
+                                key={item.path}
+                                href={item.destinationHref}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={closeMenu}
+                                className={tileClass}
+                              >
+                                {tileInner}
+                              </a>
+                            );
+                          }
+                          return (
+                            <Link
+                              key={item.path}
+                              to={item.destinationHref}
+                              target={newTab ? "_blank" : undefined}
+                              rel={newTab ? "noopener noreferrer" : undefined}
+                              onClick={closeMenu}
+                              className={tileClass}
+                            >
+                              {tileInner}
+                            </Link>
+                          );
+                        })}
                       </div>
                     </div>
 
