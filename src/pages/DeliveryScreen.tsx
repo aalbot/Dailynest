@@ -19,29 +19,39 @@ interface FlowStatus {
     theme: string;
 }
 
+/** Map older Firebase statuses to the current driver flow. */
+function normalizeDriverOrderStatus(status: string): string {
+    const map: Record<string, string> = {
+        "Ready for Pickup": "Out for Delivery",
+        "On the Way": "Arriving",
+        Arrival: "Arriving",
+    };
+    return map[status] || status;
+}
+
 const STATUS_FLOW: Record<string, FlowStatus> = {
-    "Ready for Pickup": {
-        next: "On the Way",
-        text: "Slide to Start Delivery",
+    Packed: {
+        next: "Out for Delivery",
+        text: "Slide when heading out for delivery",
+        icon: Package,
+        theme: "emerald",
+        colorClass: "bg-emerald-600",
+        disabled: false,
+    },
+    "Out for Delivery": {
+        next: "Arriving",
+        text: "Slide to mark Arriving",
         icon: Truck,
         theme: "emerald",
         colorClass: "bg-emerald-600",
         disabled: false,
     },
-    "On the Way": {
-        next: "Arrival",
-        text: "Slide to Confirm Arrival",
+    Arriving: {
+        next: "Delivered",
+        text: "Slide to Mark Delivered",
         icon: MapPin,
         theme: "orange",
         colorClass: "bg-orange-500",
-        disabled: false,
-    },
-    Arrival: {
-        next: "Delivered",
-        text: "Slide to Mark Delivered",
-        icon: Package,
-        theme: "emerald",
-        colorClass: "bg-emerald-600",
         disabled: false,
     },
     Delivered: {
@@ -180,8 +190,9 @@ const DeliveryScreen = () => {
             let foundId: string | null = null;
 
             // Iterate to find active order
+            const activeStatuses = ["Packed", "Out for Delivery", "Arriving", "Ready for Pickup", "On the Way", "Arrival"];
             const activeOrders = Object.entries(orders).filter(([_, ord]: [string, any]) =>
-                ["Ready for Pickup", "On the Way", "Arrival"].includes(ord.status)
+                activeStatuses.includes(ord.status)
             );
 
             if (activeOrders.length > 0) {
@@ -192,7 +203,7 @@ const DeliveryScreen = () => {
             setActiveOrder(foundOrder);
             setActiveOrderId(foundId);
 
-            if (foundOrder && foundId && foundOrder.status === "Ready for Pickup") {
+            if (foundOrder && foundId && (foundOrder.status === "Packed" || foundOrder.status === "Out for Delivery" || foundOrder.status === "Ready for Pickup")) {
                 if (!alertShownRef.current[foundId]) {
                     triggerAlert(foundId);
                     alertShownRef.current[foundId] = true;
@@ -386,7 +397,10 @@ const DeliveryScreen = () => {
     };
 
     // Slider Logic
-    const getFlow = (status: string) => STATUS_FLOW[status] || STATUS_FLOW["Unknown"];
+    const getFlow = (status: string) => {
+        const key = normalizeDriverOrderStatus(status);
+        return STATUS_FLOW[key] || STATUS_FLOW["Unknown"];
+    };
     const currentStatus = activeOrder?.status || "Unknown";
     const flow = getFlow(currentStatus);
 

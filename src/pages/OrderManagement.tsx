@@ -26,13 +26,35 @@ import Navbar from "@/components/Navbar";
 import BackButton from "@/components/BackButton";
 import { toast } from "sonner";
 
-const STATUS_OPTIONS = [
+/** Shown in Order progress + status dropdown (canonical flow). */
+export const ORDER_PROGRESS_STEPS = [
     "Order Placed",
-    "Accepted by Store",
-    "Packing Order",
-    "Ready for Pickup",
-    "Cancelled",
-];
+    "Packed",
+    "Out for Delivery",
+    "Arriving",
+    "Delivered",
+] as const;
+
+const STATUS_OPTIONS = [...ORDER_PROGRESS_STEPS, "Cancelled"] as string[];
+
+/** Legacy statuses still in Firebase — map to progress index for the timeline. */
+const LEGACY_STATUS_PROGRESS_INDEX: Record<string, number> = {
+    "Order Placed": 0,
+    "Accepted by Store": 0,
+    "Packing Order": 1,
+    Packed: 1,
+    "Ready for Pickup": 2,
+    "Out for Delivery": 2,
+    "On the Way": 3,
+    Arrival: 3,
+    Arriving: 3,
+    Delivered: 4,
+};
+
+export function getOrderProgressStepIndex(status: string): number {
+    if (status === "Cancelled") return -1;
+    return LEGACY_STATUS_PROGRESS_INDEX[status] ?? 0;
+}
 
 const OrderManagement = () => {
     const [orders, setOrders] = useState<Record<string, any>>({});
@@ -85,7 +107,7 @@ const OrderManagement = () => {
                     if (o.status === 'Delivered' && orderDate === today) {
                         deliveredToday++;
                     }
-                    if (['On the Way', 'Arrival'].includes(o.status)) {
+                    if (["Out for Delivery", "Arriving", "On the Way", "Arrival"].includes(o.status)) {
                         isOutForDelivery = true;
                     }
                 }
@@ -125,10 +147,10 @@ const OrderManagement = () => {
 
     const menuItems = [
         { id: 'all_orders', label: 'All Orders', icon: ShoppingBag },
-        { id: 'new_orders', label: 'New Order Placed', icon: Bell },
-        { id: 'accepted', label: 'Accepted by Store', icon: CheckCircle },
-        { id: 'packing', label: 'Packing Order', icon: Package },
-        { id: 'ready', label: 'Ready for Pickup', icon: Store },
+        { id: 'new_orders', label: 'Order Placed', icon: Bell },
+        { id: 'packed', label: 'Packed', icon: Package },
+        { id: 'out_delivery', label: 'Out for Delivery', icon: Truck },
+        { id: 'arriving', label: 'Arriving', icon: MapPin },
         { id: 'delivered', label: 'Delivered', icon: CheckCircle },
         { id: 'cancelled', label: 'Cancelled', icon: XCircle },
     ];
@@ -257,13 +279,13 @@ const OrderManagement = () => {
 
         // Filter by Tab
         if (activeTab === 'new_orders') {
-            list = list.filter(o => o.status === 'Order Placed');
-        } else if (activeTab === 'accepted') {
-            list = list.filter(o => o.status === 'Accepted by Store');
-        } else if (activeTab === 'packing') {
-            list = list.filter(o => o.status === 'Packing Order');
-        } else if (activeTab === 'ready') {
-            list = list.filter(o => o.status === 'Ready for Pickup');
+            list = list.filter(o => o.status === 'Order Placed' || o.status === 'Accepted by Store');
+        } else if (activeTab === 'packed') {
+            list = list.filter(o => o.status === 'Packed' || o.status === 'Packing Order');
+        } else if (activeTab === 'out_delivery') {
+            list = list.filter(o => o.status === 'Out for Delivery' || o.status === 'Ready for Pickup');
+        } else if (activeTab === 'arriving') {
+            list = list.filter(o => o.status === 'Arriving' || o.status === 'On the Way' || o.status === 'Arrival');
         } else if (activeTab === 'delivered') {
             list = list.filter(o => o.status === 'Delivered');
         } else if (activeTab === 'cancelled') {
@@ -287,12 +309,19 @@ const OrderManagement = () => {
     }, [orders, searchTerm, activeTab]);
 
     const handleStatusChange = async (orderId: string, newStatus: string) => {
-        if (newStatus === "Ready for Pickup") {
+        if (newStatus === "Packed") {
             setSelectedOrderIdForAssign(orderId);
+            setSelectedDriverId("");
             setShowAssignModal(true);
             return;
         }
         updateOrderStatus(orderId, newStatus);
+    };
+
+    const closeAssignModal = () => {
+        setShowAssignModal(false);
+        setSelectedOrderIdForAssign(null);
+        setSelectedDriverId("");
     };
 
     const updateOrderStatus = async (orderId: string, status: string, additionalData: any = {}) => {
@@ -325,15 +354,16 @@ const OrderManagement = () => {
             return;
         }
 
-        updateOrderStatus(selectedOrderIdForAssign, "Ready for Pickup", {
+        const partnerName = driver ? `${driver.firstName} ${driver.lastName}`.trim() : "Unknown";
+        const partnerPhone = (driver?.contactNumber ?? driver?.phone ?? "").toString().trim();
+
+        updateOrderStatus(selectedOrderIdForAssign, "Packed", {
             delivery_partner_id: targetAuthId,
-            delivery_partner_name: driver ? `${driver.firstName} ${driver.lastName}` : "Unknown",
-            delivery_partner_phone: driver?.contactNumber || ""
+            delivery_partner_name: partnerName,
+            delivery_partner_phone: partnerPhone
         });
 
-        setShowAssignModal(false);
-        setSelectedOrderIdForAssign(null);
-        setSelectedDriverId("");
+        closeAssignModal();
     };
 
     const toggleExpand = (id: string) => {
@@ -352,9 +382,13 @@ const OrderManagement = () => {
         switch (status) {
             case "Order Placed": return "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800";
             case "Accepted by Store": return "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800";
-            case "Packing Order": return "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800";
-            case "Ready for Pickup": return "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-800";
-            case "On the Way": return "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800";
+            case "Packing Order":
+            case "Packed": return "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800";
+            case "Ready for Pickup":
+            case "Out for Delivery": return "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-800";
+            case "On the Way":
+            case "Arrival":
+            case "Arriving": return "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800";
             case "Cancelled": return "bg-red-100 text-red-600 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800";
             case "Delivered": return "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700";
             default: return "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700";
@@ -365,9 +399,14 @@ const OrderManagement = () => {
         switch (status) {
             case "Order Placed": return <AlertTriangle size={14} />;
             case "Accepted by Store": return <CheckCircle size={14} />;
-            case "Packing Order": return <Package size={14} />;
-            case "Ready for Pickup": return <Store size={14} />;
-            case "On the Way": return <Truck size={14} />;
+            case "Packing Order":
+            case "Packed": return <Package size={14} />;
+            case "Ready for Pickup":
+            case "Out for Delivery": return <Truck size={14} />;
+            case "On the Way":
+            case "Arrival":
+            case "Arriving": return <MapPin size={14} />;
+            case "Delivered": return <CheckCircle size={14} />;
             case "Cancelled": return <XCircle size={14} />;
             default: return <User size={14} />;
         }
@@ -542,8 +581,7 @@ const OrderManagement = () => {
                                                             className={`w-full appearance-none pl-9 pr-8 py-2 rounded-lg text-sm font-semibold border transition-all cursor-pointer focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-slate-900 outline-none ${getStatusColor(order.status)} disabled:opacity-80 disabled:cursor-not-allowed`}
                                                         >
                                                             {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                                            {/* Preserve Cancelled/Delivered if already set */}
-                                                            {(order.status === 'Cancelled' || order.status === 'Delivered' || order.status === 'On the Way') && (
+                                                            {!STATUS_OPTIONS.includes(order.status) && (
                                                                 <option value={order.status}>{order.status}</option>
                                                             )}
                                                         </select>
@@ -643,6 +681,9 @@ const OrderManagement = () => {
                                                                     className={`w-full appearance-none pl-9 pr-8 py-3 rounded-xl text-sm font-semibold border transition-all ${getStatusColor(order.status)}`}
                                                                 >
                                                                     {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                                    {!STATUS_OPTIONS.includes(order.status) && (
+                                                                        <option value={order.status}>{order.status}</option>
+                                                                    )}
                                                                 </select>
                                                                 <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-70">
                                                                     {getStatusIcon(order.status)}
@@ -650,6 +691,38 @@ const OrderManagement = () => {
                                                                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-50" size={14} />
                                                             </div>
                                                         </div>
+                                                    </div>
+
+                                                    <div className="mt-6 pt-5 border-t border-slate-200 dark:border-slate-800">
+                                                        <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider mb-4">Order progress</h4>
+                                                        {isCancelled ? (
+                                                            <p className="text-sm font-medium text-red-600 dark:text-red-400">This order was cancelled.</p>
+                                                        ) : (
+                                                            <ol className="space-y-2.5">
+                                                                {ORDER_PROGRESS_STEPS.map((label, idx) => {
+                                                                    const stepIdx = getOrderProgressStepIndex(order.status);
+                                                                    const completed = isDelivered || stepIdx > idx;
+                                                                    const active = !isDelivered && stepIdx === idx;
+                                                                    return (
+                                                                        <li key={label} className="flex items-center gap-3">
+                                                                            <span
+                                                                                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold border-2 transition-colors ${completed
+                                                                                    ? "border-emerald-500 bg-emerald-500 text-white dark:border-emerald-400 dark:bg-emerald-600"
+                                                                                    : active
+                                                                                        ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-400 dark:bg-blue-900/30 dark:text-blue-300"
+                                                                                        : "border-slate-200 bg-white text-slate-400 dark:border-slate-700 dark:bg-slate-900"
+                                                                                    }`}
+                                                                            >
+                                                                                {completed ? <CheckCircle size={16} strokeWidth={2.5} /> : idx + 1}
+                                                                            </span>
+                                                                            <span className={`text-sm font-semibold ${active ? "text-blue-700 dark:text-blue-300" : completed ? "text-emerald-800 dark:text-emerald-200/90" : "text-slate-500 dark:text-slate-400"}`}>
+                                                                                {label}
+                                                                            </span>
+                                                                        </li>
+                                                                    );
+                                                                })}
+                                                            </ol>
+                                                        )}
                                                     </div>
 
                                                     <div className="mt-4 flex justify-end">
@@ -706,13 +779,15 @@ const OrderManagement = () => {
                     <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-800">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-xl font-bold flex items-center gap-2">
-                                <Truck className="text-blue-600" /> Assign Driver
+                                <Truck className="text-blue-600" /> Assign delivery partner
                             </h3>
-                            <button onClick={() => setShowAssignModal(false)} className="text-slate-400 hover:text-slate-600"><XCircle size={24} /></button>
+                            <button type="button" onClick={closeAssignModal} className="text-slate-400 hover:text-slate-600"><XCircle size={24} /></button>
                         </div>
 
                         <div className="mb-6">
-                            <p className="text-sm text-slate-500 mb-4">Select a delivery partner for Order <strong>#{selectedOrderIdForAssign}</strong></p>
+                            <p className="text-sm text-slate-500 mb-4">
+                                Order <strong>#{selectedOrderIdForAssign?.slice(-6)}</strong> will be marked <strong>Packed</strong>. Choose a partner — their name and contact will be saved on this order.
+                            </p>
 
                             <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
                                 {availableDeliveryBoys.map(boy => (

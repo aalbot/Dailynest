@@ -117,12 +117,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             if (!key) return;
             const oldOrder = prevOrdersRef.current[key];
 
-            // Alert for delivery readiness
-            if (oldOrder && oldOrder.status !== "Ready for Pickup" && newOrder.status === "Ready for Pickup") {
+            // Alert when order goes out for delivery (assigned to driver)
+            const pickupReady = (s: string) => s === "Out for Delivery" || s === "Ready for Pickup";
+            if (oldOrder && !pickupReady(oldOrder.status) && pickupReady(newOrder.status)) {
                 addNotification({
                     id: `order_${key}_pickup`,
-                    title: "Ready for Pickup",
-                    message: `Order #${key} is ready for delivery.`,
+                    title: "Out for Delivery",
+                    message: `Order #${key} is out for delivery.`,
                     type: 'delivery',
                     orderId: key
                 });
