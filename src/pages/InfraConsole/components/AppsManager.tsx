@@ -30,6 +30,7 @@ const defaultApps = [
     { id: "_staffes",            path: "/staffes",            label: "Onboard",             defaultIcon: "Users",          defaultColor: "bg-cyan-600" },
     { id: "_infra",              path: "/infra",              label: "Infra",               defaultIcon: "ShieldAlert",    defaultColor: "bg-red-600" },
     { id: "_broadcast",           path: "/broadcast",           label: "Broadcast",            defaultIcon: "MessageSquare",  defaultColor: "bg-emerald-600" },
+    { id: "_banner-manage",       path: "/banner-manage",       label: "Banner Manage",        defaultIcon: "Image",          defaultColor: "bg-teal-600" },
 ];
 
 

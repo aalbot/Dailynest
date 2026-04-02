@@ -42,7 +42,9 @@
             "notifications": "Notification",
             "staff": "Onboard",
             "infra": "Infra",
-            "test": "Test App"
+            "test": "Test App",
+            "broadcast": "Broadcast",
+            "bannerManage": "Banner Manage"
         },
         "gateway": {
             "badge": "Unified Access Control",
@@ -329,7 +331,9 @@
             "notifications": "التنبيهات",
             "staff": "الموظفين",
             "infra": "البنية التحتية",
-            "test": "تطبيق تجريبي"
+            "test": "تطبيق تجريبي",
+            "broadcast": "البث",
+            "bannerManage": "إدارة اللافتة"
         },
         "gateway": {
             "badge": "التحكم الموحد في الوصول",
@@ -616,7 +620,9 @@
             "notifications": "അറിയിപ്പുകൾ",
             "staff": "സ്റ്റാഫ്",
             "infra": "ഇൻഫ്രാ",
-            "test": "ടെസ്റ്റ് ആപ്പ്"
+            "test": "ടെസ്റ്റ് ആപ്പ്",
+            "broadcast": "ബ്രോഡ്‌കാസ്റ്റ്",
+            "bannerManage": "ബാനർ മാനേജ്"
         },
         "gateway": {
             "badge": "യുണിഫൈഡ് ആക്‌സസ് കൺട്രോൾ",

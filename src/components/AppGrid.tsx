@@ -21,6 +21,7 @@ import {
   Bell,
   ShieldAlert,
   MessageSquare,
+  Image,
 } from "lucide-react";
 import AppIcon from "./AppIcon";
 import { AddAppModal } from "./AddAppModal";
@@ -58,6 +59,7 @@ const initialApps = [
   { icon: Users, label: "Onboard", colorClass: "app-icon-cyan", path: "/staffes", key: "apps.staff" },
   { icon: ShieldAlert, label: "Infra", colorClass: "app-icon-red", path: "/infra", key: "apps.infra" },
   { icon: MessageSquare, label: "Broadcast", colorClass: "app-icon-emerald", path: "/broadcast", key: "apps.broadcast" },
+  { icon: Image, label: "Banner Manage", colorClass: "app-icon-teal", path: "/banner-manage", key: "apps.bannerManage" },
 ];
 
 const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolean; searchQuery?: string }) => {

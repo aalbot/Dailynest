@@ -26,7 +26,8 @@ import {
     EyeOff,
     Check,
     ShieldCheck,
-    MessageSquare
+    MessageSquare,
+    Image
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -86,6 +87,7 @@ const initialAppsList = [
     { id: "notifications", label: "Notification", path: "/notifications", icon: Bell },
     { id: "staffes", label: "Onboard", path: "/staffes", icon: Users },
     { id: "broadcast", label: "Broadcast", path: "/broadcast", icon: MessageSquare },
+    { id: "banner-manage", label: "Banner Manage", path: "/banner-manage", icon: Image },
 ];
 // Import the logger
 import { logger } from "@/data/utils/LogManager";

@@ -26,7 +26,8 @@ import {
   TrendingUp,
   LogIn,
   Clock,
-  MessageSquare
+  MessageSquare,
+  Image
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useNotification } from "@/contexts/NotificationContext";
@@ -59,6 +60,7 @@ const defaultAppItems = [
   { icon: Users, label: "Staff", path: "/staffes", color: "bg-cyan-600" },
   { icon: Settings, label: "Infra", path: "/infra", color: "bg-slate-800" },
   { icon: MessageSquare, label: "Broadcast", path: "/broadcast", color: "bg-emerald-600" },
+  { icon: Image, label: "Banner Manage", path: "/banner-manage", color: "bg-teal-600" },
 ];
 
 const Navbar = () => {
@@ -238,7 +240,8 @@ const Navbar = () => {
         "/notifications": "notifications",
         "/staffes": "staff",
         "/staff-test": "test",
-        "/broadcast": "broadcast"
+        "/broadcast": "broadcast",
+        "/banner-manage": "bannerManage"
       };
 
       const key = `apps.${keyMap[app.path] || 'default'}`;
