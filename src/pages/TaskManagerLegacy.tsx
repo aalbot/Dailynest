@@ -116,6 +116,13 @@ const StageIcons: Record<string, any> = {
     'Finance': BadgeDollarSign,
 };
 
+function isEligibleWorkspaceMember(emp: { role?: string; department?: string; deliveryUserId?: string }): boolean {
+    if (emp.role === 'Ride' || emp.department === 'Logistics') return false;
+    if (emp.role === 'Delivery Partner') return false;
+    if (emp.deliveryUserId) return false;
+    return true;
+}
+
 const StatusIcons: Record<string, any> = {
     'Raised': FileText,
     'Open': Clock,
@@ -505,6 +512,7 @@ const TaskManager = () => {
     const [filterRole, setFilterRole] = useState<string>("All");
     const [selectedTask, setSelectedTask] = useState<any | null>(null);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [isCreatingTask, setIsCreatingTask] = useState(false);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [parentTaskId, setParentTaskId] = useState<string | null>(null);
     // Default open on desktop (md = 768px), closed on mobile
@@ -554,6 +562,7 @@ const TaskManager = () => {
     const [teams, setTeams] = useState<any[]>([]);
     const [selectedDept, setSelectedDept] = useState<string>("All");
     const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
+    const [workspaceMemberPickerOpen, setWorkspaceMemberPickerOpen] = useState(false);
     const [selectedTeamId, setSelectedTeamId] = useState<string>("");
     const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
     const [selectedTeamFilter, setSelectedTeamFilter] = useState<string | null>(null);
@@ -998,50 +1007,63 @@ const TaskManager = () => {
             currentStage: 'Office'
         };
 
-        db.ref(`root/nexus_hr/tasks/${taskId}`).set(taskData).then(() => {
-            // Notifications
-            const assignees = newTask.assignedEmployeeIds || [];
-            if (assignees.length > 0) {
-                // Email
-                const recipients = assignees
-                    .map(id => {
-                        const emp = employees.find(e => e.id === id);
-                        return emp && emp.email ? { email: emp.email } : null;
-                    })
-                    .filter((r): r is { email: string } => r !== null);
+        setIsCreatingTask(true);
+        db.ref(`root/nexus_hr/tasks/${taskId}`)
+            .set(taskData)
+            .then(() => {
+                // Notifications
+                const assignees = newTask.assignedEmployeeIds || [];
+                if (assignees.length > 0) {
+                    // Email
+                    const recipients = assignees
+                        .map(id => {
+                            const emp = employees.find(e => e.id === id);
+                            return emp && emp.email ? { email: emp.email } : null;
+                        })
+                        .filter((r): r is { email: string } => r !== null);
 
-                if (recipients.length > 0) {
-                    sendTaskUpdateEmail(
-                        recipients,
-                        newTask.title,
-                        newTask.description,
-                        (newTask.images || []).length > 0
-                    );
+                    if (recipients.length > 0) {
+                        sendTaskUpdateEmail(
+                            recipients,
+                            newTask.title,
+                            newTask.description,
+                            (newTask.images || []).length > 0
+                        );
+                    }
                 }
 
-            }
+                toast({ title: "Success", description: "Task created successfully" });
+                setIsCreateOpen(false);
+                setParentTaskId(null);
 
-            toast({ title: "Success", description: "Task created successfully" });
-            setIsCreateOpen(false);
-            setParentTaskId(null);
-
-            // Reset Form (Preserve previous team/defaults if needed, but clearing mostly)
-            setNewTask(prev => ({
-                ...prev,
-                title: '',
-                description: '',
-                priority: 'Normal',
-                assignedEmployeeIds: [],
-                testerId: '',
-                taskType: '',
-                taskSubType: '',
-                taskComponent: '',
-                version: '',
-                effortDays: '',
-                images: [],
-                status: 'Pending'
-            }));
-        });
+                // Reset Form (Preserve previous team/defaults if needed, but clearing mostly)
+                setNewTask(prev => ({
+                    ...prev,
+                    title: '',
+                    description: '',
+                    priority: 'Normal',
+                    assignedEmployeeIds: [],
+                    testerId: '',
+                    taskType: '',
+                    taskSubType: '',
+                    taskComponent: '',
+                    version: '',
+                    effortDays: '',
+                    images: [],
+                    status: 'Pending'
+                }));
+            })
+            .catch((err) => {
+                console.error("Create task failed:", err);
+                toast({
+                    title: "Error",
+                    description: "Could not create task. Please try again.",
+                    variant: "destructive"
+                });
+            })
+            .finally(() => {
+                setIsCreatingTask(false);
+            });
     };
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1819,13 +1841,31 @@ const TaskManager = () => {
 
                 {/* CREATE TASK DIALOG */}
                 < Dialog open={isCreateOpen} onOpenChange={(open) => {
+                    if (!open && isCreatingTask) return;
                     if (!open) {
                         setParentTaskId(null);
                         // Also clear form title to avoid confusion if closed
                     }
                     setIsCreateOpen(open);
                 }}>
-                    <DialogContent className="sm:max-w-[700px] max-h-[85vh] p-0 overflow-hidden border-0 shadow-2xl bg-slate-50 dark:bg-slate-950 flex flex-col">
+                    <DialogContent
+                        showClose={!isCreatingTask}
+                        closeClassName="text-white opacity-80 hover:opacity-100 hover:bg-white/20 data-[state=open]:bg-transparent data-[state=open]:text-white rounded-full p-2 ring-offset-0 focus:ring-white/40 focus:ring-offset-0"
+                        className="sm:max-w-[700px] max-h-[85vh] w-[min(100vw-2rem,700px)] p-0 overflow-hidden border-0 shadow-2xl bg-slate-50 dark:bg-slate-950 flex flex-col gap-0 data-[state=open]:slide-in-from-top-[50%] data-[state=closed]:slide-out-to-top-[50%]"
+                    >
+                        {isCreatingTask && (
+                            <div
+                                className="absolute inset-0 z-[100] flex items-center justify-center rounded-lg bg-slate-950/50 backdrop-blur-sm"
+                                aria-busy="true"
+                                aria-live="polite"
+                            >
+                                <div className="flex flex-col items-center gap-4 rounded-2xl border border-slate-200/80 bg-white px-10 py-8 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+                                    <Loader2 className="h-12 w-12 animate-spin text-indigo-600 dark:text-indigo-400" />
+                                    <p className="text-center text-sm font-bold text-slate-800 dark:text-slate-100">Creating task…</p>
+                                    <p className="text-center text-xs text-slate-500 dark:text-slate-400">Please wait</p>
+                                </div>
+                            </div>
+                        )}
                         {/* Modern Gradient Header */}
                         <div className="relative p-6 shrink-0 bg-gradient-to-r from-indigo-600 to-purple-700 overflow-hidden">
                             <div className="absolute inset-0 bg-white/10 opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
@@ -1840,12 +1880,6 @@ const TaskManager = () => {
                                     Fill in the details below to create a new task.
                                 </DialogDescription>
                             </DialogHeader>
-                            <button
-                                onClick={() => setIsCreateOpen(false)}
-                                className="absolute top-4 right-4 p-2 text-white/70 hover:text-white hover:bg-white/20 rounded-full transition-colors"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
                         </div>
 
                         {/* Scrollable Form Content */}
@@ -2102,9 +2136,27 @@ const TaskManager = () => {
 
                         {/* Footer */}
                         <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-end gap-3 shrink-0">
-                            <Button variant="ghost" onClick={() => setIsCreateOpen(false)} className="hover:bg-slate-100">Cancel</Button>
-                            <Button onClick={handleCreateTask} className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] min-w-[140px]">
-                                Create Task
+                            <Button
+                                variant="ghost"
+                                onClick={() => setIsCreateOpen(false)}
+                                disabled={isCreatingTask}
+                                className="hover:bg-slate-100"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleCreateTask}
+                                disabled={isCreatingTask}
+                                className="min-w-[160px] bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg transition-all hover:from-indigo-700 hover:to-purple-700 hover:shadow-xl disabled:opacity-90 disabled:hover:scale-100"
+                            >
+                                {isCreatingTask ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Creating…
+                                    </>
+                                ) : (
+                                    "Create Task"
+                                )}
                             </Button>
                         </div>
                     </DialogContent>
@@ -2718,7 +2770,13 @@ const TaskManager = () => {
 
 
                 {/* TEAM MANAGEMENT DIALOG */}
-                < Dialog open={isTeamModalOpen} onOpenChange={setIsTeamModalOpen} >
+                < Dialog
+                    open={isTeamModalOpen}
+                    onOpenChange={(open) => {
+                        setIsTeamModalOpen(open);
+                        if (!open) setWorkspaceMemberPickerOpen(false);
+                    }}
+                >
                     <DialogContent className="sm:max-w-[600px]">
                         <DialogHeader>
                             <DialogTitle>Manage Workspaces</DialogTitle>
@@ -2748,50 +2806,68 @@ const TaskManager = () => {
 
                             <div className="space-y-3">
                                 <Label>Add Workspace Members</Label>
-                                <Popover>
+                                <Popover open={workspaceMemberPickerOpen} onOpenChange={setWorkspaceMemberPickerOpen}>
                                     <PopoverTrigger asChild>
-                                        <Button variant="outline" className="w-full justify-between h-10 border-slate-200 dark:border-slate-800">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            className="w-full justify-between h-10 border-slate-200 dark:border-slate-800"
+                                        >
                                             <span className="text-slate-500 font-normal">Search and add members...</span>
                                             <Search className="w-4 h-4 opacity-50" />
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                                        <Command>
-                                            <CommandInput placeholder="Search employee name..." />
-                                            <CommandList className="max-h-[300px] overflow-y-auto">
-                                                <CommandEmpty>No employee found.</CommandEmpty>
-                                                <CommandGroup>
-                                                    {employees
-                                                        // List ALL employees as requested
-                                                        // .filter(emp => emp.role !== 'Ride' && emp.department !== 'Logistics')
-                                                        .map(emp => (
-                                                            <CommandItem
-                                                                key={emp.id}
-                                                                onSelect={() => {
-                                                                    const current = newTeam.memberIds;
-                                                                    const updated = current.includes(emp.id)
-                                                                        ? current.filter(id => id !== emp.id)
-                                                                        : [...current, emp.id];
-                                                                    setNewTeam({ ...newTeam, memberIds: updated });
-                                                                }}
-                                                                className="flex items-center gap-2"
-                                                            >
-                                                                <div className={`flex h-4 w-4 items-center justify-center rounded-sm border border-primary ${newTeam.memberIds.includes(emp.id) ? 'bg-primary text-primary-foreground' : 'opacity-50'}`}>
-                                                                    {newTeam.memberIds.includes(emp.id) && <Check className="h-3 w-3" />}
-                                                                </div>
-                                                                <Avatar className="w-6 h-6">
-                                                                    <AvatarImage src={emp.photoUrl} />
-                                                                    <AvatarFallback className="text-[8px]">{emp.firstName?.[0]}</AvatarFallback>
-                                                                </Avatar>
-                                                                <div className="flex flex-col min-w-0">
-                                                                    <span className="text-xs font-bold truncate">{emp.firstName} {emp.lastName}</span>
-                                                                    <span className="text-[10px] text-slate-500 truncate">{emp.role}</span>
-                                                                </div>
-                                                            </CommandItem>
-                                                        ))}
-                                                </CommandGroup>
-                                            </CommandList>
-                                        </Command>
+                                    <PopoverContent
+                                        className="w-[var(--radix-popover-trigger-width)] p-0 overflow-hidden"
+                                        align="start"
+                                        sideOffset={4}
+                                    >
+                                        <div className="flex max-h-[min(400px,60vh)] flex-col overflow-hidden">
+                                            <Command className="min-h-0 flex-1 overflow-hidden rounded-none border-0 bg-popover shadow-none">
+                                                <CommandInput placeholder="Search employee name..." />
+                                                <CommandList className="max-h-[min(280px,calc(60vh-7rem))] min-h-[120px] overflow-y-auto overflow-x-hidden overscroll-contain custom-scrollbar">
+                                                    <CommandEmpty>No employee found.</CommandEmpty>
+                                                    <CommandGroup>
+                                                        {employees
+                                                            .filter(isEligibleWorkspaceMember)
+                                                            .map(emp => (
+                                                                <CommandItem
+                                                                    key={emp.id}
+                                                                    onSelect={() => {
+                                                                        const current = newTeam.memberIds;
+                                                                        const updated = current.includes(emp.id)
+                                                                            ? current.filter(id => id !== emp.id)
+                                                                            : [...current, emp.id];
+                                                                        setNewTeam({ ...newTeam, memberIds: updated });
+                                                                    }}
+                                                                    className="flex items-center gap-2"
+                                                                >
+                                                                    <div className={`flex h-4 w-4 items-center justify-center rounded-sm border border-primary ${newTeam.memberIds.includes(emp.id) ? 'bg-primary text-primary-foreground' : 'opacity-50'}`}>
+                                                                        {newTeam.memberIds.includes(emp.id) && <Check className="h-3 w-3" />}
+                                                                    </div>
+                                                                    <Avatar className="w-6 h-6">
+                                                                        <AvatarImage src={emp.photoUrl} />
+                                                                        <AvatarFallback className="text-[8px]">{emp.firstName?.[0]}</AvatarFallback>
+                                                                    </Avatar>
+                                                                    <div className="flex flex-col min-w-0">
+                                                                        <span className="text-xs font-bold truncate">{emp.firstName} {emp.lastName}</span>
+                                                                        <span className="text-[10px] text-slate-500 truncate">{emp.role}</span>
+                                                                    </div>
+                                                                </CommandItem>
+                                                            ))}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                            <div className="shrink-0 border-t border-border bg-popover p-2">
+                                                <Button
+                                                    type="button"
+                                                    className="w-full"
+                                                    onClick={() => setWorkspaceMemberPickerOpen(false)}
+                                                >
+                                                    Done
+                                                </Button>
+                                            </div>
+                                        </div>
                                     </PopoverContent>
                                 </Popover>
 

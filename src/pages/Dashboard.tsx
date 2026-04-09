@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { firebase } from "@/lib/firebase";
 import {
     TrendingUp, Menu, LayoutDashboard, IndianRupee,
     ShoppingBasket, Users, Loader2, Globe, DatabaseBackup,
     Layers, Package, CheckCircle, XCircle, Activity, Briefcase, Clock, Smartphone,
-    ChevronDown, X, AlertTriangle, Search, Calendar
+    ChevronDown, X, AlertTriangle, Search, Calendar, Filter, ExternalLink
 } from 'lucide-react';
 import {
     Chart as ChartJS,
@@ -52,6 +52,8 @@ const FALLBACK_DATA = {
 type Tab = 'dashboard' | 'business' | 'users' | 'stocks' | 'orders';
 type TimeData = { date: string; count: number; revenue: number };
 
+type StockListFilter = 'least_first' | 'most_first' | 'low_only' | 'all';
+
 const Dashboard = () => {
     // State
     const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -67,8 +69,11 @@ const Dashboard = () => {
     const [userFilter, setUserFilter] = useState('all');
     const [userSortConfig, setUserSortConfig] = useState({ key: 'orderCompletedAt', direction: 'desc' });
     const [stockSearchTerm, setStockSearchTerm] = useState('');
+    const [stockListFilter, setStockListFilter] = useState<StockListFilter>('least_first');
+    const [stockFilterMenuOpen, setStockFilterMenuOpen] = useState(false);
     const [timePeriod, setTimePeriod] = useState<string>('all');
     const location = useLocation();
+    const navigate = useNavigate();
 
     // Handle incoming tab state
     useEffect(() => {
@@ -77,6 +82,10 @@ const Dashboard = () => {
             window.history.replaceState({}, document.title);
         }
     }, [location]);
+
+    useEffect(() => {
+        if (activeTab !== "stocks") setStockFilterMenuOpen(false);
+    }, [activeTab]);
 
     // Load Data
     useEffect(() => {
@@ -298,12 +307,36 @@ const Dashboard = () => {
                 const pInfo = data.products?.[pid];
                 const cat = (pInfo && data.category?.[pInfo.categoryCode]) ? data.category[pInfo.categoryCode].name : 'Uncategorized';
                 return Object.entries(variants).map(([vid, v]: [string, any]) => ({
-                    id: pid, variantId: vid, name: pInfo?.name || "Unknown", category: cat,
-                    quantity: parseInt(v.quantity) || 0, price: parseFloat(v.offerPrice) || parseFloat(v.mrp) || 0, pic: pInfo?.pic || ""
+                    id: pid,
+                    variantId: vid,
+                    name: pInfo?.name || "Unknown",
+                    category: cat,
+                    categoryCode: pInfo?.categoryCode || "",
+                    quantity: parseInt(v.quantity) || 0,
+                    price: parseFloat(v.offerPrice) || parseFloat(v.mrp) || 0,
+                    pic: pInfo?.pic || "",
+                    variantRaw: v,
                 }));
             })
         };
     }, [rawData, timePeriod]);
+
+    const displayedStockItems = useMemo(() => {
+        const items = processed?.allStockItems ?? [];
+        let list = items.filter((i: { name: string }) => i.name.toLowerCase().includes(stockSearchTerm.toLowerCase()));
+        if (stockListFilter === 'low_only') {
+            list = list.filter((i: { quantity: number }) => i.quantity <= 5);
+        }
+        const sorted = [...list];
+        if (stockListFilter === 'least_first' || stockListFilter === 'low_only') {
+            sorted.sort((a: { quantity: number; name: string }, b: { quantity: number; name: string }) => a.quantity - b.quantity || a.name.localeCompare(b.name));
+        } else if (stockListFilter === 'most_first') {
+            sorted.sort((a: { quantity: number; name: string }, b: { quantity: number; name: string }) => b.quantity - a.quantity || a.name.localeCompare(b.name));
+        } else {
+            sorted.sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name));
+        }
+        return sorted.slice(0, 200);
+    }, [processed, stockSearchTerm, stockListFilter]);
 
     const sortedUsers = useMemo(() => {
         if (!processed?.users) return [];
@@ -675,29 +708,104 @@ const Dashboard = () => {
                     {activeTab === 'stocks' && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                             <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
-                                <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                                <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
                                     <h2 className="text-xl font-bold">Inventory List</h2>
-                                    <div className="relative w-64">
-                                        <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
-                                        <input type="text" placeholder="Search product..." value={stockSearchTerm} onChange={e => setStockSearchTerm(e.target.value)} className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg text-sm border-none focus:ring-1 focus:ring-blue-500" />
+                                    <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto sm:items-center">
+                                        <div className="relative w-full sm:w-64">
+                                            <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                                            <input type="text" placeholder="Search product..." value={stockSearchTerm} onChange={e => setStockSearchTerm(e.target.value)} className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg text-sm border-none focus:ring-1 focus:ring-blue-500" />
+                                        </div>
+                                        <div className="relative">
+                                            <button
+                                                type="button"
+                                                onClick={() => setStockFilterMenuOpen(o => !o)}
+                                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors w-full sm:w-auto justify-center"
+                                            >
+                                                <Filter size={16} />
+                                                Filter
+                                                <ChevronDown size={14} className={`opacity-60 transition-transform ${stockFilterMenuOpen ? 'rotate-180' : ''}`} />
+                                            </button>
+                                            {stockFilterMenuOpen && (
+                                                <>
+                                                    <button type="button" className="fixed inset-0 z-40 cursor-default" aria-label="Close menu" onClick={() => setStockFilterMenuOpen(false)} />
+                                                    <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl py-1 text-sm">
+                                                        {([
+                                                            { id: 'least_first' as const, label: 'Lowest stock first' },
+                                                            { id: 'most_first' as const, label: 'Highest stock first' },
+                                                            { id: 'low_only' as const, label: 'Low stock only (≤5)' },
+                                                            { id: 'all' as const, label: 'All (A–Z)' },
+                                                        ]).map(opt => (
+                                                            <button
+                                                                key={opt.id}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setStockListFilter(opt.id);
+                                                                    setStockFilterMenuOpen(false);
+                                                                }}
+                                                                className={`w-full text-left px-4 py-2.5 font-medium hover:bg-slate-50 dark:hover:bg-slate-800 ${stockListFilter === opt.id ? 'text-blue-600 dark:text-blue-400 bg-blue-50/80 dark:bg-blue-950/40' : 'text-slate-700 dark:text-slate-200'}`}
+                                                            >
+                                                                {opt.label}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm">
                                         <thead className="bg-slate-50 dark:bg-slate-800 font-bold border-b border-slate-200 dark:border-slate-800">
-                                            <tr><th className="p-4 text-left">Product</th><th className="p-4 text-left">Category</th><th className="p-4 text-left">Price</th><th className="p-4 text-left">Stock</th></tr>
+                                            <tr>
+                                                <th className="p-4 text-left">Product</th>
+                                                <th className="p-4 text-left">Variant</th>
+                                                <th className="p-4 text-left">Category</th>
+                                                <th className="p-4 text-left">Price</th>
+                                                <th className="p-4 text-left">Stock</th>
+                                                <th className="p-4 text-right">Actions</th>
+                                            </tr>
                                         </thead>
                                         <tbody>
-                                            {allStockItems.filter(i => i.name.toLowerCase().includes(stockSearchTerm.toLowerCase())).slice(0, 100).map(i => (
-                                                <tr key={`${i.id}-${i.variantId}`} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50">
+                                            {displayedStockItems.map((i: any) => (
+                                                <tr key={`${i.id}-${i.variantId}`} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
                                                     <td className="p-4 font-medium">{i.name}</td>
+                                                    <td className="p-4 font-mono text-xs text-slate-500">{i.variantId}</td>
                                                     <td className="p-4 text-slate-500">{i.category}</td>
                                                     <td className="p-4">{fmtMoney(i.price)}</td>
                                                     <td className="p-4"><span className={`font-black ${i.quantity <= 5 ? 'text-red-500' : 'text-slate-900 dark:text-slate-100'}`}>{i.quantity}</span></td>
+                                                    <td className="p-4 text-right">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                navigate('/stock-entry', {
+                                                                    state: {
+                                                                        prefillStock: {
+                                                                            productCode: i.id,
+                                                                            variantKey: i.variantId,
+                                                                            product: {
+                                                                                code: i.id,
+                                                                                name: i.name,
+                                                                                categoryCode: i.categoryCode || '',
+                                                                                pic: i.pic || '',
+                                                                            },
+                                                                            variant: i.variantRaw || {},
+                                                                        },
+                                                                    },
+                                                                });
+                                                            }}
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                                                        >
+                                                            <ExternalLink size={12} />
+                                                            Stocks
+                                                        </button>
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                     </table>
+                                    {displayedStockItems.length === 0 && (
+                                        <p className="p-8 text-center text-slate-500 text-sm">No rows match your search or filter.</p>
+                                    )}
                                 </div>
                             </div>
                         </div>

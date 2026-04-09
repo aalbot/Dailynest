@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { firebase } from "@/lib/firebase";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
@@ -54,7 +55,17 @@ interface PriorityItem {
     pic: string;
 }
 
+type PrefillStockState = {
+    productCode: string;
+    variantKey: string;
+    product: Product;
+    variant: Record<string, unknown>;
+};
+
 const StockEntry = () => {
+    const location = useLocation();
+    const navigate = useNavigate();
+
     // State
     const [searchTerm, setSearchTerm] = useState("");
     const [priorityFilter, setPriorityFilter] = useState("");
@@ -87,11 +98,67 @@ const StockEntry = () => {
     });
 
     const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const formProductSuggestTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    const [formProductSuggestions, setFormProductSuggestions] = useState<Product[]>([]);
+    const [formCodeFocused, setFormCodeFocused] = useState(false);
 
     // --- Handlers ---
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         setFormData({ ...formData, [e.target.id]: e.target.value });
+    };
+
+    /** Related products by code key prefix and name prefix (Firebase). */
+    const fetchRelatedProducts = async (term: string, limit = 12): Promise<Product[]> => {
+        const t = term.trim();
+        if (!t) return [];
+        const db = firebase.database();
+        const map = new Map<string, Product>();
+
+        const [codeSnap, nameSnap] = await Promise.all([
+            db.ref("root/products").orderByKey().startAt(t).endAt(t + "\uf8ff").limitToFirst(limit).once("value"),
+            db.ref("root/products").orderByChild("name").startAt(t).endAt(t + "\uf8ff").limitToFirst(limit).once("value"),
+        ]);
+
+        const pushVal = (code: string, val: any) => {
+            if (!val || !code) return;
+            map.set(code, { ...val, code });
+        };
+
+        if (codeSnap.exists()) {
+            codeSnap.forEach((child) => pushVal(child.key as string, child.val()));
+        }
+        if (nameSnap.exists()) {
+            nameSnap.forEach((child) => {
+                const val = child.val();
+                pushVal((val?.code as string) || (child.key as string), val);
+            });
+        }
+
+        return Array.from(map.values());
+    };
+
+    const handleFormCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        setFormData({ ...formData, code: val });
+
+        if (formProductSuggestTimeoutRef.current) clearTimeout(formProductSuggestTimeoutRef.current);
+
+        if (!val.trim()) {
+            setFormProductSuggestions([]);
+            return;
+        }
+
+        formProductSuggestTimeoutRef.current = setTimeout(async () => {
+            try {
+                const list = await fetchRelatedProducts(val.trim());
+                setFormProductSuggestions(list);
+            } catch (err) {
+                console.error(err);
+                setFormProductSuggestions([]);
+            }
+        }, 350);
     };
 
     // Lookup Product details when code changes in form
@@ -107,9 +174,9 @@ const StockEntry = () => {
                 const prodRef = firebase.database().ref(`root/products/${code}`);
                 const snapshot = await prodRef.once("value");
                 if (snapshot.exists()) {
-                    setCurrentProduct(snapshot.val());
+                    setCurrentProduct({ ...snapshot.val(), code });
                 } else {
-                    setCurrentProduct({ code, name: "Not Found", categoryCode: "" });
+                    setCurrentProduct(null);
                 }
             } catch (err) {
                 console.error(err);
@@ -119,50 +186,6 @@ const StockEntry = () => {
         const timer = setTimeout(lookupProduct, 500);
         return () => clearTimeout(timer);
     }, [formData.code]);
-
-    // Search Logic (Global Search)
-    const handleSearchTermChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const term = e.target.value;
-        setSearchTerm(term);
-
-        if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-
-        if (!term) {
-            setSearchResults([]);
-            setShowSearchResults(false);
-            return;
-        }
-
-        searchTimeoutRef.current = setTimeout(() => {
-            (async () => {
-                // 1. Exact match logic
-                const exactSnap = await firebase.database().ref(`root/products/${term}`).once("value");
-                if (exactSnap.exists()) {
-                    loadStockView(term);
-                    setSearchResults([]);
-                    setShowSearchResults(false);
-                    return;
-                }
-
-                // 2. Name search
-                const nameSnap = await firebase.database().ref("root/products")
-                    .orderByChild("name")
-                    .startAt(term)
-                    .endAt(term + "\uf8ff")
-                    .limitToFirst(5)
-                    .once("value");
-
-                if (nameSnap.exists()) {
-                    const results: Product[] = [];
-                    nameSnap.forEach((child) => { results.push(child.val()); });
-                    setSearchResults(results);
-                    setShowSearchResults(true);
-                } else {
-                    setSearchResults([]);
-                }
-            })();
-        }, 400);
-    };
 
     const loadStockView = async (productCode: string) => {
         setActiveView("stock");
@@ -186,6 +209,97 @@ const StockEntry = () => {
             console.error(err);
             toast.error("Failed to load stock data");
         }
+    };
+
+    const applyProductToStockForm = (p: Product) => {
+        setFormData({
+            code: p.code,
+            key: "",
+            pkg: "bottle",
+            unitValue: "",
+            quantity: "",
+            mrp: "",
+            offerPrice: "0.00",
+            tax: "",
+            trending: "0",
+            exclusive: "0",
+            bestSeller: "0",
+            suggestionBox: "0",
+            suggestionSearch: "0",
+        });
+        setCurrentProduct(p);
+        setFormProductSuggestions([]);
+        void loadStockView(p.code);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    useEffect(() => {
+        const prefill = (location.state as { prefillStock?: PrefillStockState } | null)?.prefillStock;
+        if (!prefill?.productCode || !prefill?.variantKey) return;
+
+        const { productCode, variantKey, product, variant: raw } = prefill;
+        const v = raw || {};
+
+        setCurrentProduct(product);
+        setFormProductSuggestions([]);
+        setFormData({
+            code: productCode,
+            key: variantKey,
+            pkg: typeof v.pkg === "string" && v.pkg ? v.pkg : "bottle",
+            unitValue: v.unitValue != null && v.unitValue !== "" ? String(v.unitValue) : "",
+            quantity: v.quantity != null && v.quantity !== "" ? String(v.quantity) : "",
+            mrp: v.mrp != null && v.mrp !== "" ? String(v.mrp) : "",
+            offerPrice: v.offerPrice != null && v.offerPrice !== "" ? String(v.offerPrice) : "0.00",
+            tax: v.tax != null && v.tax !== "" ? String(v.tax) : "",
+            trending: String(v.priorityTrending ?? "0"),
+            exclusive: String(v.priorityExclusive ?? "0"),
+            bestSeller: String(v.priorityBestseller ?? "0"),
+            suggestionBox: String(v.prioritySuggestionBox ?? "0"),
+            suggestionSearch: String(v.prioritySuggestionSearch ?? "0"),
+        });
+
+        void loadStockView(productCode);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        toast.success("Product loaded from analytics");
+
+        navigate(location.pathname, { replace: true, state: {} });
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- apply once per navigation; loadStockView is stable for this use
+    }, [location.state, location.pathname, navigate]);
+
+    // Search Logic (Global Search)
+    const handleSearchTermChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const term = e.target.value;
+        setSearchTerm(term);
+
+        if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+        if (!term) {
+            setSearchResults([]);
+            setShowSearchResults(false);
+            return;
+        }
+
+        searchTimeoutRef.current = setTimeout(() => {
+            void (async () => {
+                const exactSnap = await firebase.database().ref(`root/products/${term}`).once("value");
+                if (exactSnap.exists()) {
+                    const val = exactSnap.val() as Product;
+                    applyProductToStockForm({ ...val, code: term });
+                    setSearchResults([]);
+                    setShowSearchResults(false);
+                    return;
+                }
+
+                const results = await fetchRelatedProducts(term, 10);
+                if (results.length > 0) {
+                    setSearchResults(results);
+                    setShowSearchResults(true);
+                } else {
+                    setSearchResults([]);
+                    setShowSearchResults(false);
+                }
+            })();
+        }, 400);
     };
 
     const loadPriorityView = async (priorityKey: string) => {
@@ -355,6 +469,7 @@ const StockEntry = () => {
             suggestionSearch: "0"
         });
         setCurrentProduct(null);
+        setFormProductSuggestions([]);
     };
 
     return (
@@ -389,11 +504,14 @@ const StockEntry = () => {
                             className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
                         />
                         {showSearchResults && (
-                            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
+                            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl overflow-hidden z-50 max-h-72 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-200">
                                 {searchResults.map(p => (
                                     <div
                                         key={p.code}
-                                        onClick={() => loadStockView(p.code)}
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        onClick={() => {
+                                            applyProductToStockForm(p);
+                                        }}
                                         className="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors border-b border-slate-100 dark:border-slate-800 last:border-none"
                                     >
                                         <img decoding="async" loading="lazy" src={p.pic || "https://via.placeholder.com/30"} alt={p.name} className="w-10 h-10 rounded-lg object-cover bg-slate-100 dark:bg-slate-800" />
@@ -434,17 +552,53 @@ const StockEntry = () => {
                         </div>
 
                         <form onSubmit={handleSubmit} className="space-y-6">
-                            <div className="space-y-2">
+                            <div className="space-y-2 relative">
                                 <label htmlFor="code" className="text-sm font-semibold text-slate-700 dark:text-slate-300">Product Code (Lookup)</label>
                                 <input
                                     type="text"
                                     id="code"
                                     value={formData.code}
-                                    onChange={handleInputChange}
-                                    placeholder="Enter P001..."
+                                    onChange={handleFormCodeChange}
+                                    onFocus={() => setFormCodeFocused(true)}
+                                    onBlur={() => {
+                                        window.setTimeout(() => setFormCodeFocused(false), 200);
+                                    }}
+                                    placeholder="Search code or name…"
                                     required
+                                    autoComplete="off"
                                     className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-slate-100 font-mono transition-all"
                                 />
+                                {formCodeFocused && formProductSuggestions.length > 0 && (
+                                    <div
+                                        className="absolute left-0 right-0 top-full z-50 mt-2 max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900 custom-scrollbar animate-in fade-in zoom-in-95 duration-200"
+                                        role="listbox"
+                                    >
+                                        {formProductSuggestions.map((p) => (
+                                            <button
+                                                key={p.code}
+                                                type="button"
+                                                role="option"
+                                                onMouseDown={(e) => e.preventDefault()}
+                                                onClick={() => applyProductToStockForm(p)}
+                                                className="flex w-full items-center gap-3 border-b border-slate-100 p-3 text-left transition-colors last:border-none hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800"
+                                            >
+                                                <img
+                                                    decoding="async"
+                                                    loading="lazy"
+                                                    src={p.pic || "https://via.placeholder.com/40"}
+                                                    alt=""
+                                                    className="h-10 w-10 shrink-0 rounded-lg bg-slate-100 object-cover dark:bg-slate-800"
+                                                />
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="truncate font-semibold text-slate-900 dark:text-slate-100">{p.name}</div>
+                                                    <div className="mt-0.5 w-fit rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                                        {p.code}
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
                             {currentProduct && (
