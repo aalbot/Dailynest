@@ -17,6 +17,7 @@ const ProductEntry = lazy(() => import("./pages/ProductEntry"));
 const DeliveryScreen = lazy(() => import("./pages/DeliveryScreen"));
 const Overview = lazy(() => import("./pages/Overview"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Dashboard2 = lazy(() => import("./pages/Dashboard2/Dashboard2"));
 const CustomApp = lazy(() => import("./pages/CustomApp"));
 const KeywordEntry = lazy(() => import("./pages/KeywordEntry"));
 const BackOffice = lazy(() => import("./pages/BackOffice"));
@@ -84,6 +85,7 @@ const App = () => (
                     <Route path="/delivery" element={<DeliveryScreen />} />
                     <Route path="/overview" element={<Overview />} />
                     <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/dashboard-2" element={<Dashboard2 />} />
                     <Route path="/custom-app/:id" element={<CustomApp />} />
                     <Route path="/keyword-entry" element={<KeywordEntry />} />
                     <Route path="/back-office" element={<BackOffice />} />

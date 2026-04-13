@@ -11,6 +11,7 @@ import {
   Keyboard,
   Building2,
   TrendingUp,
+  BarChart3,
 
   Plus,
   Edit,
@@ -44,6 +45,7 @@ import {
 
 const initialApps = [
   { icon: TrendingUp, label: "Dashboard", colorClass: "app-icon-rose", path: "/dashboard", key: "apps.dashboard" },
+  { icon: BarChart3, label: "Dashboard 2", colorClass: "app-icon-rose", path: "/dashboard-2", key: "apps.dashboard2" },
   { icon: Users, label: "Employee Management", colorClass: "app-icon-indigo", path: "/employee-management", key: "apps.employeeManagement" },
   { icon: LayoutDashboard, label: "Report", colorClass: "app-icon-cyan", path: "/overview", key: "apps.overview" },
   { icon: ClipboardList, label: "Orders", colorClass: "app-icon-pink", path: "/orders", key: "apps.orders" },

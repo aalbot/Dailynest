@@ -27,6 +27,7 @@
         },
         "apps": {
             "dashboard": "Dashboard",
+            "dashboard2": "Dashboard 2",
             "employeeManagement": "Employee Management",
             "overview": "Report",
             "chat": "AI Chat",
@@ -316,6 +317,7 @@
         },
         "apps": {
             "dashboard": "لوحة القيادة",
+            "dashboard2": "لوحة القيادة 2",
             "employeeManagement": "إدارة الموظفين",
             "overview": "التقارير",
             "chat": "دردشة الذكاء الاصطناعي",
@@ -605,6 +607,7 @@
         },
         "apps": {
             "dashboard": "ഡാഷ്ബോർഡ്",
+            "dashboard2": "ഡാഷ്ബോർഡ് 2",
             "employeeManagement": "ജീവനക്കാരുടെ നിയന്ത്രണം",
             "overview": "റിപ്പോർട്ട്",
             "chat": "AI ചാറ്റ്",

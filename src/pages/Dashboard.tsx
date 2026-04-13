@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { firebase } from "@/lib/firebase";
 import {
     TrendingUp, Menu, LayoutDashboard, IndianRupee,
     ShoppingBasket, Users, Loader2, Globe, DatabaseBackup,
     Layers, Package, CheckCircle, XCircle, Activity, Briefcase, Clock, Smartphone,
-    ChevronDown, X, AlertTriangle, Search, Calendar, Filter, ExternalLink
+    ChevronDown, ChevronRight, X, AlertTriangle, Search, Calendar, Filter, ExternalLink
 } from 'lucide-react';
 import {
     Chart as ChartJS,
@@ -54,6 +54,33 @@ type TimeData = { date: string; count: number; revenue: number };
 
 type StockListFilter = 'least_first' | 'most_first' | 'low_only' | 'all';
 
+/** Parse order total from number, "299 - COD", currency strings, etc. */
+function parseOrderTotal(o: any): { amount: number; method: string } {
+    const t = o?.total;
+    if (t == null || t === "") return { amount: 0, method: "Other" };
+    if (typeof t === "number" && !Number.isNaN(t)) return { amount: t, method: "Other" };
+    const s = String(t).trim();
+    const numPart = (str: string) => parseFloat(str.replace(/[,₹\s]/g, "")) || 0;
+    if (s.includes("-")) {
+        const idx = s.indexOf("-");
+        const amount = numPart(s.slice(0, idx));
+        const rest = s.slice(idx + 1).toLowerCase();
+        if (rest.includes("cod")) return { amount, method: "COD" };
+        if (rest.includes("wallet")) return { amount, method: "Wallet" };
+        if (rest.includes("upi")) return { amount, method: "UPI" };
+        if (rest.includes("card") || rest.includes("razorpay") || rest.includes("pay")) return { amount, method: "Card" };
+        return { amount, method: "Other" };
+    }
+    return { amount: numPart(s), method: "Other" };
+}
+
+function orderStatusBucket(status: string): "delivered" | "cancelled" | "pending" {
+    const st = (status || "").toLowerCase();
+    if (st.includes("deliver") || st.includes("complete")) return "delivered";
+    if (st.includes("cancel")) return "cancelled";
+    return "pending";
+}
+
 const Dashboard = () => {
     // State
     const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -72,8 +99,16 @@ const Dashboard = () => {
     const [stockListFilter, setStockListFilter] = useState<StockListFilter>('least_first');
     const [stockFilterMenuOpen, setStockFilterMenuOpen] = useState(false);
     const [timePeriod, setTimePeriod] = useState<string>('all');
+    const [nowTick, setNowTick] = useState(() => Date.now());
+    const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
+    const coreReadyRef = useRef<Record<string, boolean>>({});
     const location = useLocation();
     const navigate = useNavigate();
+
+    useEffect(() => {
+        const id = window.setInterval(() => setNowTick(Date.now()), 1000);
+        return () => window.clearInterval(id);
+    }, []);
 
     // Handle incoming tab state
     useEffect(() => {
@@ -87,69 +122,68 @@ const Dashboard = () => {
         if (activeTab !== "stocks") setStockFilterMenuOpen(false);
     }, [activeTab]);
 
-    // Load Data
+    // Load Data — full real-time listeners; empty DB still marks nodes ready
     useEffect(() => {
         const db = firebase.database();
-        const rootRef = db.ref('root');
-        const nodes = ['category', 'fcm_tokens', 'order', 'stock', 'products'];
-        const dataBuffer: any = { ...FALLBACK_DATA };
-        let loadedCount = 0;
+        const rootRef = db.ref("root");
+        const CORE_NODES = ["category", "products", "fcm_tokens", "order", "stock"] as const;
+
+        const markCoreReady = (node: string) => {
+            if (!CORE_NODES.includes(node as (typeof CORE_NODES)[number])) return;
+            coreReadyRef.current[node] = true;
+            if (CORE_NODES.every((n) => coreReadyRef.current[n])) {
+                setIsLoading(false);
+                setIsConnected(true);
+                setDataSourceMsg("");
+            }
+        };
 
         setIsLoading(true);
+        coreReadyRef.current = {};
 
         const onDataUpdate = (node: string, val: any) => {
-            dataBuffer[node] = val || {};
-            setRawData((prev: any) => ({ ...prev, [node]: val || {} }));
+            const safe = val == null ? {} : val;
+            setRawData((prev: any) => ({ ...prev, [node]: safe }));
+            setLastSyncAt(Date.now());
+            markCoreReady(node);
+        };
 
-            if (nodes.includes(node)) {
-                loadedCount = nodes.filter(n => dataBuffer[n] && Object.keys(dataBuffer[n]).length > 0).length;
-                if (loadedCount >= nodes.length) {
-                    setIsLoading(false);
-                    setIsConnected(true);
+        const categoryRef = rootRef.child("category");
+        const productsRef = rootRef.child("products");
+        const fcmRef = rootRef.child("fcm_tokens");
+        const orderRef = rootRef.child("order");
+        const stockRef = rootRef.child("stock");
+        const hrRef = db.ref("root/nexus_hr");
+        const empRef = hrRef.child("employees");
+        const deptRef = hrRef.child("departments");
+
+        categoryRef.on("value", (snap) => onDataUpdate("category", snap.val()));
+        productsRef.on("value", (snap) => onDataUpdate("products", snap.val()));
+        fcmRef.on("value", (snap) => onDataUpdate("fcm_tokens", snap.val()));
+        orderRef.on("value", (snap) => onDataUpdate("order", snap.val()));
+        stockRef.on("value", (snap) => onDataUpdate("stock", snap.val()));
+        empRef.on("value", (snap) => onDataUpdate("employees", snap.val()));
+        deptRef.on("value", (snap) => onDataUpdate("departments", snap.val()));
+
+        const timeout = window.setTimeout(() => {
+            setIsLoading((loading) => {
+                if (loading) {
+                    setIsConnected(false);
+                    setDataSourceMsg("Timeout — showing last known data");
                 }
-            }
-        };
-
-        // Static nodes
-        rootRef.child('category').once('value', snap => onDataUpdate('category', snap.val()));
-        rootRef.child('products').once('value', snap => onDataUpdate('products', snap.val()));
-        rootRef.child('fcm_tokens').once('value', snap => onDataUpdate('fcm_tokens', snap.val()));
-
-        // Real-time nodes
-        const stockRef = rootRef.child('stock');
-        stockRef.on('value', snap => onDataUpdate('stock', snap.val()));
-
-        const orderQuery = rootRef.child('order').limitToLast(500);
-        const handleOrderUpdate = (snap: any) => {
-            setRawData((prev: any) => ({
-                ...prev,
-                order: { ...(prev.order || {}), [snap.key!]: snap.val() }
-            }));
-            if (isLoading && nodes.includes('order')) {
-                // Initial load check
-            }
-        };
-        orderQuery.on('value', snap => onDataUpdate('order', snap.val()));
-
-        // HR Data
-        const hrRef = db.ref('root/nexus_hr');
-        hrRef.child('employees').on('value', snap => onDataUpdate('employees', snap.val()));
-        hrRef.child('departments').on('value', snap => onDataUpdate('departments', snap.val()));
-
-        const timeout = setTimeout(() => {
-            if (isLoading) {
-                setIsConnected(false);
-                setDataSourceMsg("Timeout - Backup Mode");
-                setIsLoading(false);
-            }
+                return false;
+            });
         }, 12000);
 
         return () => {
-            rootRef.child('stock').off();
-            orderQuery.off();
-            hrRef.child('employees').off();
-            hrRef.child('departments').off();
-            clearTimeout(timeout);
+            categoryRef.off("value");
+            productsRef.off("value");
+            fcmRef.off("value");
+            orderRef.off("value");
+            stockRef.off("value");
+            empRef.off("value");
+            deptRef.off("value");
+            window.clearTimeout(timeout);
         };
     }, []);
 
@@ -205,26 +239,19 @@ const Dashboard = () => {
 
         let totalRevenue = 0, completedOrders = 0, cancelledOrders = 0, pendingOrders = 0;
         let productSales: Record<string, number> = {};
-        let methodStats: Record<string, number> = { 'COD': 0, 'Wallet': 0, 'Other': 0 };
+        const methodStats: Record<string, number> = {};
         const timeMap: Record<string, TimeData> = {};
         const hourMap = new Array(24).fill(0);
-        let detailedRev: any[] = [];
-
         orderList.forEach((o: any) => {
-            const status = (o.status || '').toLowerCase();
-            const isComp = status.includes('deliver') || status.includes('complete');
-            let amt = 0, method = "Other";
-            if (typeof o.total === 'string' && o.total.includes('-')) {
-                const parts = o.total.split('-');
-                amt = parseFloat(parts[0]);
-                method = parts[1].trim().toLowerCase().includes('cod') ? 'COD' : 'Wallet';
-            } else amt = parseFloat(o.total) || 0;
+            const bucket = orderStatusBucket(o.status);
+            const isComp = bucket === "delivered";
+            const { amount: amt, method } = parseOrderTotal(o);
 
             if (isComp) {
-                completedOrders++; totalRevenue += amt;
+                completedOrders++;
+                totalRevenue += amt;
                 methodStats[method] = (methodStats[method] || 0) + amt;
-                detailedRev.push({ id: o.id, amount: amt, method: method, date: o.timestamp || Date.now() });
-            } else if (status.includes('cancel')) cancelledOrders++;
+            } else if (bucket === "cancelled") cancelledOrders++;
             else pendingOrders++;
 
             const ts = o.timestamp || o.createdAt;
@@ -240,34 +267,84 @@ const Dashboard = () => {
             Object.keys(o).forEach(k => { if (k.startsWith('item') && o[k]) productSales[o[k]] = (productSales[o[k]] || 0) + 1; });
         });
 
+        const periodLabel =
+            timePeriod === "today" ? "Today" :
+            timePeriod === "7d" ? "Last 7 days" :
+            timePeriod === "30d" ? "Last 30 days" : "All time";
+
+        let priorRevenue = 0;
+        if (timePeriod === "7d") {
+            const startPrev = now - (14 * 24 * 60 * 60 * 1000);
+            const endPrev = sevenDaysAgo;
+            allOrders.forEach((o: any) => {
+                const ts = o.timestamp || o.createdAt;
+                if (!ts || ts < startPrev || ts >= endPrev) return;
+                if (orderStatusBucket(o.status) === "delivered") priorRevenue += parseOrderTotal(o).amount;
+            });
+        } else if (timePeriod === "30d") {
+            const startPrev = now - (60 * 24 * 60 * 60 * 1000);
+            const endPrev = thirtyDaysAgo;
+            allOrders.forEach((o: any) => {
+                const ts = o.timestamp || o.createdAt;
+                if (!ts || ts < startPrev || ts >= endPrev) return;
+                if (orderStatusBucket(o.status) === "delivered") priorRevenue += parseOrderTotal(o).amount;
+            });
+        }
+        const revenueDeltaPct =
+            priorRevenue > 0 ? Math.round(((totalRevenue - priorRevenue) / priorRevenue) * 100) :
+            totalRevenue > 0 ? 100 : 0;
+
+        const recentOrdersTable = [...orderList]
+            .filter((o: any) => o.timestamp || o.createdAt)
+            .sort((a: any, b: any) => (b.timestamp || b.createdAt) - (a.timestamp || a.createdAt))
+            .slice(0, 25)
+            .map((o: any) => {
+                const { amount, method } = parseOrderTotal(o);
+                const b = orderStatusBucket(o.status);
+                const statusLabel = b === "delivered" ? "Delivered" : b === "cancelled" ? "Cancelled" : "Pending";
+                return {
+                    id: o.id,
+                    date: o.timestamp || o.createdAt,
+                    amount,
+                    method,
+                    statusLabel,
+                    statusBucket: b,
+                };
+            });
+
         // Stock
         let stockVal = 0, stockQty = 0, stockVariants = 0;
+        let outOfStockSkus = 0;
         let lowStock: any[] = [], inventoryByCat: Record<string, number> = {};
         if (data.stock && data.products) {
             Object.entries(data.stock).forEach(([pid, variants]: [string, any]) => {
                 const pInfo = data.products[pid];
                 const cat = (pInfo && data.category?.[pInfo.categoryCode]) ? data.category[pInfo.categoryCode].name : 'Uncategorized';
                 Object.entries(variants).forEach(([vid, v]: [string, any]) => {
-                    const q = parseInt(v.quantity) || 0, pr = parseFloat(v.offerPrice) || parseFloat(v.mrp) || 0;
+                    const parsed = parseInt(String(v.quantity ?? "").trim(), 10);
+                    const q = Number.isFinite(parsed) ? parsed : 0;
+                    const pr = parseFloat(v.offerPrice) || parseFloat(v.mrp) || 0;
                     stockVal += (q * pr); stockQty += q; stockVariants++;
+                    if (q <= 0) outOfStockSkus++;
                     inventoryByCat[cat] = (inventoryByCat[cat] || 0) + (q * pr);
-                    if (q <= 5) lowStock.push({ id: pid, name: pInfo?.name || "Unknown", quantity: q, category: cat });
+                    if (q >= 1 && q <= 5) lowStock.push({ id: pid, name: pInfo?.name || "Unknown", quantity: q, category: cat });
                 });
             });
         }
 
-        // Specific Today Stats for Snapshot (Always calculated regardless of filter)
-        let todayRevenue = 0, todayOrders = 0, todayUsers = 0;
+        const uniqueProductCount = Object.keys(data.products || {}).length;
+        const orderDenominator = completedOrders + cancelledOrders + pendingOrders;
+        const completionRatePct = orderDenominator > 0 ? Math.round((completedOrders / orderDenominator) * 1000) / 10 : 0;
+
+        // Today's snapshot (always from full order set, not time filter)
+        let todayRevenue = 0, todayOrderCount = 0, todayDeliveredCount = 0, todayUsers = 0;
         allOrders.forEach((o: any) => {
-            if ((o.timestamp || o.createdAt) >= startOfToday) {
-                todayOrders++;
-                const status = (o.status || '').toLowerCase();
-                if (status.includes('deliver') || status.includes('complete')) {
-                    let amt = 0;
-                    if (typeof o.total === 'string' && o.total.includes('-')) amt = parseFloat(o.total.split('-')[0]);
-                    else amt = parseFloat(o.total) || 0;
-                    todayRevenue += amt;
-                }
+            const ts = o.timestamp || o.createdAt;
+            if (!ts || ts < startOfToday) return;
+            todayOrderCount++;
+            if (orderStatusBucket(o.status) === "delivered") {
+                todayDeliveredCount++;
+                todayRevenue += parseOrderTotal(o).amount;
             }
         });
         userArray.forEach(u => { if (u.updatedAt >= startOfToday) todayUsers++; });
@@ -279,44 +356,81 @@ const Dashboard = () => {
                 totalOrders: orderList.length,
                 completedOrders,
                 cancelledOrders,
+                pendingOrders,
                 totalVariants: stockVariants,
+                uniqueProductCount,
                 allOrdersCount: allOrders.length,
-                todayOrders,
-                todayUsers
+                todayOrders: todayOrderCount,
+                todayDeliveredCount,
+                todayUsers,
+                outOfStockSkus,
+                completionRatePct,
             },
-            pulse: { revenue: todayRevenue, orders: todayOrders, users: todayUsers },
+            pulse: {
+                revenue: todayRevenue,
+                orders: todayOrderCount,
+                deliveredToday: todayDeliveredCount,
+                users: todayUsers,
+            },
             chartData: Object.values(timeMap).sort((a, b) => a.date.localeCompare(b.date)).slice(-14),
             platformData: Object.entries(userArray.reduce((acc, u) => { acc[u.cleanPlatform] = (acc[u.cleanPlatform] || 0) + 1; return acc; }, {} as any)).map(([name, value]: any) => ({ name, value })),
-            financialStats: { totalRevenue, avgOrder: completedOrders > 0 ? totalRevenue / completedOrders : 0, stockValue: stockVal, totalStockQuantity: stockQty, pendingOrders, totalVariants: stockVariants },
+            financialStats: {
+                totalRevenue,
+                avgOrder: completedOrders > 0 ? totalRevenue / completedOrders : 0,
+                stockValue: stockVal,
+                totalStockQuantity: stockQty,
+                pendingOrders,
+                totalVariants: stockVariants,
+                priorRevenue,
+                revenueDeltaPct,
+            },
             topProducts: Object.entries(productSales).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 10),
             orderStatusData: [{ name: 'Delivered', value: completedOrders, color: '#10b981' }, { name: 'Pending', value: pendingOrders, color: '#f59e0b' }, { name: 'Cancelled', value: cancelledOrders, color: '#ef4444' }],
             inventoryChartData: { labels: Object.keys(inventoryByCat), values: Object.values(inventoryByCat) },
-            revenueChartData: { labels: Object.keys(methodStats).filter(k => methodStats[k] > 0), values: Object.values(methodStats).filter(v => v > 0) },
-            detailedRevenue: detailedRev,
+            revenueByMethod: {
+                labels: Object.keys(methodStats).filter((k) => methodStats[k] > 0),
+                values: Object.keys(methodStats).filter((k) => methodStats[k] > 0).map((k) => methodStats[k]),
+            },
+            periodLabel,
+            recentOrdersTable,
             lowStockProducts: lowStock,
             users: userArray,
             engagementData: hourMap,
-            hrStats: {
-                totalEmployees: Object.keys(data.employees || {}).length,
-                deptBreakdown: data.departments ? Object.values(data.departments).map((d: any) => ({
-                    name: d.name,
-                    count: Object.values(data.employees || {}).filter((e: any) => e.department === d.name).length
-                })) : []
-            },
+            hrStats: (() => {
+                const empSrc = data.employees;
+                const empList: any[] = Array.isArray(empSrc)
+                    ? empSrc
+                    : empSrc && typeof empSrc === "object"
+                        ? Object.values(empSrc)
+                        : [];
+                return {
+                    totalEmployees: empList.length,
+                    deptBreakdown: data.departments
+                        ? Object.values(data.departments).map((d: any) => ({
+                            name: d.name,
+                            count: empList.filter((e: any) => e.department === d.name).length,
+                        }))
+                        : [],
+                };
+            })(),
             allStockItems: Object.entries(data.stock || {}).flatMap(([pid, variants]: [string, any]) => {
                 const pInfo = data.products?.[pid];
                 const cat = (pInfo && data.category?.[pInfo.categoryCode]) ? data.category[pInfo.categoryCode].name : 'Uncategorized';
-                return Object.entries(variants).map(([vid, v]: [string, any]) => ({
+                return Object.entries(variants).map(([vid, v]: [string, any]) => {
+                    const parsed = parseInt(String(v.quantity ?? "").trim(), 10);
+                    const qty = Number.isFinite(parsed) ? parsed : 0;
+                    return {
                     id: pid,
                     variantId: vid,
                     name: pInfo?.name || "Unknown",
                     category: cat,
                     categoryCode: pInfo?.categoryCode || "",
-                    quantity: parseInt(v.quantity) || 0,
+                    quantity: qty,
                     price: parseFloat(v.offerPrice) || parseFloat(v.mrp) || 0,
                     pic: pInfo?.pic || "",
                     variantRaw: v,
-                }));
+                };
+                });
             })
         };
     }, [rawData, timePeriod]);
@@ -325,7 +439,7 @@ const Dashboard = () => {
         const items = processed?.allStockItems ?? [];
         let list = items.filter((i: { name: string }) => i.name.toLowerCase().includes(stockSearchTerm.toLowerCase()));
         if (stockListFilter === 'low_only') {
-            list = list.filter((i: { quantity: number }) => i.quantity <= 5);
+            list = list.filter((i: { quantity: number }) => i.quantity >= 1 && i.quantity <= 5);
         }
         const sorted = [...list];
         if (stockListFilter === 'least_first' || stockListFilter === 'low_only') {
@@ -353,7 +467,26 @@ const Dashboard = () => {
 
     if (isLoading || !processed) return <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950"><Loader2 className="animate-spin text-blue-600" /></div>;
 
-    const { stats, pulse, chartData, platformData, financialStats, topProducts, orderStatusData, inventoryChartData, revenueChartData, detailedRevenue, lowStockProducts, users, engagementData, hrStats, allStockItems } = processed;
+    const {
+        stats,
+        pulse,
+        chartData,
+        platformData,
+        financialStats,
+        topProducts,
+        orderStatusData,
+        inventoryChartData,
+        revenueByMethod,
+        periodLabel,
+        recentOrdersTable,
+        lowStockProducts,
+        users,
+        engagementData,
+        hrStats,
+        allStockItems,
+    } = processed;
+
+    const secsSinceSync = lastSyncAt != null ? Math.max(0, Math.floor((nowTick - lastSyncAt) / 1000)) : null;
 
     return (
         <div className="flex h-screen bg-slate-50 dark:bg-slate-950 font-sans transition-colors duration-300">
@@ -377,10 +510,11 @@ const Dashboard = () => {
                         </button>
                     ))}
                 </nav>
-                <div className="p-4 border-t border-slate-200 dark:border-slate-800">
+                <div className="p-4 border-t border-slate-200 dark:border-slate-800 space-y-2">
                     <div className={`rounded-xl p-4 text-white shadow-lg ${isConnected ? 'bg-gradient-to-br from-emerald-500 to-teal-600' : 'bg-gradient-to-br from-orange-400 to-red-500'}`}>
-                        <p className="text-xs font-medium text-white/80 mb-1">Status</p>
-                        <p className="text-sm font-bold flex items-center gap-2">{isConnected ? <><Globe size={16} /> Live Data</> : <><DatabaseBackup size={16} /> Backup Mode</>}</p>
+                        <p className="text-xs font-medium text-white/80 mb-1">Firebase</p>
+                        <p className="text-sm font-bold flex items-center gap-2">{isConnected ? <><Globe size={16} /> Live sync</> : <><DatabaseBackup size={16} /> Offline / fallback</>}</p>
+                        {dataSourceMsg ? <p className="text-[10px] text-white/90 mt-2 leading-snug">{dataSourceMsg}</p> : isConnected ? <p className="text-[10px] text-white/75 mt-2">Orders, stock, products & tokens stream in real time.</p> : null}
                     </div>
                 </div>
             </aside>
@@ -404,31 +538,52 @@ const Dashboard = () => {
                     </div>
                 )}
 
-                <div className="flex-1 overflow-auto p-4 md:p-8 custom-scrollbar">
+                <div id="dashboard-main-scroll" className="flex-1 overflow-auto p-4 md:p-8 custom-scrollbar">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                         <div>
                             <h2 className="text-3xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-3 capitalize">
                                 {activeTab} Analytics
                             </h2>
-                            <p className="text-slate-500 dark:text-slate-400 text-sm">Real-time business intelligence for your organization.</p>
+                            <p className="text-slate-500 dark:text-slate-400 text-sm">
+                                Real-time business intelligence for your organization.
+                                {isConnected && secsSinceSync != null && (
+                                    <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                                        <span className="inline-flex items-center gap-1">
+                                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                            Live
+                                        </span>
+                                        <span className="text-slate-400 dark:text-slate-500 font-normal">·</span>
+                                        <span>Firebase synced {secsSinceSync === 0 ? "just now" : `${secsSinceSync}s ago`}</span>
+                                        <span className="text-slate-400 dark:text-slate-500 font-normal hidden sm:inline">·</span>
+                                        <span className="font-mono text-slate-500 dark:text-slate-400">{new Date(nowTick).toLocaleTimeString()}</span>
+                                    </span>
+                                )}
+                                {!isConnected && dataSourceMsg && (
+                                    <span className="mt-1.5 block text-xs font-medium text-amber-600 dark:text-amber-400">{dataSourceMsg}</span>
+                                )}
+                            </p>
                         </div>
-                        <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                            {[
-                                { id: 'today', label: 'Today' },
-                                { id: '7d', label: '7 Days' },
-                                { id: '30d', label: '30 Days' },
-                                { id: 'all', label: 'All Time' }
-                            ].map(p => (
-                                <button
-                                    key={p.id}
-                                    onClick={() => setTimePeriod(p.id)}
-                                    className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${timePeriod === p.id
-                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-                                        : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                                >
-                                    {p.label}
-                                </button>
-                            ))}
+                        <div className="flex flex-col items-stretch sm:items-end gap-2">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 text-center sm:text-right">Order charts: {periodLabel}</p>
+                            <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                                {[
+                                    { id: 'today', label: 'Today' },
+                                    { id: '7d', label: '7 Days' },
+                                    { id: '30d', label: '30 Days' },
+                                    { id: 'all', label: 'All Time' }
+                                ].map(p => (
+                                    <button
+                                        key={p.id}
+                                        type="button"
+                                        onClick={() => setTimePeriod(p.id)}
+                                        className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${timePeriod === p.id
+                                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                                            : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                                    >
+                                        {p.label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
 
@@ -450,57 +605,132 @@ const Dashboard = () => {
                                             Live Tracking
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-3 md:grid-cols-3 col-span-1 lg:col-span-3 gap-4 border-t md:border-t-0 md:border-l border-white/10 pt-6 md:pt-0 md:pl-8">
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 col-span-1 lg:col-span-3 gap-4 border-t md:border-t-0 md:border-l border-white/10 pt-6 md:pt-0 md:pl-8">
                                         <div className="space-y-1">
-                                            <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest opacity-60">Orders</p>
-                                            <p className="text-2xl md:text-3xl font-black">{pulse.orders}</p>
+                                            <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest opacity-60">Orders today</p>
+                                            <p className="text-2xl md:text-3xl font-black tabular-nums">{pulse.orders}</p>
                                         </div>
                                         <div className="space-y-1">
-                                            <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest opacity-60">New Users</p>
-                                            <p className="text-2xl md:text-3xl font-black">{pulse.users}</p>
+                                            <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest opacity-60">Delivered</p>
+                                            <p className="text-2xl md:text-3xl font-black tabular-nums">{pulse.deliveredToday}</p>
                                         </div>
                                         <div className="space-y-1">
-                                            <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest opacity-60">Avg Today</p>
-                                            <p className="text-2xl md:text-3xl font-black">{fmtMoney(pulse.orders > 0 ? pulse.revenue / pulse.orders : 0)}</p>
+                                            <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest opacity-60">New users</p>
+                                            <p className="text-2xl md:text-3xl font-black tabular-nums">{pulse.users}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest opacity-60">Avg delivered</p>
+                                            <p className="text-2xl md:text-3xl font-black tabular-nums">{fmtMoney(pulse.deliveredToday > 0 ? pulse.revenue / pulse.deliveredToday : 0)}</p>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
                             {lowStockProducts.length > 0 && (
-                                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-center justify-between gap-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-amber-100 rounded-lg text-amber-600"><AlertTriangle size={20} /></div>
-                                        <div><h4 className="text-amber-900 dark:text-amber-200 font-bold">Low Stock Alert</h4><p className="text-amber-700 text-sm">{lowStockProducts.length} items running low.</p></div>
+                                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="p-2 bg-amber-100 dark:bg-amber-900/40 rounded-lg text-amber-600 dark:text-amber-400 shrink-0"><AlertTriangle size={20} /></div>
+                                        <div className="min-w-0">
+                                            <h4 className="text-amber-900 dark:text-amber-200 font-bold">Low Stock Alert</h4>
+                                            <p className="text-amber-800 dark:text-amber-300/90 text-sm">{lowStockProducts.length} items running low.</p>
+                                        </div>
                                     </div>
-                                    <div className="flex gap-2">
-                                        {lowStockProducts.slice(0, 3).map((p, i) => <div key={i} className="bg-white px-2 py-1 rounded border text-[10px] font-bold">{p.name} ({p.quantity})</div>)}
+                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:shrink-0">
+                                        <div className="flex flex-wrap gap-2">
+                                            {lowStockProducts.slice(0, 3).map((p, i) => (
+                                                <div key={i} className="bg-white dark:bg-slate-900 px-2 py-1 rounded border border-amber-200/80 dark:border-amber-800 text-[10px] font-bold text-amber-900 dark:text-amber-100">{p.name} ({p.quantity})</div>
+                                            ))}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setStockListFilter("low_only");
+                                                setActiveTab("stocks");
+                                                document.getElementById("dashboard-main-scroll")?.scrollTo({ top: 0, behavior: "smooth" });
+                                            }}
+                                            className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-600"
+                                        >
+                                            View inventory
+                                            <ChevronRight size={18} className="opacity-90" />
+                                        </button>
                                     </div>
                                 </div>
                             )}
 
-                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-4">
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
                                 {[
-                                    { label: 'Employees', value: hrStats.totalEmployees, icon: Users, color: 'bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400' },
+                                    { label: 'Employees', value: hrStats.totalEmployees, icon: Briefcase, color: 'bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400' },
                                     { label: 'Categories', value: stats.totalCategories, icon: ShoppingBasket, color: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' },
-                                    { label: 'Products', value: stats.totalVariants, icon: Layers, color: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400' },
-                                    { label: 'Stock Qty', value: financialStats.totalStockQuantity, icon: Activity, color: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' },
-                                    { label: 'Total Users', value: stats.totalUsers, icon: Users, color: 'bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400' },
-                                    { label: 'Orders', value: stats.totalOrders, icon: Package, color: 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' },
+                                    { label: 'Catalog products', value: stats.uniqueProductCount, icon: Package, color: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400' },
+                                    { label: 'Stock variants', value: stats.totalVariants, icon: Layers, color: 'bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400' },
+                                    { label: 'Stock units', value: financialStats.totalStockQuantity, icon: Activity, color: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' },
+                                    { label: 'Out of stock', value: stats.outOfStockSkus, icon: AlertTriangle, color: 'bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-400' },
+                                    { label: 'App users', value: stats.totalUsers, icon: Users, color: 'bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400' },
+                                    { label: `Orders (${periodLabel})`, value: stats.totalOrders, icon: ShoppingBasket, color: 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' },
                                     { label: 'Delivered', value: stats.completedOrders, icon: CheckCircle, color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400' },
                                     { label: 'Cancelled', value: stats.cancelledOrders, icon: XCircle, color: 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' },
+                                    { label: 'Fulfillment rate', value: `${stats.completionRatePct}%`, icon: TrendingUp, color: 'bg-cyan-50 text-cyan-600 dark:bg-cyan-900/20 dark:text-cyan-400' },
                                 ].map((kpi, i) => (
                                     <div key={i} className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col items-center text-center justify-center gap-2 hover:border-blue-500/50 hover:shadow-md transition-all group">
                                         <div className={`p-2.5 rounded-xl ${kpi.color} group-hover:scale-110 transition-transform`}><kpi.icon size={18} /></div>
-                                        <div><p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-bold tracking-tighter">{kpi.label}</p><h3 className="text-xl font-black text-slate-800 dark:text-slate-100">{kpi.value}</h3></div>
+                                        <div className="min-w-0"><p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-bold tracking-tighter leading-tight">{kpi.label}</p><h3 className="text-lg md:text-xl font-black text-slate-800 dark:text-slate-100 tabular-nums">{kpi.value}</h3></div>
                                     </div>
                                 ))}
                             </div>
 
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                 <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
-                                    <h3 className="text-lg font-bold mb-4">Order Timeline</h3>
-                                    <div className="h-72 w-full"><Line data={{ labels: chartData.map(d => d.date), datasets: [{ label: 'Orders', data: chartData.map(d => d.count), borderColor: '#3b82f6', tension: 0.4, fill: true, backgroundColor: 'rgba(59, 130, 246, 0.05)' }] }} options={{ responsive: true, maintainAspectRatio: false }} /></div>
+                                    <h3 className="text-lg font-bold mb-1">Orders & revenue</h3>
+                                    <p className="text-xs text-slate-500 mb-4">Daily order count and delivered revenue ({periodLabel.toLowerCase()})</p>
+                                    <div className="h-72 w-full">
+                                        <Line
+                                            data={{
+                                                labels: chartData.map(d => d.date),
+                                                datasets: [
+                                                    {
+                                                        label: 'Orders',
+                                                        data: chartData.map(d => d.count),
+                                                        borderColor: '#3b82f6',
+                                                        backgroundColor: 'rgba(59, 130, 246, 0.06)',
+                                                        tension: 0.35,
+                                                        fill: true,
+                                                        yAxisID: 'y',
+                                                    },
+                                                    {
+                                                        label: 'Revenue (₹)',
+                                                        data: chartData.map(d => d.revenue),
+                                                        borderColor: '#a855f7',
+                                                        backgroundColor: 'rgba(168, 85, 247, 0.06)',
+                                                        tension: 0.35,
+                                                        fill: true,
+                                                        yAxisID: 'y1',
+                                                    },
+                                                ],
+                                            }}
+                                            options={{
+                                                responsive: true,
+                                                maintainAspectRatio: false,
+                                                interaction: { mode: 'index', intersect: false },
+                                                scales: {
+                                                    y: {
+                                                        type: 'linear',
+                                                        position: 'left',
+                                                        beginAtZero: true,
+                                                        title: { display: true, text: 'Orders' },
+                                                        grid: { color: 'rgba(148, 163, 184, 0.15)' },
+                                                    },
+                                                    y1: {
+                                                        type: 'linear',
+                                                        position: 'right',
+                                                        beginAtZero: true,
+                                                        title: { display: true, text: 'Revenue ₹' },
+                                                        grid: { drawOnChartArea: false },
+                                                    },
+                                                    x: { grid: { display: false } },
+                                                },
+                                            }}
+                                        />
+                                    </div>
                                 </div>
                                 <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
                                     <h3 className="text-lg font-bold mb-4">Order Status</h3>
@@ -522,20 +752,119 @@ const Dashboard = () => {
 
                     {activeTab === 'business' && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800"><p className="text-slate-500 text-sm">Total Revenue</p><h3 className="text-2xl font-bold mt-1">{fmtMoney(financialStats.totalRevenue)}</h3></div>
-                                <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800"><p className="text-slate-500 text-sm">Inventory Value</p><h3 className="text-2xl font-bold mt-1 text-blue-600">{fmtMoney(financialStats.stockValue)}</h3></div>
-                                <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800"><p className="text-slate-500 text-sm">Avg Order Value</p><h3 className="text-2xl font-bold mt-1">{fmtMoney(financialStats.avgOrder)}</h3></div>
-                                <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800"><p className="text-slate-500 text-sm">Pending Orders</p><h3 className="text-2xl font-bold mt-1 text-orange-500">{financialStats.pendingOrders}</h3></div>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 -mt-2">
+                                Figures below use the selected time range for orders and revenue; inventory reflects <span className="font-semibold text-slate-700 dark:text-slate-300">live</span> stock and catalog data.
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                                <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                                    <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wide">Revenue ({periodLabel})</p>
+                                    <h3 className="text-2xl font-black mt-1 text-slate-900 dark:text-slate-100 tabular-nums">{fmtMoney(financialStats.totalRevenue)}</h3>
+                                    <p className="text-[10px] text-slate-400 mt-1">Delivered orders only</p>
+                                </div>
+                                <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                                    <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wide">Avg order</p>
+                                    <h3 className="text-2xl font-black mt-1 tabular-nums">{fmtMoney(financialStats.avgOrder)}</h3>
+                                    <p className="text-[10px] text-slate-400 mt-1">Mean on completed orders</p>
+                                </div>
+                                <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                                    <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wide">Inventory value</p>
+                                    <h3 className="text-2xl font-black mt-1 text-blue-600 dark:text-blue-400 tabular-nums">{fmtMoney(financialStats.stockValue)}</h3>
+                                    <p className="text-[10px] text-slate-400 mt-1">Σ qty × offer (or MRP)</p>
+                                </div>
+                                <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                                    <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wide">Stock units</p>
+                                    <h3 className="text-2xl font-black mt-1 tabular-nums">{financialStats.totalStockQuantity}</h3>
+                                    <p className="text-[10px] text-slate-400 mt-1">{stats.totalVariants} variants · {stats.outOfStockSkus} at zero</p>
+                                </div>
+                                <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                                    <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wide">Pipeline</p>
+                                    <h3 className="text-2xl font-black mt-1 text-orange-500 tabular-nums">{stats.pendingOrders}</h3>
+                                    <p className="text-[10px] text-slate-400 mt-1">Non-delivered, non-cancelled</p>
+                                </div>
+                                <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                                    <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wide">Fulfillment</p>
+                                    <h3 className="text-2xl font-black mt-1 text-emerald-600 dark:text-emerald-400 tabular-nums">{stats.completionRatePct}%</h3>
+                                    <p className="text-[10px] text-slate-400 mt-1">Delivered ÷ all in range</p>
+                                </div>
                             </div>
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                                 <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
-                                    <h3 className="text-lg font-bold mb-4">Inventory by Category</h3>
-                                    <div className="h-64"><Bar data={{ labels: inventoryChartData.labels, datasets: [{ label: 'Value (₹)', data: inventoryChartData.values, backgroundColor: '#34d399' }] }} options={{ responsive: true, maintainAspectRatio: false }} /></div>
+                                    <h3 className="text-lg font-bold mb-1">Inventory by category</h3>
+                                    <p className="text-xs text-slate-500 mb-4">Retail value by category (live)</p>
+                                    <div className="h-72">
+                                        <Bar
+                                            data={{
+                                                labels: inventoryChartData.labels,
+                                                datasets: [{ label: 'Value (₹)', data: inventoryChartData.values, backgroundColor: '#34d399' }],
+                                            }}
+                                            options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }}
+                                        />
+                                    </div>
                                 </div>
                                 <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
-                                    <h3 className="text-lg font-bold mb-4">Revenue Methodology</h3>
-                                    <div className="h-64 flex justify-center"><Pie data={{ labels: revenueChartData.labels, datasets: [{ data: revenueChartData.values, backgroundColor: ['#3b82f6', '#10b981', '#f59e0b'] }] }} options={{ responsive: true, maintainAspectRatio: false }} /></div>
+                                    <h3 className="text-lg font-bold mb-1">Revenue by payment method</h3>
+                                    <p className="text-xs text-slate-500 mb-4">Delivered orders in {periodLabel.toLowerCase()}</p>
+                                    <div className="h-72">
+                                        {revenueByMethod.labels.length > 0 ? (
+                                            <Bar
+                                                data={{
+                                                    labels: revenueByMethod.labels,
+                                                    datasets: [{
+                                                        label: 'Revenue (₹)',
+                                                        data: revenueByMethod.values,
+                                                        backgroundColor: revenueByMethod.labels.map((_, i) => ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b'][i % 6]),
+                                                    }],
+                                                }}
+                                                options={{
+                                                    responsive: true,
+                                                    maintainAspectRatio: false,
+                                                    indexAxis: 'y',
+                                                    plugins: { legend: { display: false } },
+                                                }}
+                                            />
+                                        ) : (
+                                            <div className="h-full flex items-center justify-center text-sm text-slate-400">No delivered revenue in this range</div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                                    <h3 className="text-lg font-bold mb-1">Order status mix</h3>
+                                    <p className="text-xs text-slate-500 mb-4">{periodLabel} · {stats.totalOrders} orders in range</p>
+                                    <div className="h-64 flex justify-center">
+                                        <Doughnut
+                                            data={{
+                                                labels: orderStatusData.map(d => d.name),
+                                                datasets: [{ data: orderStatusData.map(d => d.value), backgroundColor: orderStatusData.map(d => d.color) }],
+                                            }}
+                                            options={{ responsive: true, maintainAspectRatio: false }}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                                    <h3 className="text-lg font-bold mb-1">Revenue trend</h3>
+                                    <p className="text-xs text-slate-500 mb-4">Same window as Overview chart</p>
+                                    <div className="h-64 w-full">
+                                        <Line
+                                            data={{
+                                                labels: chartData.map(d => d.date),
+                                                datasets: [{
+                                                    label: 'Revenue (₹)',
+                                                    data: chartData.map(d => d.revenue),
+                                                    borderColor: '#8b5cf6',
+                                                    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+                                                    tension: 0.35,
+                                                    fill: true,
+                                                }],
+                                            }}
+                                            options={{
+                                                responsive: true,
+                                                maintainAspectRatio: false,
+                                                scales: { y: { beginAtZero: true }, x: { grid: { display: false } } },
+                                            }}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -544,14 +873,19 @@ const Dashboard = () => {
                     {activeTab === 'orders' && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                             {/* KPI Metrics */}
+                            <p className="text-sm text-slate-500 dark:text-slate-400 -mt-2">Order metrics for <span className="font-semibold text-slate-700 dark:text-slate-300">{periodLabel}</span> ({stats.totalOrders} orders). Revenue = delivered orders only.</p>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                                 <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
                                     <div className="flex justify-between items-start mb-4">
                                         <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-xl"><IndianRupee size={20} /></div>
-                                        <span className="text-xs font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">+12%</span>
+                                        {(timePeriod === '7d' || timePeriod === '30d') && financialStats.priorRevenue > 0 && (
+                                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${financialStats.revenueDeltaPct >= 0 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'}`}>
+                                                {financialStats.revenueDeltaPct >= 0 ? '+' : ''}{financialStats.revenueDeltaPct}% vs prior {timePeriod === '7d' ? 'week' : 'month'}
+                                            </span>
+                                        )}
                                     </div>
                                     <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Total Sales</p>
-                                    <h3 className="text-2xl font-black text-slate-800 dark:text-slate-100 mt-1">{fmtMoney(financialStats.totalRevenue)}</h3>
+                                    <h3 className="text-2xl font-black text-slate-800 dark:text-slate-100 mt-1 tabular-nums">{fmtMoney(financialStats.totalRevenue)}</h3>
                                 </div>
                                 <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
                                     <div className="flex justify-between items-start mb-4">
@@ -637,9 +971,9 @@ const Dashboard = () => {
 
                             {/* Recent Transactions Table */}
                             <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
-                                <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-                                    <h3 className="text-lg font-bold">Recent Transactions</h3>
-                                    <button className="text-sm text-blue-600 font-bold hover:underline">View All</button>
+                                <div className="p-6 border-b border-slate-200 dark:border-slate-800">
+                                    <h3 className="text-lg font-bold">Recent orders</h3>
+                                    <p className="text-xs text-slate-500 mt-1">Newest first · parsed amount & status from Firebase</p>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm text-left">
@@ -653,22 +987,36 @@ const Dashboard = () => {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                            {detailedRevenue.sort((a, b) => b.date - a.date).slice(0, 10).map((order, idx) => (
-                                                <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                                    <td className="p-4 font-medium text-slate-700 dark:text-slate-300">#{order.id}</td>
-                                                    <td className="p-4 text-slate-500">
-                                                        {new Date(order.date).toLocaleDateString()}
-                                                        <span className="text-xs ml-2 opacity-50">{new Date(order.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                                    </td>
-                                                    <td className="p-4 font-bold">{fmtMoney(order.amount)}</td>
-                                                    <td className="p-4">
-                                                        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${order.method === 'COD' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
-                                                            {order.method}
-                                                        </span>
-                                                    </td>
-                                                    <td className="p-4"><span className="text-emerald-600 flex items-center gap-1 text-xs font-bold"><CheckCircle size={14} /> Completed</span></td>
-                                                </tr>
-                                            ))}
+                                            {recentOrdersTable.length === 0 ? (
+                                                <tr><td colSpan={5} className="p-8 text-center text-slate-400">No orders in the selected range</td></tr>
+                                            ) : (
+                                                recentOrdersTable.map((order) => (
+                                                    <tr key={order.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                                        <td className="p-4 font-medium text-slate-700 dark:text-slate-300 font-mono text-xs">#{order.id}</td>
+                                                        <td className="p-4 text-slate-500">
+                                                            {new Date(order.date).toLocaleDateString()}
+                                                            <span className="text-xs ml-2 opacity-60">{new Date(order.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                        </td>
+                                                        <td className="p-4 font-bold tabular-nums">{fmtMoney(order.amount)}</td>
+                                                        <td className="p-4">
+                                                            <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${order.method === 'COD' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' : order.method === 'Wallet' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>
+                                                                {order.method}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-4">
+                                                            {order.statusLabel === 'Delivered' && (
+                                                                <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 text-xs font-bold"><CheckCircle size={14} /> Delivered</span>
+                                                            )}
+                                                            {order.statusLabel === 'Cancelled' && (
+                                                                <span className="text-red-600 dark:text-red-400 flex items-center gap-1 text-xs font-bold"><XCircle size={14} /> Cancelled</span>
+                                                            )}
+                                                            {order.statusLabel === 'Pending' && (
+                                                                <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1 text-xs font-bold"><Clock size={14} /> Pending</span>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
                                         </tbody>
                                     </table>
                                 </div>
@@ -678,6 +1026,9 @@ const Dashboard = () => {
 
                     {activeTab === 'users' && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <p className="text-sm text-slate-500 dark:text-slate-400 -mt-2">
+                                Showing {Math.min(50, sortedUsers.length)} of {sortedUsers.length} users (filter: {userFilter}) · {stats.totalUsers} total device tokens in Firebase
+                            </p>
                             <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
                                 <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
                                     <h2 className="text-xl font-bold">User Management</h2>
@@ -707,6 +1058,24 @@ const Dashboard = () => {
 
                     {activeTab === 'stocks' && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+                                    <p className="text-[10px] font-bold uppercase text-slate-400">Variants listed</p>
+                                    <p className="text-2xl font-black tabular-nums mt-1">{allStockItems.length}</p>
+                                </div>
+                                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+                                    <p className="text-[10px] font-bold uppercase text-slate-400">Total units</p>
+                                    <p className="text-2xl font-black tabular-nums mt-1">{financialStats.totalStockQuantity}</p>
+                                </div>
+                                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+                                    <p className="text-[10px] font-bold uppercase text-slate-400">Inventory value</p>
+                                    <p className="text-2xl font-black tabular-nums mt-1 text-blue-600 dark:text-blue-400">{fmtMoney(financialStats.stockValue)}</p>
+                                </div>
+                                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+                                    <p className="text-[10px] font-bold uppercase text-slate-400">Low / out</p>
+                                    <p className="text-2xl font-black tabular-nums mt-1 text-amber-600 dark:text-amber-400">{lowStockProducts.length}<span className="text-sm font-bold text-slate-400"> / </span><span className="text-rose-600">{stats.outOfStockSkus}</span></p>
+                                </div>
+                            </div>
                             <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
                                 <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
                                     <h2 className="text-xl font-bold">Inventory List</h2>
@@ -772,7 +1141,7 @@ const Dashboard = () => {
                                                     <td className="p-4 font-mono text-xs text-slate-500">{i.variantId}</td>
                                                     <td className="p-4 text-slate-500">{i.category}</td>
                                                     <td className="p-4">{fmtMoney(i.price)}</td>
-                                                    <td className="p-4"><span className={`font-black ${i.quantity <= 5 ? 'text-red-500' : 'text-slate-900 dark:text-slate-100'}`}>{i.quantity}</span></td>
+                                                    <td className="p-4"><span className={`font-black ${i.quantity <= 0 ? 'text-rose-600 dark:text-rose-400' : i.quantity <= 5 ? 'text-red-500' : 'text-slate-900 dark:text-slate-100'}`}>{i.quantity}</span></td>
                                                     <td className="p-4 text-right">
                                                         <button
                                                             type="button"
