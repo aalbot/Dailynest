@@ -164,7 +164,7 @@ function LiveBanner({
         {text}
       </p>
       <span className="z-[2] mt-2.5 inline-flex w-fit rounded-full bg-white px-3 py-1 text-[10px] font-extrabold text-emerald-500">
-        BUY NOWs
+        BUY NOW
       </span>
       <div
         className="absolute right-2 top-1/2 z-[1] flex h-[68px] w-[68px] -translate-y-1/2 items-center justify-center rounded-[16px]"
