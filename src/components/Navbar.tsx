@@ -240,6 +240,7 @@ const Navbar = () => {
         "/notifications": "notifications",
         "/staffes": "staff",
         "/staff-test": "test",
+        "/customers": "customers",
         "/broadcast": "broadcast",
         "/banner-manage": "bannerManage"
       };

@@ -28,6 +28,7 @@ const NotificationManager = lazy(() => import("./pages/NotificationManager"));
 const Staffes = lazy(() => import("./pages/Staffes"));
 const InfraConsole = lazy(() => import("./pages/InfraConsole"));
 const StaffActionTestPage = lazy(() => import("./pages/StaffActionTestPage"));
+const WalletCustomersLayout = lazy(() => import("./layouts/WalletCustomersLayout"));
 const Broadcast = lazy(() => import("./pages/Broadcast"));
 const BannerManage = lazy(() => import("./pages/BannerManage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -78,7 +79,11 @@ const App = () => (
                     <Route path="/" element={<Gateway />} />
                     <Route path="/apps" element={<AppGallery />} />
                     <Route path="/orders" element={<OrderManagement />} />
-                    <Route path="/premium-entry" element={<PremiumEntry />} />
+                    <Route element={<WalletCustomersLayout />}>
+                      <Route path="/premium-entry" element={<PremiumEntry />} />
+                      <Route path="/customers" element={<StaffActionTestPage />} />
+                      <Route path="/staff-test" element={<StaffActionTestPage />} />
+                    </Route>
                     <Route path="/rating-entry" element={<RatingEntry />} />
                     <Route path="/stock-entry" element={<StockEntry />} />
                     <Route path="/product-entry" element={<ProductEntry />} />
@@ -95,7 +100,6 @@ const App = () => (
                     <Route path="/notifications" element={<NotificationManager />} />
                     <Route path="/staffes" element={<Staffes />} />
                     <Route path="/infra" element={<InfraConsole />} />
-                    <Route path="/staff-test" element={<StaffActionTestPage />} />
                     <Route path="/broadcast" element={<Broadcast />} />
                     <Route path="/banner-manage" element={<BannerManage />} />
                     <Route path="*" element={<NotFound />} />
