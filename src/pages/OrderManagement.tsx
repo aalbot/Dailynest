@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { firebase } from "@/lib/firebase";
 import {
     Search,
@@ -37,6 +38,13 @@ export const ORDER_PROGRESS_STEPS = [
 
 const STATUS_OPTIONS = [...ORDER_PROGRESS_STEPS, "Cancelled"] as string[];
 
+/** Non-order nodes stored under `root/order` (e.g. counters) — must not appear as rows. */
+const EXCLUDED_ORDER_NODE_KEYS = new Set(["counter"]);
+
+function stripNonOrderNodes<T extends Record<string, unknown>>(raw: T): Record<string, unknown> {
+    return Object.fromEntries(Object.entries(raw).filter(([k]) => !EXCLUDED_ORDER_NODE_KEYS.has(k)));
+}
+
 /** Legacy statuses still in Firebase — map to progress index for the timeline. */
 const LEGACY_STATUS_PROGRESS_INDEX: Record<string, number> = {
     "Order Placed": 0,
@@ -51,18 +59,26 @@ const LEGACY_STATUS_PROGRESS_INDEX: Record<string, number> = {
     Delivered: 4,
 };
 
-export function getOrderProgressStepIndex(status: string): number {
-    if (status === "Cancelled") return -1;
-    return LEGACY_STATUS_PROGRESS_INDEX[status] ?? 0;
+export function getOrderProgressStepIndex(status: string | null | undefined): number {
+    const s = typeof status === "string" ? status.trim() : "";
+    if (s === "Cancelled") return -1;
+    return LEGACY_STATUS_PROGRESS_INDEX[s] ?? 0;
 }
 
 const OrderManagement = () => {
+    const location = useLocation();
+    const navigate = useNavigate();
     const [orders, setOrders] = useState<Record<string, any>>({});
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [isMuted, setIsMuted] = useState(false);
     const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
     const [alertData, setAlertData] = useState<any>(null);
+    /** Order ids that just appeared (Firebase child_added) — strong highlight for a short window. */
+    const [newOrderHighlightIds, setNewOrderHighlightIds] = useState<string[]>([]);
+    const newOrderHighlightTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+    /** From navbar / toast “View order” — scroll + ring this row. */
+    const [navHighlightOrderId, setNavHighlightOrderId] = useState<string | null>(null);
 
     // Sidebar State
     const [activeTab, setActiveTab] = useState("all_orders");
@@ -223,16 +239,23 @@ const OrderManagement = () => {
     };
 
     const prevOrdersRef = useRef<Record<string, any>>({});
+    /** After first full snapshot — avoids treating every existing row as "new" on listener attach. */
+    const ordersBootstrapDoneRef = useRef(false);
 
     useEffect(() => {
         const db = firebase.database();
         const ordersRef = db.ref("root/order");
         const ordersQuery = ordersRef.limitToLast(150); // Optimized limit
 
-        const handleOrderUpdate = (snapshot: any) => {
+        const handleOrderUpdate = (snapshot: any, event: "added" | "changed") => {
             const key = snapshot.key;
             const newOrder = snapshot.val();
-            if (!key) return;
+            if (!key || EXCLUDED_ORDER_NODE_KEYS.has(key)) return;
+
+            if (!ordersBootstrapDoneRef.current) {
+                prevOrdersRef.current[key] = newOrder;
+                return;
+            }
 
             const prevOrders = prevOrdersRef.current;
             const oldOrder = prevOrders[key];
@@ -245,51 +268,87 @@ const OrderManagement = () => {
             }
 
             if (newOrder.status === "Order Placed") {
-                if (!oldOrder && !isInitialLoadRef.current) {
+                if (!oldOrder && ordersBootstrapDoneRef.current) {
                     setAlertData({ id: key, ...newOrder });
                     playAlertSound();
-                } else if (oldOrder && oldOrder.status !== "Order Placed" && !isInitialLoadRef.current) {
+                } else if (oldOrder && oldOrder.status !== "Order Placed" && ordersBootstrapDoneRef.current) {
                     setAlertData({ id: key, ...newOrder });
                     playAlertSound();
                 }
             }
 
-            setOrders(prev => ({ ...prev, [key]: newOrder }));
+            // Only real inserts get the row highlight — `child_changed` can fire for keys not yet in
+            // `prevOrdersRef` (query window edge), which used to re-queue highlight + infinite pulse.
+            if (
+                event === "added" &&
+                !oldOrder &&
+                key &&
+                ordersBootstrapDoneRef.current
+            ) {
+                setNewOrderHighlightIds((prev) => (prev.includes(key) ? prev : [...prev, key]));
+                if (newOrderHighlightTimers.current[key]) clearTimeout(newOrderHighlightTimers.current[key]);
+                newOrderHighlightTimers.current[key] = setTimeout(() => {
+                    setNewOrderHighlightIds((prev) => prev.filter((id) => id !== key));
+                    delete newOrderHighlightTimers.current[key];
+                }, 120_000);
+            }
+
+            setOrders((prev) => ({ ...prev, [key]: newOrder }));
             prevOrdersRef.current[key] = newOrder;
         };
 
-        ordersQuery.on("child_added", handleOrderUpdate);
-        ordersQuery.on("child_changed", handleOrderUpdate);
-
-        ordersQuery.once("value", () => {
-            setLoading(false);
+        ordersQuery.once("value", (snapshot) => {
+            const val = stripNonOrderNodes((snapshot.val() || {}) as Record<string, unknown>);
+            prevOrdersRef.current = { ...val };
+            setOrders(val as Record<string, any>);
+            ordersBootstrapDoneRef.current = true;
             if (isInitialLoadRef.current) isInitialLoadRef.current = false;
+            setLoading(false);
         });
 
+        const onChildAdded = (s: any) => handleOrderUpdate(s, "added");
+        const onChildChanged = (s: any) => handleOrderUpdate(s, "changed");
+        ordersQuery.on("child_added", onChildAdded);
+        ordersQuery.on("child_changed", onChildChanged);
+
         return () => {
-            ordersQuery.off("child_added", handleOrderUpdate);
-            ordersQuery.off("child_changed", handleOrderUpdate);
+            ordersQuery.off("child_added", onChildAdded);
+            ordersQuery.off("child_changed", onChildChanged);
+            ordersBootstrapDoneRef.current = false;
+            Object.values(newOrderHighlightTimers.current).forEach(clearTimeout);
+            newOrderHighlightTimers.current = {};
         };
     }, []);
 
     // Filter Logic
     const filteredOrders = useMemo(() => {
         if (!orders) return [];
-        let list = Object.entries(orders).map(([id, data]) => ({ id, ...data }));
+        let list = Object.entries(orders)
+            .filter(([id]) => !EXCLUDED_ORDER_NODE_KEYS.has(id))
+            .map(([id, data]) => ({ id, ...data }));
 
-        // Filter by Tab
-        if (activeTab === 'new_orders') {
-            list = list.filter(o => o.status === 'Order Placed' || o.status === 'Accepted by Store');
-        } else if (activeTab === 'packed') {
-            list = list.filter(o => o.status === 'Packed' || o.status === 'Packing Order');
-        } else if (activeTab === 'out_delivery') {
-            list = list.filter(o => o.status === 'Out for Delivery' || o.status === 'Ready for Pickup');
-        } else if (activeTab === 'arriving') {
-            list = list.filter(o => o.status === 'Arriving' || o.status === 'On the Way' || o.status === 'Arrival');
-        } else if (activeTab === 'delivered') {
-            list = list.filter(o => o.status === 'Delivered');
-        } else if (activeTab === 'cancelled') {
-            list = list.filter(o => o.status === 'Cancelled');
+        // Filter by tab — same step index as timeline / row colours (covers all legacy status strings).
+        if (activeTab !== "all_orders") {
+            list = list.filter((o) => {
+                if (activeTab === "cancelled") {
+                    return getOrderProgressStepIndex(o.status) === -1;
+                }
+                const step = getOrderProgressStepIndex(o.status);
+                switch (activeTab) {
+                    case "new_orders":
+                        return step === 0;
+                    case "packed":
+                        return step === 1;
+                    case "out_delivery":
+                        return step === 2;
+                    case "arriving":
+                        return step === 3;
+                    case "delivered":
+                        return step === 4;
+                    default:
+                        return true;
+                }
+            });
         }
 
         // Sort: Always show newest orders first by ID, regardless of status.
@@ -307,6 +366,38 @@ const OrderManagement = () => {
         }
         return list;
     }, [orders, searchTerm, activeTab]);
+
+    useEffect(() => {
+        const st = location.state as { highlightOrderId?: string } | null | undefined;
+        const oid = st?.highlightOrderId;
+        if (!oid || typeof oid !== "string") return;
+        setActiveTab("all_orders");
+        setSearchTerm("");
+        setNavHighlightOrderId(oid);
+        setExpandedOrders((prev) => {
+            const next = new Set(prev);
+            next.add(oid);
+            return next;
+        });
+        navigate(location.pathname, { replace: true, state: {} });
+    }, [location.state, location.pathname, navigate]);
+
+    useEffect(() => {
+        if (!navHighlightOrderId) return;
+        const t = window.setTimeout(() => {
+            document.getElementById(`order-row-${navHighlightOrderId}`)?.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+            });
+        }, 500);
+        return () => window.clearTimeout(t);
+    }, [navHighlightOrderId, loading, orders]);
+
+    useEffect(() => {
+        if (!navHighlightOrderId) return;
+        const t = window.setTimeout(() => setNavHighlightOrderId(null), 14_000);
+        return () => window.clearTimeout(t);
+    }, [navHighlightOrderId]);
 
     const handleStatusChange = async (orderId: string, newStatus: string) => {
         if (newStatus === "Packed") {
@@ -378,22 +469,41 @@ const OrderManagement = () => {
         setAlertData(null);
     };
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case "Order Placed": return "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800";
-            case "Accepted by Store": return "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800";
-            case "Packing Order":
-            case "Packed": return "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800";
-            case "Ready for Pickup":
-            case "Out for Delivery": return "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-800";
-            case "On the Way":
-            case "Arrival":
-            case "Arriving": return "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800";
-            case "Cancelled": return "bg-red-100 text-red-600 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800";
-            case "Delivered": return "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700";
-            default: return "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700";
-        }
+    /** Full-row tint by pipeline step (legacy strings map via `getOrderProgressStepIndex`). */
+    const ORDER_ROW_TONE_BY_STEP: Record<number, string> = {
+        0: "border-l-4 border-l-blue-600 bg-blue-100/95 dark:bg-blue-950/45 dark:border-l-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/55",
+        1: "border-l-4 border-l-amber-600 bg-amber-100/95 dark:bg-amber-950/40 dark:border-l-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/50",
+        2: "border-l-4 border-l-cyan-600 bg-cyan-100/95 dark:bg-cyan-950/40 dark:border-l-cyan-400 hover:bg-cyan-100 dark:hover:bg-cyan-950/50",
+        3: "border-l-4 border-l-violet-600 bg-violet-100/95 dark:bg-violet-950/40 dark:border-l-violet-400 hover:bg-violet-100 dark:hover:bg-violet-950/50",
+        4: "border-l-4 border-l-emerald-600 bg-emerald-100/95 dark:bg-emerald-950/40 dark:border-l-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/50",
     };
+
+    const getOrderRowTone = (status: string | undefined) => {
+        if (getOrderProgressStepIndex(status) === -1) {
+            return "border-l-4 border-l-red-600 bg-red-100/95 dark:bg-red-950/35 dark:border-l-red-400 hover:bg-red-100 dark:hover:bg-red-950/45";
+        }
+        const step = getOrderProgressStepIndex(status);
+        return ORDER_ROW_TONE_BY_STEP[step] ?? ORDER_ROW_TONE_BY_STEP[0];
+    };
+
+    const STATUS_SELECT_BY_STEP: Record<number, string> = {
+        0: "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/40 dark:text-blue-200 dark:border-blue-700",
+        1: "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700",
+        2: "bg-cyan-100 text-cyan-900 border-cyan-300 dark:bg-cyan-900/40 dark:text-cyan-200 dark:border-cyan-700",
+        3: "bg-violet-100 text-violet-900 border-violet-300 dark:bg-violet-900/40 dark:text-violet-200 dark:border-violet-700",
+        4: "bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-200 dark:border-emerald-700",
+    };
+
+    const getStatusColor = (status: string | undefined) => {
+        if (getOrderProgressStepIndex(status) === -1) {
+            return "bg-red-100 text-red-700 border-red-300 dark:bg-red-900/40 dark:text-red-200 dark:border-red-700";
+        }
+        const step = getOrderProgressStepIndex(status);
+        return STATUS_SELECT_BY_STEP[step] ?? "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600";
+    };
+
+    /** Slow attention pulse on the status control when still at step 0 (Order Placed). */
+    const orderPlacedSelectBlinkClass = "animate-order-placed-dropdown-blink";
 
     const getStatusIcon = (status: string) => {
         switch (status) {
@@ -516,6 +626,25 @@ const OrderManagement = () => {
                         </div>
                     </div>
 
+                    {/* Mobile / small screens: same filters as sidebar (sidebar is hidden below md). */}
+                    <div className="flex md:hidden gap-2 overflow-x-auto pb-4 -mx-1 px-1 shrink-0 scrollbar-thin">
+                        {menuItems.map((item) => (
+                            <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => setActiveTab(item.id)}
+                                className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                                    activeTab === item.id
+                                        ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-900/30 dark:text-blue-200"
+                                        : "border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                                }`}
+                            >
+                                <item.icon size={14} className="opacity-80" />
+                                {item.label}
+                            </button>
+                        ))}
+                    </div>
+
                     {/* Orders List Container */}
                     <div className="flex-1 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
                         {/* Table Header - Sticky */}
@@ -541,10 +670,30 @@ const OrderManagement = () => {
                                     const isExpanded = expandedOrders.has(order.id);
                                     const isCancelled = order.status === "Cancelled";
                                     const isDelivered = order.status === "Delivered";
+                                    const isOrderPlacedStep = getOrderProgressStepIndex(order.status) === 0;
                                     const itemString = Object.keys(order).filter(k => k.startsWith('item') && order[k]).map(k => order[k]).join(', ');
+                                    const isNewListHighlight = newOrderHighlightIds.includes(order.id);
+                                    const isNavHighlight = navHighlightOrderId === order.id;
+                                    const rowTone = getOrderRowTone(order.status);
+                                    const newOrderRowClass =
+                                        "relative z-0 ring-2 ring-amber-400/70 ring-offset-2 ring-offset-white dark:ring-offset-slate-950 shadow-[0_0_20px_-2px_rgba(251,191,36,0.45)] bg-amber-50/40 dark:bg-amber-950/25";
+                                    const navHighlightClass =
+                                        "relative z-[2] ring-2 ring-sky-500/90 ring-offset-2 ring-offset-white shadow-[0_0_0_3px_rgba(14,165,233,0.35),0_12px_40px_-12px_rgba(14,165,233,0.25)] dark:ring-sky-400/85 dark:ring-offset-slate-950 dark:shadow-[0_0_0_3px_rgba(56,189,248,0.3),0_12px_40px_-12px_rgba(56,189,248,0.2)]";
+
+                                    const rowFocusClass = isNavHighlight
+                                        ? navHighlightClass
+                                        : isNewListHighlight
+                                          ? newOrderRowClass
+                                          : isExpanded
+                                            ? "ring-1 ring-slate-200/90 dark:ring-slate-700/80 z-[1]"
+                                            : "";
 
                                     return (
-                                        <div key={order.id} className={`group border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors ${isExpanded ? 'bg-slate-50/80 dark:bg-slate-800/40' : ''}`}>
+                                        <div
+                                            key={order.id}
+                                            id={`order-row-${order.id}`}
+                                            className={`group border-b border-slate-100/80 dark:border-slate-800/50 transition-colors duration-200 ${rowTone} ${rowFocusClass}`}
+                                        >
                                             {/* Desktop Row */}
                                             <div onClick={() => toggleExpand(order.id)} className="hidden md:grid grid-cols-12 gap-4 px-6 py-4 items-center cursor-pointer">
                                                 <div className="col-span-1 font-mono text-xs font-medium text-slate-500 dark:text-slate-400 truncate">
@@ -578,7 +727,7 @@ const OrderManagement = () => {
                                                             value={order.status}
                                                             onChange={(e) => handleStatusChange(order.id, e.target.value)}
                                                             disabled={isCancelled || isDelivered}
-                                                            className={`w-full appearance-none pl-9 pr-8 py-2 rounded-lg text-sm font-semibold border transition-all cursor-pointer focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-slate-900 outline-none ${getStatusColor(order.status)} disabled:opacity-80 disabled:cursor-not-allowed`}
+                                                            className={`w-full appearance-none pl-9 pr-8 py-2 rounded-lg text-sm font-semibold border transition-all cursor-pointer focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-slate-900 outline-none ${getStatusColor(order.status)} disabled:opacity-80 disabled:cursor-not-allowed ${isOrderPlacedStep && !isCancelled && !isDelivered ? orderPlacedSelectBlinkClass : ""}`}
                                                         >
                                                             {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                                                             {!STATUS_OPTIONS.includes(order.status) && (
@@ -614,7 +763,9 @@ const OrderManagement = () => {
                                                     <div className="font-bold text-slate-900 dark:text-slate-100">₹{order.total}</div>
                                                 </div>
                                                 <div className="text-sm text-slate-600 dark:text-slate-400 line-clamp-1">{itemString}</div>
-                                                <div className={`text-xs font-semibold px-2 py-1 rounded inline-flex items-center gap-1 w-fit ${getStatusColor(order.status)}`}>
+                                                <div
+                                                    className={`text-xs font-semibold px-2 py-1 rounded-lg inline-flex items-center gap-1 w-fit border ${getStatusColor(order.status)} ${isOrderPlacedStep && !isCancelled && !isDelivered ? orderPlacedSelectBlinkClass : ""}`}
+                                                >
                                                     {getStatusIcon(order.status)}
                                                     {order.status}
                                                 </div>
@@ -678,7 +829,7 @@ const OrderManagement = () => {
                                                                     value={order.status}
                                                                     onChange={(e) => handleStatusChange(order.id, e.target.value)}
                                                                     disabled={isCancelled || isDelivered}
-                                                                    className={`w-full appearance-none pl-9 pr-8 py-3 rounded-xl text-sm font-semibold border transition-all ${getStatusColor(order.status)}`}
+                                                                    className={`w-full appearance-none pl-9 pr-8 py-3 rounded-xl text-sm font-semibold border transition-all ${getStatusColor(order.status)} ${isOrderPlacedStep && !isCancelled && !isDelivered ? orderPlacedSelectBlinkClass : ""}`}
                                                                 >
                                                                     {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                                                                     {!STATUS_OPTIONS.includes(order.status) && (
@@ -754,8 +905,8 @@ const OrderManagement = () => {
             {alertData && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl p-6 text-center shadow-2xl animate-in zoom-in-95 duration-300 border border-slate-200 dark:border-slate-800 overflow-hidden relative">
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 animate-pulse"></div>
-                        <div className="w-20 h-20 bg-rose-100 dark:bg-rose-900/50 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500" />
+                        <div className="w-20 h-20 bg-rose-100 dark:bg-rose-900/50 rounded-full flex items-center justify-center mx-auto mb-6">
                             <Bell size={40} className="text-rose-600 dark:text-rose-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">New Order!</h2>

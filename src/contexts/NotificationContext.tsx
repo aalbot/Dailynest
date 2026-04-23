@@ -75,6 +75,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     const prevOrdersRef = useRef<Record<string, any>>({});
     const prevStockLevelsRef = useRef<Record<string, number>>({});
+    /** After first `once("value")` — avoids treating every synced row as a new order. */
+    const ordersBootstrappedRef = useRef(false);
 
     // 2. Efficient Order Listening
     useEffect(() => {
@@ -82,39 +84,52 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         const ordersRef = db.ref("root/order");
         const ordersQuery = ordersRef.limitToLast(10); // Reduced initial sync bandwidth
 
+        const runStockReduceIfNeeded = (key: string, newOrder: any) => {
+            if (!newOrder.stock_reduced && newOrder.status !== "Cancelled" && !processingOrders.current.has(key)) {
+                processingOrders.current.add(key);
+                adjustStockForOrder(newOrder, "reduce")
+                    .then(() => db.ref(`root/order/${key}`).update({ stock_reduced: true }))
+                    .catch((err) => console.error(`Failed to reduce stock for ${key}`, err))
+                    .finally(() => processingOrders.current.delete(key));
+            }
+        };
+
         const handleOrderAdded = (snapshot: any) => {
             const key = snapshot.key;
             const newOrder = snapshot.val();
             if (!key) return;
 
-            // Notification for new orders
-            if (!isInitialLoad.current && newOrder.status === "Order Placed") {
+            if (!ordersBootstrappedRef.current) {
+                prevOrdersRef.current[key] = newOrder;
+                return;
+            }
+
+            const existed = Object.prototype.hasOwnProperty.call(prevOrdersRef.current, key);
+            if (newOrder.status === "Order Placed" && !existed) {
                 addNotification({
                     id: `order_${key}_placed`,
                     title: "New Order Received",
                     message: `Order #${key} has been placed.`,
-                    type: 'order',
-                    orderId: key
+                    type: "order",
+                    orderId: key,
                 });
             }
 
-            // Sync state
-            setOrders(prev => ({ ...prev, [key]: newOrder }));
-
-            // Automatic Stock Reduction logic
-            if (!newOrder.stock_reduced && newOrder.status !== "Cancelled" && !processingOrders.current.has(key)) {
-                processingOrders.current.add(key);
-                adjustStockForOrder(newOrder, 'reduce')
-                    .then(() => db.ref(`root/order/${key}`).update({ stock_reduced: true }))
-                    .catch(err => console.error(`Failed to reduce stock for ${key}`, err))
-                    .finally(() => processingOrders.current.delete(key));
-            }
+            setOrders((prev) => ({ ...prev, [key]: newOrder }));
+            prevOrdersRef.current[key] = newOrder;
+            runStockReduceIfNeeded(key, newOrder);
         };
 
         const handleOrderChanged = (snapshot: any) => {
             const key = snapshot.key;
             const newOrder = snapshot.val();
             if (!key) return;
+
+            if (!ordersBootstrappedRef.current) {
+                prevOrdersRef.current[key] = newOrder;
+                return;
+            }
+
             const oldOrder = prevOrdersRef.current[key];
 
             // Alert when order goes out for delivery (assigned to driver)
@@ -124,35 +139,50 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                     id: `order_${key}_pickup`,
                     title: "Out for Delivery",
                     message: `Order #${key} is out for delivery.`,
-                    type: 'delivery',
-                    orderId: key
+                    type: "delivery",
+                    orderId: key,
+                });
+            }
+
+            // Status moved back to placed (e.g. correction) — treat as a new actionable order
+            if (oldOrder && oldOrder.status !== "Order Placed" && newOrder.status === "Order Placed") {
+                addNotification({
+                    id: `order_${key}_placed_${Date.now()}`,
+                    title: "New Order Received",
+                    message: `Order #${key} has been placed.`,
+                    type: "order",
+                    orderId: key,
                 });
             }
 
             // Stock restoration for cancellations
             if (newOrder.status === "Cancelled" && newOrder.stock_reduced && !processingOrders.current.has(key)) {
                 processingOrders.current.add(key);
-                adjustStockForOrder(newOrder, 'increase')
+                adjustStockForOrder(newOrder, "increase")
                     .then(() => db.ref(`root/order/${key}`).update({ stock_reduced: false }))
-                    .catch(err => console.error(`Failed to restore stock for ${key}`, err))
+                    .catch((err) => console.error(`Failed to restore stock for ${key}`, err))
                     .finally(() => processingOrders.current.delete(key));
             }
 
-            setOrders(prev => ({ ...prev, [key]: newOrder }));
+            setOrders((prev) => ({ ...prev, [key]: newOrder }));
             prevOrdersRef.current[key] = newOrder;
         };
+
+        ordersQuery.once("value", (snapshot) => {
+            const val = snapshot.val() || {};
+            prevOrdersRef.current = { ...val };
+            setOrders(val);
+            ordersBootstrappedRef.current = true;
+            isInitialLoad.current = false;
+        });
 
         ordersQuery.on("child_added", handleOrderAdded);
         ordersQuery.on("child_changed", handleOrderChanged);
 
-        // Transition out of initial load burst
-        ordersQuery.once("value", () => {
-            isInitialLoad.current = false;
-        });
-
         return () => {
             ordersQuery.off("child_added", handleOrderAdded);
             ordersQuery.off("child_changed", handleOrderChanged);
+            ordersBootstrappedRef.current = false;
         };
     }, []);
 
@@ -362,22 +392,33 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     };
 
     const triggerNotificationEffects = (newNotification: Notification) => {
-        if (location.pathname === '/' || location.pathname.startsWith('/delivery') || newNotification.type === 'stock') return;
+        if (location.pathname === "/" || location.pathname.startsWith("/delivery") || newNotification.type === "stock") return;
 
-        const isDefaultPermission = Notification.permission === 'default';
+        const isDefaultPermission = Notification.permission === "default";
+
+        const goOrder = () => {
+            if (newNotification.type !== "order" || !newNotification.orderId) {
+                navigate("/orders");
+                return;
+            }
+            navigate("/orders", { state: { highlightOrderId: newNotification.orderId } });
+        };
 
         toast(newNotification.title, {
             description: newNotification.message,
-            action: isDefaultPermission ? {
-                label: "Enable Notifications",
-                onClick: () => requestPermission(),
-            } : {
-                label: "View",
-                onClick: () => {
-                    if (newNotification.type === 'order') navigate('/orders');
-                    if (newNotification.type === 'delivery') navigate('/delivery');
-                },
-            },
+            duration: newNotification.type === "order" ? 12_000 : 6_000,
+            action: isDefaultPermission
+                ? {
+                      label: "Enable Notifications",
+                      onClick: () => requestPermission(),
+                  }
+                : {
+                      label: "View order",
+                      onClick: () => {
+                          if (newNotification.type === "order") goOrder();
+                          else if (newNotification.type === "delivery") navigate("/delivery");
+                      },
+                  },
         });
         playNotificationSound();
     };

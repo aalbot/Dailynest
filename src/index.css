@@ -294,6 +294,30 @@
     }
   }
 
+  /** Order Manager: gentle slow blink on “Order Placed” status dropdown */
+  @keyframes order-placed-dropdown-blink {
+
+    0%,
+    100% {
+      opacity: 1;
+    }
+
+    50% {
+      opacity: 0.62;
+    }
+  }
+
+  .animate-order-placed-dropdown-blink {
+    animation: order-placed-dropdown-blink 3.2s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-order-placed-dropdown-blink {
+      animation: none;
+      opacity: 1;
+    }
+  }
+
   .animate-float {
     animation: float 6s ease-in-out infinite;
   }
@@ -559,4 +583,4 @@
 
 .custom-scrollbar-thick::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--primary) / 0.4);
-}
+}

@@ -26,9 +26,10 @@ import {
   LogIn,
   Clock,
   MessageSquare,
-  Image
+  Image,
+  Search,
 } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useNotification } from "@/contexts/NotificationContext";
 import { useTheme } from "@/contexts/ThemeContext";
 
@@ -71,6 +72,8 @@ const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  /** Hide app suggestion list after outside click until user types again. */
+  const [appSuggestDismissed, setAppSuggestDismissed] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications } = useNotification();
@@ -133,10 +136,11 @@ const Navbar = () => {
     };
   }, [staffId]);
 
-  const handleSearch = (val: string) => {
+  const handleSearch = useCallback((val: string) => {
     setSearchQuery(val);
-    window.dispatchEvent(new CustomEvent('global-search', { detail: val }));
-  };
+    setAppSuggestDismissed(false);
+    window.dispatchEvent(new CustomEvent("global-search", { detail: val }));
+  }, []);
 
   // Live Timer Logic
 
@@ -301,30 +305,66 @@ const Navbar = () => {
     return false;
   });
 
+  type NavAppItem = (typeof allApps)[number];
+
+  const goToApp = useCallback(
+    (app: NavAppItem) => {
+      const href = app.destinationHref ?? app.path;
+      setSearchOpen(false);
+      setSearchQuery("");
+      setAppSuggestDismissed(true);
+      window.dispatchEvent(new CustomEvent("global-search", { detail: "" }));
+      if (app.openInNewTab) {
+        window.open(href, "_blank", "noopener,noreferrer");
+      } else {
+        navigate(href);
+      }
+    },
+    [navigate]
+  );
+
+  const filteredApps = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return allApps.filter(
+      (item) =>
+        item.label.toLowerCase().includes(q) || item.path.toLowerCase().includes(q)
+    );
+  }, [searchQuery, allApps]);
+
+  const showAppSuggestions = searchQuery.trim().length > 0 && !appSuggestDismissed;
+
   const menuRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
-
-  const filteredApps = searchQuery ? allApps.filter(item => item.label.toLowerCase().includes(searchQuery.toLowerCase())) : [];
+  const navSearchRef = useRef<HTMLDivElement>(null);
+  const mobileSearchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      const t = event.target as Node;
+      if (menuRef.current && !menuRef.current.contains(t)) {
         setMenuOpen(false);
       }
-      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+      if (notificationRef.current && !notificationRef.current.contains(t)) {
         setNotificationsOpen(false);
       }
-      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+      if (profileRef.current && !profileRef.current.contains(t)) {
         setProfileOpen(false);
+      }
+      const inDesktopSearch = navSearchRef.current?.contains(t);
+      const inMobileSearch = mobileSearchRef.current?.contains(t);
+      if (!inDesktopSearch && !inMobileSearch) {
+        setAppSuggestDismissed(true);
       }
     };
     const handleOpenSettings = () => setSettingsOpen(true);
-    window.addEventListener('open-settings', handleOpenSettings);
+    document.addEventListener("mousedown", handleClickOutside);
+    window.addEventListener("open-settings", handleOpenSettings);
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-      window.removeEventListener('open-settings', handleOpenSettings);
+      window.removeEventListener("open-settings", handleOpenSettings);
     };
   }, []);
 
@@ -339,21 +379,61 @@ const Navbar = () => {
               <span className="font-black text-xl tracking-tighter text-slate-900 dark:text-white">{branding.appName}</span>
             </Link>
 
-            {/* Desktop Search Bar Integrated into Navbar */}
-            <div className="hidden lg:block flex-1 max-w-lg mx-4">
-              <SearchBar
-                value={searchQuery}
-                onChange={handleSearch}
-                variant="blended"
-                className="!max-w-full"
-              />
+            {/* Desktop search + live app suggestions (each keystroke). */}
+            <div ref={navSearchRef} className="relative mx-3 hidden min-w-0 flex-1 max-w-md xl:max-w-lg lg:block">
+              <SearchBar value={searchQuery} onChange={handleSearch} variant="navbar" className="max-w-full" />
+              {showAppSuggestions && (
+                <div
+                  className="absolute left-0 right-0 top-full z-[70] mt-1 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-lg"
+                  role="listbox"
+                  aria-label="App suggestions"
+                >
+                  {filteredApps.length === 0 ? (
+                    <div className="px-4 py-6 text-center text-sm text-muted-foreground">No matching apps</div>
+                  ) : (
+                    <ul className="max-h-72 overflow-y-auto py-1">
+                      {filteredApps.slice(0, 14).map((app) => {
+                        const Icon = app.icon;
+                        return (
+                          <li key={`${app.path}-${app.label}`}>
+                            <button
+                              type="button"
+                              role="option"
+                              className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => goToApp(app)}
+                            >
+                              <span
+                                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white shadow-sm ${app.color}`}
+                              >
+                                <Icon className="h-4 w-4" strokeWidth={2.2} />
+                              </span>
+                              <span className="min-w-0 flex-1 font-medium text-foreground">{app.label}</span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              )}
             </div>
 
           </div>
 
           {/* Right side icons */}
           <div className="flex items-center gap-2">
-
+            <button
+              type="button"
+              aria-label="Search apps"
+              className={`lg:hidden p-2.5 rounded-full transition-colors ${searchOpen ? "bg-secondary text-foreground" : "hover:bg-secondary text-muted-foreground"}`}
+              onClick={() => {
+                setSearchOpen((o) => !o);
+                setAppSuggestDismissed(false);
+              }}
+            >
+              <Search className="w-5 h-5" />
+            </button>
 
             {/* Notifications */}
             <div className="relative" ref={notificationRef}>
@@ -398,8 +478,14 @@ const Navbar = () => {
                             key={n.id}
                             onClick={() => {
                               markAsRead(n.id);
-                              if (n.type === 'order') navigate('/orders');
-                              if (n.type === 'delivery') navigate('/delivery');
+                              if (n.type === "order") {
+                                navigate(
+                                  "/orders",
+                                  n.orderId ? { state: { highlightOrderId: n.orderId } } : undefined
+                                );
+                              } else if (n.type === "delivery") {
+                                navigate("/delivery");
+                              }
                               setNotificationsOpen(false);
                             }}
                             className={`p-3 border-b border-slate-50 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group ${!n.read ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
@@ -557,6 +643,78 @@ const Navbar = () => {
         </div>
       </div>
       <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+      {/* Mobile: search sheet (navbar search is hidden below lg). */}
+      {searchOpen && (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-[55] bg-black/45 backdrop-blur-[2px] lg:hidden"
+            aria-label="Close search"
+            onClick={() => setSearchOpen(false)}
+          />
+          <div
+            ref={mobileSearchRef}
+            className="fixed left-0 right-0 top-16 z-[56] border-b border-border bg-background/95 px-4 py-3 shadow-xl backdrop-blur-md lg:hidden animate-in slide-in-from-top-2 fade-in duration-200"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto flex max-w-lg items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <SearchBar
+                  value={searchQuery}
+                  onChange={handleSearch}
+                  variant="navbar"
+                  autoFocus
+                  className="w-full"
+                />
+                {showAppSuggestions && (
+                  <div
+                    className="mt-2 max-h-[min(50vh,20rem)] overflow-y-auto overflow-x-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-md"
+                    role="listbox"
+                    aria-label="App suggestions"
+                  >
+                    {filteredApps.length === 0 ? (
+                      <div className="px-4 py-6 text-center text-sm text-muted-foreground">No matching apps</div>
+                    ) : (
+                      <ul className="py-1">
+                        {filteredApps.slice(0, 14).map((app) => {
+                          const Icon = app.icon;
+                          return (
+                            <li key={`m-${app.path}-${app.label}`}>
+                              <button
+                                type="button"
+                                role="option"
+                                className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => goToApp(app)}
+                              >
+                                <span
+                                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white shadow-sm ${app.color}`}
+                                >
+                                  <Icon className="h-4 w-4" strokeWidth={2.2} />
+                                </span>
+                                <span className="min-w-0 flex-1 font-medium text-foreground">{app.label}</span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setSearchOpen(false)}
+                className="shrink-0 rounded-full p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                aria-label="Close search"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </nav >
   );
 };
