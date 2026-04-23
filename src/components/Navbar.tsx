@@ -53,7 +53,7 @@ const defaultAppItems = [
   { icon: Package, label: "Stocks", path: "/stock-entry", color: "bg-blue-500" },
   { icon: ShoppingBag, label: "Products", path: "/product-entry", color: "bg-violet-500" },
   { icon: Building2, label: "Purchase", path: "/back-office", color: "bg-teal-500" },
-  { icon: Crown, label: "Wallet", path: "/premium-entry", color: "bg-yellow-500" },
+  { icon: Crown, label: "Wallet & users", path: "/premium-entry", color: "bg-yellow-500" },
   { icon: Star, label: "Promotions", path: "/rating-entry", color: "bg-orange-500" },
   { icon: Keyboard, label: "SEO", path: "/keyword-entry", color: "bg-indigo-500" },
   { icon: Grid3X3, label: "Task Manager", path: "/tasks", color: "bg-violet-600" },

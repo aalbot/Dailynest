@@ -448,7 +448,7 @@ export function useClubMetrics() {
             users: pulseTodayUsers,
         };
 
-        /** Same variant-level model as `Dashboard.tsx` → Inventory & Stocks (`allStockItems`, value by offer/MRP). */
+        /** Same variant-level model as legacy inventory (`allStockItems`, value by offer/MRP). */
         const allStockItems = Object.entries(raw.stock || {}).flatMap(([pid, variants]: [string, any]) => {
             const pInfo = raw.products?.[pid];
             const cat =

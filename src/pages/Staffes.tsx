@@ -80,7 +80,7 @@ const initialAppsList = [
     { id: "stock-entry", label: "Stocks", path: "/stock-entry", icon: Package },
     { id: "product-entry", label: "Products", path: "/product-entry", icon: ShoppingBag },
     { id: "back-office", label: "Purchase", path: "/back-office", icon: Building2 },
-    { id: "premium-entry", label: "Wallet", path: "/premium-entry", icon: Crown },
+    { id: "premium-entry", label: "Wallet & users", path: "/premium-entry", icon: Crown },
     { id: "rating-entry", label: "Promotions", path: "/rating-entry", icon: Star },
     { id: "keyword-entry", label: "SEO", path: "/keyword-entry", icon: Keyboard },
     { id: "tasks", label: "Task Manager", path: "/tasks", icon: Grid3X3 },

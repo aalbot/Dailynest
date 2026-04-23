@@ -882,7 +882,7 @@ const PremiumEntry = () => {
                                         <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-400/20">
                                             <Users className="h-5 w-5" />
                                         </span>
-                                        Wallet users
+                                        Wallet & users
                                     </h2>
                                     <p className="mt-1.5 text-xs text-slate-500">Search by name or phone, then use actions on each card.</p>
                                 </div>

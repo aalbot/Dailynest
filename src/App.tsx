@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
 // Page level code splitting
@@ -16,8 +16,7 @@ const StockEntry = lazy(() => import("./pages/StockEntry"));
 const ProductEntry = lazy(() => import("./pages/ProductEntry"));
 const DeliveryScreen = lazy(() => import("./pages/DeliveryScreen"));
 const Overview = lazy(() => import("./pages/Overview"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Dashboard2 = lazy(() => import("./pages/Dashboard2/Dashboard2"));
+const Dashboard = lazy(() => import("./pages/Dashboard2/Dashboard2"));
 const CustomApp = lazy(() => import("./pages/CustomApp"));
 const KeywordEntry = lazy(() => import("./pages/KeywordEntry"));
 const BackOffice = lazy(() => import("./pages/BackOffice"));
@@ -29,6 +28,7 @@ const Staffes = lazy(() => import("./pages/Staffes"));
 const InfraConsole = lazy(() => import("./pages/InfraConsole"));
 const StaffActionTestPage = lazy(() => import("./pages/StaffActionTestPage"));
 const WalletCustomersLayout = lazy(() => import("./layouts/WalletCustomersLayout"));
+const WalletSuggestions = lazy(() => import("./pages/WalletSuggestions"));
 const Broadcast = lazy(() => import("./pages/Broadcast"));
 const BannerManage = lazy(() => import("./pages/BannerManage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -81,6 +81,7 @@ const App = () => (
                     <Route path="/orders" element={<OrderManagement />} />
                     <Route element={<WalletCustomersLayout />}>
                       <Route path="/premium-entry" element={<PremiumEntry />} />
+                      <Route path="/wallet-suggestions" element={<WalletSuggestions />} />
                       <Route path="/customers" element={<StaffActionTestPage />} />
                       <Route path="/staff-test" element={<StaffActionTestPage />} />
                     </Route>
@@ -90,7 +91,7 @@ const App = () => (
                     <Route path="/delivery" element={<DeliveryScreen />} />
                     <Route path="/overview" element={<Overview />} />
                     <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/dashboard-2" element={<Dashboard2 />} />
+                    <Route path="/dashboard-2" element={<Navigate to="/dashboard" replace />} />
                     <Route path="/custom-app/:id" element={<CustomApp />} />
                     <Route path="/keyword-entry" element={<KeywordEntry />} />
                     <Route path="/back-office" element={<BackOffice />} />

@@ -11,7 +11,6 @@ import {
   Keyboard,
   Building2,
   TrendingUp,
-  BarChart3,
 
   Plus,
   Edit,
@@ -45,7 +44,6 @@ import {
 
 const initialApps = [
   { icon: TrendingUp, label: "Dashboard", colorClass: "app-icon-rose", path: "/dashboard", key: "apps.dashboard" },
-  { icon: BarChart3, label: "Dashboard 2", colorClass: "app-icon-rose", path: "/dashboard-2", key: "apps.dashboard2" },
   { icon: Users, label: "Employee Management", colorClass: "app-icon-indigo", path: "/employee-management", key: "apps.employeeManagement" },
   { icon: LayoutDashboard, label: "Report", colorClass: "app-icon-cyan", path: "/overview", key: "apps.overview" },
   { icon: ClipboardList, label: "Orders", colorClass: "app-icon-pink", path: "/orders", key: "apps.orders" },
@@ -53,7 +51,7 @@ const initialApps = [
   { icon: Package, label: "Stocks", colorClass: "app-icon-blue", path: "/stock-entry", key: "apps.stocks" },
   { icon: ShoppingBag, label: "Products", colorClass: "app-icon-purple", path: "/product-entry", key: "apps.products" },
   { icon: Building2, label: "Purchase", colorClass: "app-icon-teal", path: "/back-office", key: "apps.purchase" },
-  { icon: Crown, label: "Wallet", colorClass: "app-icon-yellow", path: "/premium-entry", key: "apps.wallet" },
+  { icon: Crown, label: "Wallet & users", colorClass: "app-icon-yellow", path: "/premium-entry", key: "apps.wallet" },
   { icon: Star, label: "Promotions", colorClass: "app-icon-orange", path: "/rating-entry", key: "apps.promotions" },
   { icon: Keyboard, label: "SEO", colorClass: "app-icon-indigo", path: "/keyword-entry", key: "apps.seo" },
   { icon: Grid3X3, label: "Task Manager", colorClass: "app-icon-violet", path: "/tasks", key: "apps.taskManager" },

@@ -285,7 +285,7 @@ const Overview = () => {
         { id: 'stock', label: 'Stock Inventory', icon: TrendingUp, path: 'root/stock' },
         { id: 'rating', label: 'Reviews', icon: Star, path: 'root/rating' },
         { id: 'premium', label: 'Premium Users', icon: Crown, path: 'root/premium' },
-        { id: 'wallet', label: 'Wallet', icon: Wallet, path: 'root/wallet' },
+        { id: 'wallet', label: 'Wallet & users', icon: Wallet, path: 'root/wallet' },
     ];
 
     useEffect(() => {

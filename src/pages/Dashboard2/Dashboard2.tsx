@@ -281,7 +281,7 @@ const Dashboard2 = () => {
                         <h1 className="flex items-center text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400">
                             <Zap className="mr-2 h-7 w-7" /> DAILY CLUB
                         </h1>
-                        <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">Dashboard 2</p>
+                        <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">Dashboard</p>
                     </div>
                     <nav className="mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto px-4 pb-4">
                         {nav.map((item) => (
@@ -1320,8 +1320,8 @@ const Dashboard2 = () => {
                                 <div>
                                     <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-100">Inventory &amp; stocks</h2>
                                     <p className="text-sm text-gray-500 dark:text-slate-400">
-                                        Same live analytics as <span className="font-semibold text-gray-700 dark:text-slate-300">Dashboard → Inventory &amp; Stocks</span>{" "}
-                                        (variant qty, offer/MRP value).
+                                        Variant-level stock and value (qty, offer/MRP) — same model as the{" "}
+                                        <span className="font-semibold text-gray-700 dark:text-slate-300">Inventory</span> tab.
                                     </p>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
