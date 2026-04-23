@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { firebase } from "@/lib/firebase";
 import { CONFIG } from "@/config";
 import {
     Bell, Truck, MapPin, Phone, User, ShoppingBag, Navigation,
-    ArrowRight, CheckCircle, Package, LogOut, Radar, ChevronDown,
-    X, Map as MapIcon, RefreshCw
+    ArrowRight, CheckCircle, Package, LogOut, Radar,
+    X, Map as MapIcon, CreditCard, IndianRupee,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -80,24 +80,97 @@ const STATUS_FLOW: Record<string, FlowStatus> = {
     },
 };
 
-const SLIDE_THRESHOLD = 0.8;
+/** Fraction of usable track width to complete the slide (lower = quicker to confirm). */
+const SLIDE_THRESHOLD = 0.58;
+const SLIDER_HANDLE_PX = 64;
+const SLIDER_INSET_PX = 16;
 
-// Helper to load Google Maps script
-const loadGoogleMaps = (apiKey: string): Promise<void> => {
-    return new Promise((resolve, reject) => {
-        if ((window as any).google && (window as any).google.maps) {
+/** Aligns with `parseOrderTotal` in Dashboard metrics: `total` may be a number or string like `599-COD`. */
+function parseOrderMoney(o: Record<string, any> | null | undefined): { amountLabel: string; paymentLabel: string } {
+    if (!o) return { amountLabel: "—", paymentLabel: "—" };
+    const explicitRaw = [o.payment, o.paymentMode, o.mode_of_payment, o.pay_mode, o.payType, o.payment_method].find(
+        (v) => typeof v === "string" && String(v).trim(),
+    );
+    const explicitStr = typeof explicitRaw === "string" ? explicitRaw.trim() : "";
+
+    const t = o.total;
+    if (t == null || t === "") {
+        return { amountLabel: "—", paymentLabel: explicitStr || "—" };
+    }
+    if (typeof t === "number" && !Number.isNaN(t)) {
+        return { amountLabel: `₹${t}`, paymentLabel: explicitStr || "—" };
+    }
+    const s = String(t).trim();
+    const numPart = (str: string) => parseFloat(str.replace(/[,₹\s]/g, "")) || 0;
+    if (s.includes("-")) {
+        const idx = s.indexOf("-");
+        const amount = numPart(s.slice(0, idx));
+        const rest = s.slice(idx + 1).toLowerCase();
+        let method = "Other";
+        if (rest.includes("cod")) method = "COD";
+        else if (rest.includes("wallet")) method = "Wallet";
+        else if (rest.includes("upi")) method = "UPI";
+        else if (rest.includes("card") || rest.includes("razorpay")) method = "Card";
+        return {
+            amountLabel: amount > 0 ? `₹${amount}` : "—",
+            paymentLabel: explicitStr || method,
+        };
+    }
+    const amt = numPart(s);
+    return { amountLabel: amt > 0 ? `₹${amt}` : "—", paymentLabel: explicitStr || "—" };
+}
+
+let mapsScriptPromise: Promise<void> | null = null;
+
+function getGoogleMapsApiKey(): string {
+    const envKey = typeof import.meta !== "undefined" ? (import.meta as unknown as { env?: { VITE_GOOGLE_MAPS_API_KEY?: string } }).env?.VITE_GOOGLE_MAPS_API_KEY : "";
+    const k = (typeof envKey === "string" && envKey.trim() ? envKey : CONFIG.GOOGLE_MAPS.apiKey || "").trim();
+    return k;
+}
+
+/**
+ * Loads Maps JS API once. Uses callback + loading=async (Google-recommended).
+ * Omits `libraries=places` — this screen only needs core Maps + Directions; Places can break load if that API is disabled.
+ */
+function loadGoogleMaps(apiKey: string): Promise<void> {
+    if (!apiKey) {
+        return Promise.reject(new Error("Missing Google Maps API key"));
+    }
+    if (typeof window === "undefined") {
+        return Promise.reject(new Error("No window"));
+    }
+    const g = window as Window & { google?: { maps?: { Map?: unknown } } };
+    if (g.google?.maps?.Map) {
+        return Promise.resolve();
+    }
+    if (mapsScriptPromise) {
+        return mapsScriptPromise;
+    }
+    mapsScriptPromise = new Promise((resolve, reject) => {
+        const cbName = `__deliveryMapsCb_${Math.random().toString(36).slice(2, 11)}`;
+        (window as unknown as Record<string, () => void>)[cbName] = () => {
+            try {
+                delete (window as unknown as Record<string, unknown>)[cbName];
+            } catch {
+                /* ignore */
+            }
+            const scriptEl = document.querySelector<HTMLScriptElement>('script[data-delivery-gmaps="1"]');
+            scriptEl?.setAttribute("data-loaded", "1");
             resolve();
-            return;
-        }
+        };
+
         const script = document.createElement("script");
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+        script.dataset.deliveryGmaps = "1";
         script.async = true;
-        script.defer = true;
-        script.onload = () => resolve();
-        script.onerror = (err) => reject(err);
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&loading=async&callback=${cbName}`;
+        script.onerror = () => {
+            mapsScriptPromise = null;
+            reject(new Error("Failed to load Google Maps"));
+        };
         document.head.appendChild(script);
     });
-};
+    return mapsScriptPromise;
+}
 
 const DeliveryScreen = () => {
     const navigate = useNavigate();
@@ -111,9 +184,9 @@ const DeliveryScreen = () => {
     // Map & Location
     const mapRef = useRef<HTMLDivElement>(null);
     const googleMapRef = useRef<any>(null);
-    const [directionsRenderer, setDirectionsRenderer] = useState<any>(null);
-    const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
+    const directionsRendererRef = useRef<any>(null);
     const [eta, setEta] = useState<string | null>(null);
+    const [mapLoadError, setMapLoadError] = useState<string | null>(null);
 
     // Status State
     const [isOnline, setIsOnline] = useState(false);
@@ -124,8 +197,10 @@ const DeliveryScreen = () => {
     const trackRef = useRef<HTMLDivElement>(null);
     const handleRef = useRef<HTMLDivElement>(null);
     const [isSliding, setIsSliding] = useState(false);
-    const [startX, setStartX] = useState(0);
     const [translateX, setTranslateX] = useState(0);
+    const gestureStartXRef = useRef(0);
+    const gestureCompletedRef = useRef(false);
+    const flowNextRef = useRef<string | null>(null);
 
     // Audio Context
     const audioCtxRef = useRef<AudioContext | null>(null);
@@ -216,120 +291,125 @@ const DeliveryScreen = () => {
         return () => ordersQuery.off("value", handleSnapshot);
     }, [user]);
 
-    // 4. Load Map & Directions
+    // 4. Load Map & Directions (single script load; one DirectionsRenderer; route updates per order)
     useEffect(() => {
-        if (!activeOrder || !window.google) {
-            if (CONFIG.GOOGLE_MAPS.apiKey) {
-                loadGoogleMaps(CONFIG.GOOGLE_MAPS.apiKey).then(() => {
-                    // Re-trigger effect
-                    if (activeOrder) initMap();
-                }).catch(e => console.error("Maps load error", e));
-            }
+        if (!activeOrder) {
+            setEta(null);
+            setMapLoadError(null);
             return;
         }
-        initMap();
-    }, [activeOrder]);
 
-    const initMap = () => {
-        if (!mapRef.current || !activeOrder) return;
-        if (!window.google) return;
-
-        // Initialize Map if not already
-        if (!googleMapRef.current) {
-            googleMapRef.current = new window.google.maps.Map(mapRef.current, {
-                zoom: 15,
-                center: { lat: 0, lng: 0 }, // Default, will update
-                disableDefaultUI: true,
-                styles: [
-                    {
-                        "featureType": "all",
-                        "elementType": "geometry",
-                        "stylers": [{ "color": "#242f3e" }]
-                    },
-                    {
-                        "featureType": "all",
-                        "elementType": "labels.text.stroke",
-                        "stylers": [{ "lightness": -80 }]
-                    },
-                    {
-                        "featureType": "administrative",
-                        "elementType": "labels.text.fill",
-                        "stylers": [{ "color": "#746855" }]
-                    },
-                    {
-                        "featureType": "poi",
-                        "elementType": "labels.text.fill",
-                        "stylers": [{ "color": "#d59563" }]
-                    },
-                    {
-                        "featureType": "road",
-                        "elementType": "geometry.fill",
-                        "stylers": [{ "color": "#2b3544" }]
-                    },
-                    {
-                        "featureType": "road",
-                        "elementType": "labels.text.fill",
-                        "stylers": [{ "color": "#9ca5b3" }]
-                    }
-                ]
-            });
+        const apiKey = getGoogleMapsApiKey();
+        if (!apiKey) {
+            setMapLoadError("missing_key");
+            toast.error("Google Maps API key is not configured.");
+            return;
         }
 
-        const directionsService = new window.google.maps.DirectionsService();
-        const directionsRenderer = new window.google.maps.DirectionsRenderer({
-            map: googleMapRef.current,
-            suppressMarkers: false, // We'll rely on default markers for now or customize
-            polylineOptions: {
-                strokeColor: "#10b981", // Emerald-500
-                strokeWeight: 6,
-            }
-        });
-        setDirectionsRenderer(directionsRenderer);
+        let cancelled = false;
 
-        // Get Driver Location
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const origin = {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude
-                    };
-                    setCurrentLocation(origin);
+        const run = async () => {
+            try {
+                await loadGoogleMaps(apiKey);
+                if (cancelled || !mapRef.current) return;
 
-                    // Destination Parsing
-                    let dest: any = activeOrder.adrs;
-                    // Try to parse lat/lng if string contains comma
-                    if (typeof dest === 'string' && dest.includes(',')) {
-                        const parts = dest.split(',');
-                        if (!isNaN(parseFloat(parts[0]))) {
-                            dest = { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) };
-                        }
-                    }
+                const g = (window as any).google;
+                if (!g?.maps?.Map) {
+                    throw new Error("Maps API not available");
+                }
 
-                    // Calculate Route
-                    directionsService.route(
-                        {
-                            origin: origin,
-                            destination: dest,
-                            travelMode: window.google.maps.TravelMode.DRIVING
-                        },
-                        (result: any, status: any) => {
-                            if (status === window.google.maps.DirectionsStatus.OK) {
-                                directionsRenderer.setDirections(result);
-                                const route = result.routes[0].legs[0];
-                                setEta(route.duration.text);
-                            } else {
-                                console.error(`Directions request failed due to ${status}`);
+                setMapLoadError(null);
+
+                if (!googleMapRef.current) {
+                    googleMapRef.current = new g.maps.Map(mapRef.current, {
+                        zoom: 15,
+                        center: { lat: 20.5937, lng: 78.9629 },
+                        disableDefaultUI: true,
+                        gestureHandling: "greedy",
+                        styles: [
+                            { featureType: "all", elementType: "geometry", stylers: [{ color: "#242f3e" }] },
+                            { featureType: "all", elementType: "labels.text.stroke", stylers: [{ lightness: -80 }] },
+                            { featureType: "administrative", elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
+                            { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#d59563" }] },
+                            { featureType: "road", elementType: "geometry.fill", stylers: [{ color: "#2b3544" }] },
+                            { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#9ca5b3" }] },
+                        ],
+                    });
+                }
+
+                if (!directionsRendererRef.current) {
+                    directionsRendererRef.current = new g.maps.DirectionsRenderer({
+                        map: googleMapRef.current,
+                        suppressMarkers: false,
+                        polylineOptions: { strokeColor: "#10b981", strokeWeight: 6 },
+                    });
+                } else {
+                    directionsRendererRef.current.setMap(googleMapRef.current);
+                }
+
+                const directionsService = new g.maps.DirectionsService();
+                const directionsRenderer = directionsRendererRef.current;
+
+                if (!navigator.geolocation) {
+                    toast.error("Location is not supported on this device.");
+                    return;
+                }
+
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        if (cancelled) return;
+                        const origin = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude,
+                        };
+
+                        let dest: any = activeOrder.adrs;
+                        if (typeof dest === "string" && dest.includes(",")) {
+                            const parts = dest.split(",");
+                            if (!Number.isNaN(parseFloat(parts[0]))) {
+                                dest = { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) };
                             }
                         }
-                    );
-                },
-                () => {
-                    toast.error("Location access denied. Cannot show route.");
+
+                        directionsService.route(
+                            {
+                                origin,
+                                destination: dest,
+                                travelMode: g.maps.TravelMode.DRIVING,
+                            },
+                            (result: any, status: string) => {
+                                if (cancelled) return;
+                                if (status === g.maps.DirectionsStatus.OK && result?.routes?.[0]) {
+                                    directionsRenderer.setDirections(result);
+                                    const leg = result.routes[0].legs?.[0];
+                                    setEta(leg?.duration?.text ?? null);
+                                } else {
+                                    console.error("Directions request failed:", status);
+                                    setEta(null);
+                                    toast.error("Could not plot route. Use Navigate for directions.");
+                                }
+                            },
+                        );
+                    },
+                    () => {
+                        if (!cancelled) toast.error("Location access denied. Use Navigate to open directions.");
+                    },
+                    { enableHighAccuracy: true, maximumAge: 30_000, timeout: 12_000 },
+                );
+            } catch (e) {
+                console.error("Maps load error", e);
+                if (!cancelled) {
+                    setMapLoadError("load_failed");
+                    toast.error("Map could not load. Check API key, billing, and Maps / Directions APIs in Google Cloud.");
                 }
-            );
-        }
-    };
+            }
+        };
+
+        void run();
+        return () => {
+            cancelled = true;
+        };
+    }, [activeOrder]);
 
     // Audio Logic
     const initAudio = () => {
@@ -377,19 +457,19 @@ const DeliveryScreen = () => {
         firebase.database().ref(`root/nexus_hr/employees/${employeeKey}`).update({ status: 'Offline' });
     };
 
-    const updateStatus = async (newStatus: string) => {
+    const updateStatus = useCallback(async (newStatus: string) => {
         if (!activeOrderId) return;
         try {
             await firebase.database().ref(`root/order/${activeOrderId}`).update({
                 status: newStatus,
-                status_updated_at: new Date().toISOString()
+                status_updated_at: new Date().toISOString(),
             });
             toast.success(`Status updated to: ${newStatus}`);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error(err);
             toast.error("Failed to update status");
         }
-    };
+    }, [activeOrderId]);
 
     const handleCallCustomer = () => {
         if (activeOrder?.phnm) window.location.href = `tel:${activeOrder.phnm}`;
@@ -404,28 +484,72 @@ const DeliveryScreen = () => {
     const currentStatus = activeOrder?.status || "Unknown";
     const flow = getFlow(currentStatus);
 
-    const handleSliderStart = (clientX: number) => {
+    const beginSliderGesture = (clientX: number) => {
         if (flow.disabled) return;
+        gestureStartXRef.current = clientX;
+        gestureCompletedRef.current = false;
+        flowNextRef.current = flow.next;
         setIsSliding(true);
-        setStartX(clientX);
-    };
-
-    const handleSliderMove = (clientX: number) => {
-        if (!isSliding || !trackRef.current) return;
-        const width = trackRef.current.offsetWidth;
-        const delta = clientX - startX;
-        const progress = Math.max(0, Math.min(delta, width * 0.9)); // Cap at 90% width
-        setTranslateX(progress);
-
-        if (progress > width * SLIDE_THRESHOLD) {
-            handleSliderEnd();
-            if (flow.next) updateStatus(flow.next);
-        }
-    };
-
-    const handleSliderEnd = () => {
-        setIsSliding(false);
         setTranslateX(0);
+
+        const maxSlide = () => {
+            const w = trackRef.current?.offsetWidth ?? 0;
+            return Math.max(0, w - SLIDER_HANDLE_PX - SLIDER_INSET_PX);
+        };
+
+        const applyDx = (cx: number) => {
+            const maxX = maxSlide();
+            const dx = maxX <= 0 ? 0 : Math.max(0, Math.min(cx - gestureStartXRef.current, maxX));
+            setTranslateX(dx);
+            if (!gestureCompletedRef.current && maxX > 0 && dx >= maxX * SLIDE_THRESHOLD) {
+                gestureCompletedRef.current = true;
+                const next = flowNextRef.current;
+                if (next) void updateStatus(next);
+                setTranslateX(0);
+                setIsSliding(false);
+                cleanup();
+            }
+        };
+
+        const cleanup = () => {
+            window.removeEventListener("mousemove", onMouseMove);
+            window.removeEventListener("mouseup", onMouseUp);
+            window.removeEventListener("touchmove", onTouchMove as EventListener);
+            window.removeEventListener("touchend", onTouchEnd);
+        };
+
+        const onMouseMove = (ev: MouseEvent) => {
+            applyDx(ev.clientX);
+        };
+
+        const onMouseUp = () => {
+            if (!gestureCompletedRef.current) {
+                setTranslateX(0);
+            }
+            gestureCompletedRef.current = false;
+            setIsSliding(false);
+            cleanup();
+        };
+
+        const onTouchMove = (ev: TouchEvent) => {
+            ev.preventDefault();
+            const t = ev.touches[0];
+            if (t) applyDx(t.clientX);
+        };
+
+        const onTouchEnd = () => {
+            if (!gestureCompletedRef.current) {
+                setTranslateX(0);
+            }
+            gestureCompletedRef.current = false;
+            setIsSliding(false);
+            cleanup();
+        };
+
+        window.addEventListener("mousemove", onMouseMove);
+        window.addEventListener("mouseup", onMouseUp);
+        window.addEventListener("touchmove", onTouchMove, { passive: false });
+        window.addEventListener("touchend", onTouchEnd);
     };
 
     const handleLogout = () => {
@@ -515,11 +639,18 @@ const DeliveryScreen = () => {
             {/* Main Content Area - Split into Map & Details */}
             <main className="flex-1 relative">
                 {/* Map Layer */}
-                <div ref={mapRef} className="absolute inset-0 bg-slate-200 dark:bg-slate-800 z-0">
+                <div ref={mapRef} className="absolute inset-0 z-0 bg-slate-200 dark:bg-slate-800">
                     {!activeOrder && (
-                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 p-10 text-center">
+                        <div className="flex h-full w-full flex-col items-center justify-center p-10 text-center text-slate-400">
                             <MapIcon size={48} className="mb-4 opacity-50" />
                             <p>Map unavailable until order is assigned</p>
+                        </div>
+                    )}
+                    {activeOrder && mapLoadError && (
+                        <div className="pointer-events-none absolute inset-0 z-[1] flex flex-col items-center justify-center bg-slate-900/75 p-6 text-center text-sm text-white backdrop-blur-sm">
+                            <MapIcon size={40} className="mb-3 opacity-80" />
+                            <p className="font-semibold">Map could not load</p>
+                            <p className="mt-1 max-w-xs text-xs text-white/80">Check the Maps JavaScript API, Directions API, billing, and HTTP referrer restrictions. Use Navigate below.</p>
                         </div>
                     )}
                 </div>
@@ -560,6 +691,28 @@ const DeliveryScreen = () => {
                                 </button>
                             </div>
 
+                            {(() => {
+                                const { amountLabel, paymentLabel } = parseOrderMoney(activeOrder);
+                                return (
+                                    <div className="mb-4 grid grid-cols-2 gap-3 rounded-2xl border border-slate-100 bg-slate-50/90 p-4 dark:border-slate-800 dark:bg-slate-800/50">
+                                        <div className="min-w-0">
+                                            <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Mode of payment</p>
+                                            <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white">
+                                                <CreditCard size={16} className="shrink-0 text-emerald-600" />
+                                                <span className="truncate text-sm">{paymentLabel === "—" ? "Not specified" : paymentLabel}</span>
+                                            </div>
+                                        </div>
+                                        <div className="min-w-0 text-right">
+                                            <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Total amount</p>
+                                            <div className="flex items-center justify-end gap-1 font-black text-slate-900 dark:text-white">
+                                                <IndianRupee size={18} className="shrink-0 text-emerald-600" />
+                                                <span className="text-xl tabular-nums tracking-tight">{amountLabel}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
                             <div className="grid grid-cols-2 gap-3 mb-4">
                                 <button
                                     onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${activeOrder.adrs}`, '_blank')}
@@ -590,10 +743,23 @@ const DeliveryScreen = () => {
                                             <span className="font-medium text-slate-700 dark:text-slate-300">{activeOrder[key]}</span>
                                         </div>
                                     ))}
-                                    <div className="mt-4 p-4 rounded-2xl bg-slate-100 dark:bg-slate-800 flex justify-between items-center">
-                                        <span className="font-black text-slate-500 uppercase text-xs tracking-widest">Total Amount</span>
-                                        <span className="font-black text-xl text-slate-900 dark:text-white">₹{activeOrder.total}</span>
-                                    </div>
+                                    {(() => {
+                                        const { amountLabel, paymentLabel } = parseOrderMoney(activeOrder);
+                                        return (
+                                            <>
+                                                <div className="mt-4 flex justify-between gap-4 rounded-2xl bg-slate-100 p-4 dark:bg-slate-800">
+                                                    <span className="font-black uppercase tracking-widest text-slate-500 text-xs">Mode of payment</span>
+                                                    <span className="text-right font-bold text-slate-900 dark:text-white">
+                                                        {paymentLabel === "—" ? "Not specified" : paymentLabel}
+                                                    </span>
+                                                </div>
+                                                <div className="mt-2 flex justify-between items-center rounded-2xl bg-slate-100 p-4 dark:bg-slate-800">
+                                                    <span className="font-black text-slate-500 uppercase text-xs tracking-widest">Total amount</span>
+                                                    <span className="font-black text-xl tabular-nums text-slate-900 dark:text-white">{amountLabel}</span>
+                                                </div>
+                                            </>
+                                        );
+                                    })()}
                                 </div>
                             </div>
                         )}
@@ -607,34 +773,44 @@ const DeliveryScreen = () => {
                     <div className="max-w-lg mx-auto">
                         <div
                             ref={trackRef}
-                            className={`relative h-20 w-full rounded-[2rem] overflow-hidden flex items-center px-2 shadow-inner transition-colors duration-500 ${flow.disabled ? 'bg-slate-100' : 'bg-slate-100 dark:bg-slate-900'}`}
+                            className={`relative flex h-[4.25rem] w-full touch-none items-center overflow-hidden rounded-[2rem] px-2 shadow-inner transition-colors duration-500 ${
+                                flow.disabled ? "bg-slate-100" : "bg-slate-100 dark:bg-slate-900"
+                            }`}
                         >
                             {!flow.disabled && (
                                 <div
-                                    className={`absolute inset-y-2 left-2 rounded-[1.5rem] flex items-center justify-center text-white font-black uppercase text-xs tracking-tighter ${flow.colorClass}`}
-                                    style={{ width: `${64 + translateX}px` }}
+                                    className={`absolute inset-y-2 left-2 flex max-w-[calc(100%-1rem)] items-center justify-center overflow-hidden rounded-[1.5rem] font-black uppercase tracking-tighter text-white ${flow.colorClass}`}
+                                    style={{ width: `${SLIDER_HANDLE_PX + translateX}px` }}
+                                    aria-hidden
                                 >
-                                    {translateX > 50 && <ArrowRight className="animate-pulse" />}
+                                    {translateX > 12 && <ArrowRight className="ml-1 h-4 w-4 shrink-0 animate-pulse" />}
                                 </div>
                             )}
 
-                            <span className={`w-full text-center font-black uppercase text-sm tracking-widest pointer-events-none transition-opacity ${flow.disabled ? 'text-slate-400' : 'text-slate-500 dark:text-slate-500'}`}>
+                            <span
+                                className={`pointer-events-none w-full text-center text-sm font-black uppercase tracking-widest transition-opacity ${
+                                    flow.disabled ? "text-slate-400" : "text-slate-500 dark:text-slate-500"
+                                }`}
+                            >
                                 {flow.text}
                             </span>
 
                             {!flow.disabled && (
                                 <div
                                     ref={handleRef}
-                                    onMouseDown={(e) => handleSliderStart(e.clientX)}
-                                    onTouchStart={(e) => handleSliderStart(e.touches[0].clientX)}
-                                    onMouseMove={(e) => isSliding && handleSliderMove(e.clientX)}
-                                    onTouchMove={(e) => isSliding && handleSliderMove(e.touches[0].clientX)}
-                                    onMouseUp={handleSliderEnd}
-                                    onTouchEnd={handleSliderEnd}
-                                    className={`absolute left-2 w-16 h-16 rounded-[1.5rem] bg-white shadow-2xl flex items-center justify-center cursor-grab active:cursor-grabbing transition-transform duration-100 z-10`}
-                                    style={{ transform: `translateX(${translateX}px)` }}
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        beginSliderGesture(e.clientX);
+                                    }}
+                                    onTouchStart={(e) => {
+                                        beginSliderGesture(e.touches[0].clientX);
+                                    }}
+                                    className={`absolute left-2 z-10 flex h-16 w-16 cursor-grab select-none items-center justify-center rounded-[1.5rem] bg-white shadow-2xl active:cursor-grabbing ${
+                                        isSliding ? "" : "transition-[transform] duration-200 ease-out"
+                                    }`}
+                                    style={{ transform: `translate3d(${translateX}px,0,0)` }}
                                 >
-                                    <flow.icon className={`text-slate-900`} size={24} />
+                                    <flow.icon className="text-slate-900" size={24} />
                                 </div>
                             )}
                         </div>

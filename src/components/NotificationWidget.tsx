@@ -1,20 +1,20 @@
-
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { Bell, Info, ClipboardList, Truck, Package, CheckCheck, Trash2 } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useNotification } from "@/contexts/NotificationContext";
 import { Button } from "@/components/ui/button";
 import { useLang } from "@/contexts/LanguageContext";
 
 const NotificationWidget = () => {
+    const navigate = useNavigate();
     const { notifications, markAllAsRead, clearNotifications, markAsRead } = useNotification();
     const { getTranslation } = useLang();
     const unreadNotifications = notifications.filter(n => !n.read);
 
     return (
-        <Card className="hidden xl:flex flex-col h-full border-white/40 dark:border-white/10 shadow-2xl bg-white/70 dark:bg-slate-900/40 backdrop-blur-xl transition-colors duration-500">
-            <CardHeader className="pb-3 flex-shrink-0">
+        <Card className="hidden xl:flex h-full min-h-0 flex-col border-white/40 dark:border-white/10 shadow-2xl bg-white/70 dark:bg-slate-900/40 backdrop-blur-xl transition-colors duration-500">
+            <CardHeader className="shrink-0 pb-3">
                 <div className="flex items-center justify-between gap-2.5">
                     <div className="flex items-center gap-2.5">
                         <div className="bg-indigo-500/20 p-2 rounded-lg">
@@ -48,50 +48,89 @@ const NotificationWidget = () => {
                     </div>
                 </div>
             </CardHeader>
-            <CardContent className="flex-1 overflow-hidden p-0">
-                <ScrollArea className="h-full px-6 pb-6">
+            <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
+                <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-6 pb-6">
                     <div className="space-y-4">
                         {unreadNotifications.map((item) => (
-                            <div key={item.id} className="relative pl-4 py-1.5 border-l-2 border-indigo-500/30 group transition-all duration-300">
-                                <div className="absolute -left-[5px] top-3 w-2.5 h-2.5 rounded-full ring-4 ring-white dark:ring-black/20 bg-indigo-500" />
+                            <div key={item.id} className="group relative border-l-2 border-indigo-500/30 py-1.5 pl-4 transition-all duration-300">
+                                <div className="absolute -left-[5px] top-3 h-2.5 w-2.5 rounded-full bg-indigo-500 ring-4 ring-white dark:ring-black/20" />
 
-                                <div className="flex items-center justify-between gap-2 mb-1">
-                                    <div className="flex items-center gap-1.5 min-w-0">
-                                        {item.type === 'order' && <ClipboardList className="w-3.5 h-3.5 text-pink-500" />}
-                                        {item.type === 'delivery' && <Truck className="w-3.5 h-3.5 text-emerald-500" />}
-                                        {item.type === 'stock' && <Package className="w-3.5 h-3.5 text-amber-500" />}
-                                        {item.type === 'info' && <Info className="w-3.5 h-3.5 text-blue-500" />}
-                                        <h4 className="text-sm font-medium truncate text-slate-800 dark:text-slate-200">
-                                            {item.title}
-                                        </h4>
+                                <div className="mb-1 flex items-center justify-between gap-2">
+                                    <div className="flex min-w-0 items-center gap-1.5">
+                                        {item.type === "order" && <ClipboardList className="h-3.5 w-3.5 shrink-0 text-pink-500" />}
+                                        {item.type === "delivery" && <Truck className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
+                                        {item.type === "stock" && <Package className="h-3.5 w-3.5 shrink-0 text-amber-500" />}
+                                        {item.type === "info" && <Info className="h-3.5 w-3.5 shrink-0 text-blue-500" />}
+                                        <h4 className="truncate text-sm font-medium text-slate-800 dark:text-slate-200">{item.title}</h4>
                                     </div>
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-indigo-500"
+                                        className="h-6 w-6 shrink-0 text-slate-400 opacity-0 transition-opacity hover:text-indigo-500 group-hover:opacity-100"
                                         onClick={() => markAsRead(item.id)}
                                     >
-                                        <CheckCheck className="w-3 h-3" />
+                                        <CheckCheck className="h-3 w-3" />
                                     </Button>
                                 </div>
 
-                                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-1.5 line-clamp-2">
-                                    {item.message}
-                                </p>
+                                <p className="mb-1.5 line-clamp-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{item.message}</p>
 
-                                <span className="text-[10px] text-slate-400 font-medium">
-                                    {new Date(item.timestamp).toLocaleDateString()} • {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                <span className="mb-2 block text-[10px] font-medium text-slate-400">
+                                    {new Date(item.timestamp).toLocaleDateString()} •{" "}
+                                    {new Date(item.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                                 </span>
+
+                                {(item.type === "order" || item.type === "stock" || item.type === "delivery") && (
+                                    <div className="flex flex-wrap gap-2">
+                                        {item.type === "order" ? (
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                className="h-8 whitespace-nowrap bg-blue-600 text-xs font-semibold text-white hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500"
+                                                onClick={() => {
+                                                    markAsRead(item.id);
+                                                    navigate("/orders", item.orderId ? { state: { highlightOrderId: item.orderId } } : undefined);
+                                                }}
+                                            >
+                                                {getTranslation("notificationWidget.viewOrder")}
+                                            </Button>
+                                        ) : null}
+                                        {item.type === "stock" ? (
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                className="h-8 whitespace-nowrap bg-amber-600 text-xs font-semibold text-white hover:bg-amber-700 dark:bg-amber-600 dark:hover:bg-amber-500"
+                                                onClick={() => {
+                                                    markAsRead(item.id);
+                                                    navigate("/stock-entry");
+                                                }}
+                                            >
+                                                {getTranslation("notificationWidget.viewStock")}
+                                            </Button>
+                                        ) : null}
+                                        {item.type === "delivery" ? (
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                className="h-8 whitespace-nowrap bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                                                onClick={() => {
+                                                    markAsRead(item.id);
+                                                    navigate("/delivery");
+                                                }}
+                                            >
+                                                {getTranslation("notificationWidget.viewDelivery")}
+                                            </Button>
+                                        ) : null}
+                                    </div>
+                                )}
                             </div>
                         ))}
 
                         {unreadNotifications.length === 0 && (
-                            <div className="text-center py-12 text-slate-500 text-sm">
-                                {getTranslation("notificationWidget.noNotifications")}
-                            </div>
+                            <div className="py-12 text-center text-sm text-slate-500">{getTranslation("notificationWidget.noNotifications")}</div>
                         )}
                     </div>
-                </ScrollArea>
+                </div>
             </CardContent>
         </Card>
     );

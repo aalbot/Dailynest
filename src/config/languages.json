@@ -122,7 +122,10 @@
             "subtitle": "Recent updates & alerts",
             "markAllRead": "Mark all as read",
             "clearAll": "Clear all",
-            "noNotifications": "No new notifications."
+            "noNotifications": "No new notifications.",
+            "viewOrder": "View order",
+            "viewStock": "View stock",
+            "viewDelivery": "View delivery"
         },
         "notificationCenter": {
             "title": "Notification Center",
@@ -411,7 +414,10 @@
             "subtitle": "آخر التحديثات والتنبيهات",
             "markAllRead": "تحديد الكل كمقروء",
             "clearAll": "مسح الكل",
-            "noNotifications": "لا توجد تنبيهات جديدة."
+            "noNotifications": "لا توجد تنبيهات جديدة.",
+            "viewOrder": "عرض الطلب",
+            "viewStock": "عرض المخزون",
+            "viewDelivery": "عرض التوصيل"
         },
         "notificationCenter": {
             "title": "مركز التنبيهات",
@@ -700,7 +706,10 @@
             "subtitle": "സമീപകാല അപ്‌ഡേറ്റുകളും അലർട്ടുകളും",
             "markAllRead": "എല്ലാം വായിച്ചതായി അടയാളപ്പെടുത്തുക",
             "clearAll": "എല്ലാം നീക്കം ചെയ്യുക",
-            "noNotifications": "പുതിയ അറിയിപ്പുകളില്ല."
+            "noNotifications": "പുതിയ അറിയിപ്പുകളില്ല.",
+            "viewOrder": "ഓർഡർ കാണുക",
+            "viewStock": "സ്റ്റോക്ക് കാണുക",
+            "viewDelivery": "ഡെലിവറി കാണുക"
         },
         "notificationCenter": {
             "title": "അറിയിപ്പ് കേന്ദ്രം",
