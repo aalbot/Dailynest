@@ -11,7 +11,6 @@ import {
   Keyboard,
   Building2,
   Grid3X3,
-  Search,
   Bell,
   Sun,
   Moon,
@@ -39,8 +38,9 @@ import { iconMap } from "@/utils/appIcons";
 import SettingsModal from "./SettingsModal";
 import { useLang } from "@/contexts/LanguageContext";
 import { useBranding } from "@/contexts/BrandingContext";
-import { CONFIG } from "@/config";
+import SearchBar from "./SearchBar";
 import { normalizeDestinationUrl, isCustomAppExternalDestination } from "@/utils/destinationUrl";
+
 
 const defaultAppItems = [
   { icon: TrendingUp, label: "Dashboard", path: "/dashboard", color: "bg-rose-500" },
@@ -133,7 +133,13 @@ const Navbar = () => {
     };
   }, [staffId]);
 
+  const handleSearch = (val: string) => {
+    setSearchQuery(val);
+    window.dispatchEvent(new CustomEvent('global-search', { detail: val }));
+  };
+
   // Live Timer Logic
+
   useEffect(() => {
     let interval: any;
     const updateTimer = () => {
@@ -327,90 +333,27 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/apps" className="flex items-center gap-3">
-            <img decoding="async" loading="lazy" src={branding.logoUrl} alt={branding.appName} className="w-9 h-9 rounded-xl object-contain" />
-            <span className="font-bold text-lg tracking-tight text-slate-500 dark:text-slate-400">{branding.appName}</span>
-          </Link>
+          <div className="flex items-center gap-8 flex-1">
+            <Link to="/apps" className="flex items-center gap-3 shrink-0">
+              <img decoding="async" loading="lazy" src={branding.logoUrl} alt={branding.appName} className="w-9 h-9 rounded-xl object-contain" />
+              <span className="font-black text-xl tracking-tighter text-slate-900 dark:text-white">{branding.appName}</span>
+            </Link>
+
+            {/* Desktop Search Bar Integrated into Navbar */}
+            <div className="hidden lg:block flex-1 max-w-lg mx-4">
+              <SearchBar
+                value={searchQuery}
+                onChange={handleSearch}
+                variant="blended"
+                className="!max-w-full"
+              />
+            </div>
+
+          </div>
 
           {/* Right side icons */}
           <div className="flex items-center gap-2">
 
-
-            {/* Search */}
-            {/* Search */}
-            <div className="relative">
-              <div className={`flex items-center transition-all duration-300 ease-in-out border ${searchOpen ? 'w-64 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700' : 'w-10 h-10 border-transparent hover:bg-secondary justify-center cursor-pointer'} rounded-full`}>
-                <Search
-                  onClick={() => { if (!searchOpen) setSearchOpen(true); }}
-                  className={`w-5 h-5 text-muted-foreground flex-shrink-0 transition-opacity ${searchOpen ? 'opacity-50' : ''}`}
-                />
-                {searchOpen && (
-                  <>
-                    <input
-                      autoFocus
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder={getTranslation("navbar.searchPlaceholder")}
-                      className="ml-2 w-full bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground"
-                    />
-                    <button onClick={() => { setSearchOpen(false); setSearchQuery(""); }} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full flex-shrink-0">
-                      <X size={14} className="text-muted-foreground" />
-                    </button>
-                  </>
-                )}
-              </div>
-
-              {/* Search Results */}
-              {searchOpen && searchQuery && (
-                <div className="absolute top-full right-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
-                  <div className="max-h-64 overflow-y-auto p-1.5 space-y-0.5 custom-scrollbar">
-                    {filteredApps.length > 0 ? (
-                      filteredApps.map(item => {
-                        const newTab = item.openInNewTab || item.path === "/delivery";
-                        const closeSearch = () => { setSearchOpen(false); setSearchQuery(""); };
-                        const rowClass = "flex items-center gap-3 p-2 hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-lg group transition-colors";
-                        const inner = (
-                          <>
-                            <div className={`w-8 h-8 rounded-lg ${item.color} flex items-center justify-center text-white shadow-sm`}>
-                              <item.icon size={14} strokeWidth={2.5} />
-                            </div>
-                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{item.label}</span>
-                          </>
-                        );
-                        if (item.useExternalLink) {
-                          return (
-                            <a
-                              key={item.path}
-                              href={item.destinationHref}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={closeSearch}
-                              className={rowClass}
-                            >
-                              {inner}
-                            </a>
-                          );
-                        }
-                        return (
-                          <Link
-                            key={item.path}
-                            to={item.destinationHref}
-                            target={newTab ? "_blank" : undefined}
-                            rel={newTab ? "noopener noreferrer" : undefined}
-                            onClick={closeSearch}
-                            className={rowClass}
-                          >
-                            {inner}
-                          </Link>
-                        );
-                      })
-                    ) : (
-                      <div className="p-4 text-center text-xs text-slate-400">{getTranslation("manageApps.noResults")}</div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
 
             {/* Notifications */}
             <div className="relative" ref={notificationRef}>
@@ -500,110 +443,7 @@ const Navbar = () => {
               <Settings className="w-5 h-5" />
             </button>
 
-            {/* App Launcher */}
-            <div className="relative">
-              <button
-                aria-label="App Launcher"
-                onClick={() => setMenuOpen(!menuOpen)}
-                className={`p-2.5 rounded-full transition-colors ${menuOpen ? "bg-secondary text-primary" : "text-muted-foreground hover:bg-secondary hover:text-primary"
-                  }`}
-              >
-                <Grid3X3 className="w-5 h-5" />
-              </button>
 
-              {/* App Menu Overlay/Modal */}
-              {menuOpen && (
-                <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 sm:p-6 pt-20">
-                  {/* Backdrop with fade-in */}
-                  <div
-                    className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-300"
-                    onClick={() => setMenuOpen(false)}
-                  />
-
-                  {/* Card starting from Navbar with 'Pop' Animation */}
-                  <div className="relative w-full max-w-[480px] bg-white dark:bg-slate-900 rounded-[40px] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] border border-slate-200 dark:border-slate-800 flex flex-col max-h-[82vh] overflow-hidden animate-in zoom-in-90 slide-in-from-top-4 duration-300 ease-out">
-                    {/* Header with Title */}
-                    <div className="flex items-center justify-between p-7 border-b border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md sticky top-0 z-10">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white shadow-xl shadow-indigo-500/20">
-                          <Grid3X3 size={24} strokeWidth={2.5} />
-                        </div>
-                        <div>
-                          <h3 className="font-black text-xl text-slate-900 dark:text-slate-100 tracking-tight">{getTranslation("navbar.launcherTitle")}</h3>
-                          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{getTranslation("navbar.launcherSubtitle")}</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setMenuOpen(false)}
-                        className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all duration-200 text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:rotate-90"
-                      >
-                        <X size={24} />
-                      </button>
-                    </div>
-
-                    {/* Scrollable Content - More Grid spacing */}
-                    <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-slate-50/30 dark:bg-transparent">
-                      <div className="grid grid-cols-3 gap-3 sm:gap-4">
-                        {allApps.map((item) => {
-                          const newTab = item.openInNewTab || item.path === "/delivery";
-                          const closeMenu = () => setMenuOpen(false);
-                          const tileClass = `flex flex-col items-center gap-3 p-5 rounded-3xl transition-all duration-300 group hover:bg-white dark:hover:bg-slate-800 hover:shadow-xl hover:shadow-indigo-500/5 ${location.pathname === item.path ? "bg-white dark:bg-slate-800 shadow-md ring-1 ring-slate-200 dark:ring-slate-700" : ""
-                            }`;
-                          const tileInner = (
-                            <>
-                              <div className={`w-16 h-16 rounded-3xl ${item.color} flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:-rotate-3 transition-all duration-500`}>
-                                <item.icon className="w-7 h-7 text-white drop-shadow-md" strokeWidth={2} />
-                              </div>
-                              <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 text-center leading-tight uppercase tracking-[0.1em] group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                                {item.label}
-                              </span>
-                            </>
-                          );
-                          if (item.useExternalLink) {
-                            return (
-                              <a
-                                key={item.path}
-                                href={item.destinationHref}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={closeMenu}
-                                className={tileClass}
-                              >
-                                {tileInner}
-                              </a>
-                            );
-                          }
-                          return (
-                            <Link
-                              key={item.path}
-                              to={item.destinationHref}
-                              target={newTab ? "_blank" : undefined}
-                              rel={newTab ? "noopener noreferrer" : undefined}
-                              onClick={closeMenu}
-                              className={tileClass}
-                            >
-                              {tileInner}
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Footer with Glow */}
-                    <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md">
-                      <Link
-                        to="/apps"
-                        onClick={() => setMenuOpen(false)}
-                        className="group relative flex items-center justify-center gap-3 py-4 w-full bg-slate-900 dark:bg-indigo-600 rounded-2xl text-xs font-black text-white uppercase tracking-widest hover:scale-[1.02] transition-all active:scale-95 shadow-xl shadow-slate-900/10 dark:shadow-indigo-500/20"
-                      >
-                        <Sparkles className="w-4 h-4 animate-pulse" />
-                        {getTranslation("navbar.exploreGallery")}
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
 
             {/* User Profile Dropdown */}
             <div className="relative" ref={profileRef}>

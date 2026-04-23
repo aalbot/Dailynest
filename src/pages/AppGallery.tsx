@@ -22,6 +22,12 @@ const AppGallery = () => {
     const status = sessionStorage.getItem("user_status");
     setUserRole(role);
     setUserStatus(status);
+
+    const handleGlobalSearch = (e: any) => {
+      setSearchQuery(e.detail);
+    };
+    window.addEventListener('global-search', handleGlobalSearch);
+    return () => window.removeEventListener('global-search', handleGlobalSearch);
   }, []);
 
   const isPending = userStatus?.toLowerCase() === "pending";
@@ -99,12 +105,8 @@ const AppGallery = () => {
               {/* Main Content Area */}
               <div className="xl:col-span-3 flex flex-col gap-4 xl:gap-8 min-h-0">
 
-                {/* Desktop-only Premium Search Bar */}
-                <div className="hidden xl:block animate-in fade-in zoom-in duration-700 delay-200">
-                  <SearchBar value={searchQuery} onChange={setSearchQuery} />
-                </div>
-
                 {/* Mobile Admin Actions */}
+
                 {(userRole === "admin" || userRole === "superadmin") && (
                   <div className="grid grid-cols-2 xl:hidden items-center gap-3 mb-6">
                     <Link
