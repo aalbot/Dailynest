@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -12,7 +12,7 @@ import {
     Tooltip,
     Legend,
 } from "chart.js";
-import { Line, Bar, Doughnut } from "react-chartjs-2";
+import { Line, Bar, Doughnut, Pie } from "react-chartjs-2";
 import Navbar from "@/components/Navbar";
 import BackButton from "@/components/BackButton";
 import {
@@ -32,8 +32,18 @@ import {
     ExternalLink,
     Filter,
     ChevronDown,
+    TrendingUp,
+    Briefcase,
+    Package,
+    Layers,
+    Activity,
+    CheckCircle,
+    XCircle,
+    ChevronRight,
+    IndianRupee,
+    Clock,
 } from "lucide-react";
-import { useClubMetrics, type ClubTimeRange, type ClubOrderTableRow } from "./useClubMetrics";
+import { useClubMetrics, type ClubTimeRange, type ClubOrderTableRow, type ClubExpandedUser } from "./useClubMetrics";
 
 ChartJS.register(
     CategoryScale,
@@ -72,6 +82,7 @@ const nav: { id: ClubTab; label: string; icon: React.ElementType }[] = [
 
 const Dashboard2 = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { loading, metrics, connected, lastSyncedAt, dbError } = useClubMetrics();
     const [tab, setTab] = useState<ClubTab>("overview");
     const [range, setRange] = useState<"today" | "7d" | "30d" | "all">("today");
@@ -83,6 +94,39 @@ const Dashboard2 = () => {
     const [stockFilterMenuOpen, setStockFilterMenuOpen] = useState(false);
     const [ordersRange, setOrdersRange] = useState<ClubTimeRange>("all");
     const [orderSearch, setOrderSearch] = useState("");
+    const [nowTick, setNowTick] = useState(() => Date.now());
+    const [userFilter, setUserFilter] = useState<"all" | "registered" | "anonymous" | "customers">("all");
+    const [userSortConfig, setUserSortConfig] = useState<{ key: keyof ClubExpandedUser | "orderCompletedAt"; direction: "asc" | "desc" }>({
+        key: "updatedAt",
+        direction: "desc",
+    });
+    const [bizRange, setBizRange] = useState<"today" | "7d" | "30d" | "all">("7d");
+
+    useEffect(() => {
+        const id = window.setInterval(() => setNowTick(Date.now()), 1000);
+        return () => window.clearInterval(id);
+    }, []);
+
+    useEffect(() => {
+        const t = (location.state as { tab?: string } | null)?.tab;
+        if (!t) return;
+        const map: Record<string, ClubTab> = {
+            dashboard: "overview",
+            overview: "overview",
+            business: "business",
+            orders: "orders",
+            users: "users",
+            stocks: "inventory",
+            inventory: "inventory",
+            delivery: "delivery",
+            riders: "delivery",
+            finance: "business",
+            support: "support",
+        };
+        const next = map[t];
+        if (next) setTab(next);
+        window.history.replaceState({}, document.title);
+    }, [location]);
 
     const slice = useMemo(() => {
         if (range === "today") return metrics.today;
@@ -90,6 +134,42 @@ const Dashboard2 = () => {
         if (range === "30d") return metrics.month;
         return metrics.all;
     }, [metrics, range]);
+
+    const periodLabelOverview = range === "today" ? "Today" : range === "7d" ? "Last 7 days" : range === "30d" ? "Last 30 days" : "All time";
+
+    const bizSlice = useMemo(() => {
+        if (bizRange === "today") return metrics.today;
+        if (bizRange === "7d") return metrics.week;
+        if (bizRange === "30d") return metrics.month;
+        return metrics.all;
+    }, [metrics, bizRange]);
+
+    const bizPeriodLabel =
+        bizRange === "today" ? "Today" : bizRange === "7d" ? "Last 7 days" : bizRange === "30d" ? "Last 30 days" : "All time";
+
+    const sortedUsers = useMemo(() => {
+        let list = [...(metrics.usersExpanded ?? [])];
+        if (userFilter === "registered") list = list.filter((u) => !u.isAnon);
+        if (userFilter === "anonymous") list = list.filter((u) => u.isAnon);
+        if (userFilter === "customers") list = list.filter((u) => u.orderCompletedAt > 0);
+        const k = userSortConfig.key;
+        list.sort((a, b) => {
+            const av = Number((a as any)[k]) || 0;
+            const bv = Number((b as any)[k]) || 0;
+            return userSortConfig.direction === "desc" ? bv - av : av - bv;
+        });
+        return list;
+    }, [metrics.usersExpanded, userFilter, userSortConfig]);
+
+    const secsSinceSync = lastSyncedAt != null ? Math.max(0, Math.floor((nowTick - lastSyncedAt) / 1000)) : null;
+
+    const usersDirectoryRows = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        if (!q) return sortedUsers;
+        return sortedUsers.filter(
+            (u) => u.phone.toLowerCase().includes(q) || u.id.toLowerCase().includes(q) || u.platform.toLowerCase().includes(q)
+        );
+    }, [sortedUsers, search]);
 
     const orderSummaryData = useMemo(
         () => ({
@@ -129,6 +209,14 @@ const Dashboard2 = () => {
         if (ordersRange === "30d") return metrics.month;
         return metrics.all;
     }, [metrics, ordersRange]);
+
+    const ordersPeriodLabel =
+        ordersRange === "today" ? "Today" : ordersRange === "7d" ? "Last 7 days" : ordersRange === "30d" ? "Last 30 days" : "All time";
+
+    const ordersTopSoldMax = useMemo(
+        () => Math.max(1, ...orderChartSlice.topProducts.map((p) => p.count)),
+        [orderChartSlice.topProducts]
+    );
 
     const ordersTableData = useMemo(() => {
         const t = metrics.ordersTables;
@@ -188,18 +276,31 @@ const Dashboard2 = () => {
         <div className="min-h-screen bg-gray-50 font-sans text-gray-900 dark:bg-slate-950 dark:text-slate-100">
             <Navbar />
             <div className="flex min-h-[calc(100vh-4rem)] pt-16">
-                <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-64 shrink-0 border-r border-gray-200 bg-white dark:border-slate-800 dark:bg-slate-900 md:block">
-                    <div className="p-6">
+                <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-64 shrink-0 flex-col border-r border-gray-200 bg-white dark:border-slate-800 dark:bg-slate-900 md:flex">
+                    <div className="shrink-0 p-6">
                         <h1 className="flex items-center text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400">
                             <Zap className="mr-2 h-7 w-7" /> DAILY CLUB
                         </h1>
                         <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">Dashboard 2</p>
                     </div>
-                    <nav className="mt-2 h-[calc(100%-120px)] space-y-1 overflow-y-auto px-4 pb-8">
+                    <nav className="mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto px-4 pb-4">
                         {nav.map((item) => (
                             <NavBtn key={item.id} item={item} />
                         ))}
                     </nav>
+                    <div className="shrink-0 border-t border-gray-100 p-4 dark:border-slate-800">
+                        <div
+                            className={`rounded-xl p-4 text-white shadow-md ${
+                                connected && !dbError ? "bg-gradient-to-br from-emerald-500 to-teal-600" : "bg-gradient-to-br from-orange-400 to-red-500"
+                            }`}
+                        >
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-white/80">Firebase</p>
+                            <p className="mt-1 text-sm font-bold">{connected && !dbError ? "Live sync" : "Check connection"}</p>
+                            <p className="mt-1 text-[10px] leading-snug text-white/85">
+                                Orders, stock, HR departments &amp; tokens stream in real time.
+                            </p>
+                        </div>
+                    </div>
                 </aside>
 
                 {mobileNav && (
@@ -242,7 +343,17 @@ const Dashboard2 = () => {
                             {dbError ? `Firebase: ${dbError}` : connected ? "Firebase live" : "Connecting to Firebase…"}
                         </span>
                         {lastSyncedAt != null && (
-                            <span className="tabular-nums">Last update {new Date(lastSyncedAt).toLocaleTimeString()}</span>
+                            <span className="tabular-nums">
+                                Last update {new Date(lastSyncedAt).toLocaleTimeString()}
+                                {connected && secsSinceSync != null ? (
+                                    <>
+                                        <span className="mx-1 text-gray-300 dark:text-slate-600">·</span>
+                                        <span className="font-medium text-emerald-700 dark:text-emerald-300">
+                                            {secsSinceSync === 0 ? "Synced just now" : `Synced ${secsSinceSync}s ago`}
+                                        </span>
+                                    </>
+                                ) : null}
+                            </span>
                         )}
                     </div>
                     <div className="mb-6 flex items-center gap-3 md:hidden">
@@ -281,43 +392,235 @@ const Dashboard2 = () => {
                                 </div>
                             </header>
 
-                            <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-                                <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                                    <div className="mb-4 flex justify-between">
-                                        <div className="rounded-lg bg-blue-50 p-2 text-blue-600 dark:bg-blue-950/50">
-                                            <ShoppingCart className="h-5 w-5" />
+                            <p className="mb-4 text-xs text-gray-500 dark:text-slate-400">
+                                Range charts &amp; KPIs follow <span className="font-semibold text-gray-700 dark:text-slate-300">{periodLabelOverview}</span> · Today&apos;s pulse is always calendar today.
+                            </p>
+
+                            <div className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 to-violet-700 p-6 text-white shadow-2xl shadow-indigo-500/20 md:p-8">
+                                <div className="pointer-events-none absolute right-0 top-0 p-8 opacity-10">
+                                    <TrendingUp className="h-32 w-32 md:h-40 md:w-40" />
+                                </div>
+                                <div className="relative z-10 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-100/90">Today&apos;s revenue</p>
+                                        <h3 className="text-3xl font-black tabular-nums md:text-4xl">{fmtMoney(metrics.pulse.revenue)}</h3>
+                                        <p className="flex items-center gap-1.5 text-xs text-indigo-100/70">
+                                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                                            Live (delivered today)
+                                        </p>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4 border-white/10 sm:grid-cols-4 md:col-span-1 lg:col-span-3 lg:border-l lg:pl-8">
+                                        <div>
+                                            <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-100/70">Orders today</p>
+                                            <p className="text-2xl font-black tabular-nums">{metrics.pulse.orders}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-100/70">Delivered</p>
+                                            <p className="text-2xl font-black tabular-nums">{metrics.pulse.deliveredToday}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-100/70">New users</p>
+                                            <p className="text-2xl font-black tabular-nums">{metrics.pulse.users}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-100/70">Avg delivered</p>
+                                            <p className="text-2xl font-black tabular-nums">
+                                                {fmtMoney(metrics.pulse.deliveredToday > 0 ? metrics.pulse.revenue / metrics.pulse.deliveredToday : 0)}
+                                            </p>
                                         </div>
                                     </div>
-                                    <p className="text-sm text-gray-500 dark:text-slate-400">Orders in range</p>
-                                    <h3 className="text-2xl font-bold tabular-nums">{slice.delivered + slice.pending + slice.cancelled}</h3>
                                 </div>
-                                <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                                    <div className="mb-4 flex justify-between">
-                                        <div className="rounded-lg bg-orange-50 p-2 text-orange-600 dark:bg-orange-950/40">
+                            </div>
+
+                            {metrics.lowStockProducts.length > 0 && (
+                                <div className="mb-8 flex flex-col gap-4 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/25 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="flex min-w-0 items-center gap-3">
+                                        <div className="shrink-0 rounded-lg bg-amber-100 p-2 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400">
                                             <AlertTriangle className="h-5 w-5" />
                                         </div>
-                                        <span className="text-sm font-bold text-orange-500">Active</span>
-                                    </div>
-                                    <p className="text-sm text-gray-500 dark:text-slate-400">Orders pending</p>
-                                    <h3 className="text-2xl font-bold tabular-nums">{slice.pending}</h3>
-                                </div>
-                                <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                                    <div className="mb-4 flex justify-between">
-                                        <div className="rounded-lg bg-green-50 p-2 text-green-600 dark:bg-green-950/40">
-                                            <ShoppingCart className="h-5 w-5" />
+                                        <div className="min-w-0">
+                                            <h4 className="font-bold text-amber-900 dark:text-amber-200">Low stock alert</h4>
+                                            <p className="text-sm text-amber-800 dark:text-amber-300/90">
+                                                {metrics.lowStockProducts.length} variant{metrics.lowStockProducts.length === 1 ? "" : "s"} running low (1–5 units).
+                                            </p>
                                         </div>
                                     </div>
-                                    <p className="text-sm text-gray-500 dark:text-slate-400">Delivered</p>
-                                    <h3 className="text-2xl font-bold tabular-nums">{slice.delivered}</h3>
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                        <div className="flex flex-wrap gap-2">
+                                            {metrics.lowStockProducts.slice(0, 3).map((p: { name: string; quantity: number }, i: number) => (
+                                                <span
+                                                    key={i}
+                                                    className="rounded border border-amber-200/80 bg-white px-2 py-1 text-[10px] font-bold text-amber-900 dark:border-amber-800 dark:bg-slate-900 dark:text-amber-100"
+                                                >
+                                                    {p.name} ({p.quantity})
+                                                </span>
+                                            ))}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setStockListFilter("low_only");
+                                                setTab("inventory");
+                                            }}
+                                            className="inline-flex items-center justify-center gap-1 rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white hover:bg-amber-700"
+                                        >
+                                            View inventory
+                                            <ChevronRight className="h-4 w-4 opacity-90" />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+                                {[
+                                    { label: "Employees", value: metrics.hrStats.totalEmployees, icon: Briefcase, color: "bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400" },
+                                    { label: "Categories", value: metrics.statsKpi.totalCategories, icon: ShoppingCart, color: "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400" },
+                                    { label: "Catalog products", value: metrics.statsKpi.uniqueProductCount, icon: Package, color: "bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400" },
+                                    { label: "Stock variants", value: metrics.statsKpi.totalVariants, icon: Layers, color: "bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400" },
+                                    { label: "Stock units", value: metrics.statsKpi.totalStockQuantity, icon: Activity, color: "bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400" },
+                                    { label: "Out of stock", value: metrics.statsKpi.outOfStockSkus, icon: AlertTriangle, color: "bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-400" },
+                                    { label: "App users", value: metrics.statsKpi.totalUsers, icon: Users, color: "bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400" },
+                                    { label: `Orders (${periodLabelOverview})`, value: slice.totalOrders, icon: ShoppingCart, color: "bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400" },
+                                    { label: "Delivered", value: slice.delivered, icon: CheckCircle, color: "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400" },
+                                    { label: "Cancelled", value: slice.cancelled, icon: XCircle, color: "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400" },
+                                    { label: "Fulfillment rate", value: `${slice.completionRatePct}%`, icon: TrendingUp, color: "bg-cyan-50 text-cyan-600 dark:bg-cyan-900/20 dark:text-cyan-400" },
+                                ].map((kpi, i) => {
+                                    const Icon = kpi.icon;
+                                    return (
+                                        <div
+                                            key={i}
+                                            className="flex flex-col items-center justify-center gap-2 rounded-xl border border-gray-100 bg-white p-4 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900"
+                                        >
+                                            <div className={`rounded-xl p-2.5 ${kpi.color}`}>
+                                                <Icon className="h-4 w-4" />
+                                            </div>
+                                            <p className="text-[9px] font-bold uppercase leading-tight tracking-tight text-gray-500 dark:text-slate-400">{kpi.label}</p>
+                                            <h3 className="text-base font-black tabular-nums text-gray-900 dark:text-slate-100 md:text-lg">{kpi.value}</h3>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="mb-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
+                                <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm lg:col-span-2 dark:border-slate-800 dark:bg-slate-900">
+                                    <h4 className="mb-1 font-bold text-gray-800 dark:text-slate-100">Orders &amp; revenue</h4>
+                                    <p className="mb-4 text-xs text-gray-500 dark:text-slate-400">
+                                        Daily order count and delivered revenue ({periodLabelOverview.toLowerCase()})
+                                    </p>
+                                    <div className="h-72 w-full">
+                                        {slice.dailySeries.length ? (
+                                            <Line
+                                                data={{
+                                                    labels: slice.dailySeries.map((d) => d.date),
+                                                    datasets: [
+                                                        {
+                                                            label: "Orders",
+                                                            data: slice.dailySeries.map((d) => d.count),
+                                                            borderColor: "#3b82f6",
+                                                            backgroundColor: "rgba(59, 130, 246, 0.06)",
+                                                            tension: 0.35,
+                                                            fill: true,
+                                                            yAxisID: "y",
+                                                        },
+                                                        {
+                                                            label: "Revenue (₹)",
+                                                            data: slice.dailySeries.map((d) => d.revenue),
+                                                            borderColor: "#a855f7",
+                                                            backgroundColor: "rgba(168, 85, 247, 0.06)",
+                                                            tension: 0.35,
+                                                            fill: true,
+                                                            yAxisID: "y1",
+                                                        },
+                                                    ],
+                                                }}
+                                                options={{
+                                                    responsive: true,
+                                                    maintainAspectRatio: false,
+                                                    interaction: { mode: "index", intersect: false },
+                                                    scales: {
+                                                        y: {
+                                                            type: "linear",
+                                                            position: "left",
+                                                            beginAtZero: true,
+                                                            title: { display: true, text: "Orders" },
+                                                            grid: { color: "rgba(148, 163, 184, 0.15)" },
+                                                        },
+                                                        y1: {
+                                                            type: "linear",
+                                                            position: "right",
+                                                            beginAtZero: true,
+                                                            title: { display: true, text: "Revenue ₹" },
+                                                            grid: { drawOnChartArea: false },
+                                                        },
+                                                        x: { grid: { display: false } },
+                                                    },
+                                                }}
+                                            />
+                                        ) : (
+                                            <div className="flex h-full items-center justify-center text-sm text-gray-400">No dated orders in this range</div>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                                    <div className="mb-4 flex justify-between">
-                                        <div className="rounded-lg bg-emerald-50 p-2 text-emerald-600 dark:bg-emerald-950/40">
-                                            <Wallet className="h-5 w-5" />
-                                        </div>
+                                    <h4 className="mb-4 font-bold text-gray-800 dark:text-slate-100">Order status</h4>
+                                    <div className="mx-auto flex h-64 max-w-[260px] justify-center">
+                                        {slice.pending + slice.delivered + slice.cancelled > 0 ? (
+                                            <Doughnut
+                                                data={{
+                                                    labels: ["Delivered", "Pending", "Cancelled"],
+                                                    datasets: [
+                                                        {
+                                                            data: [slice.delivered, slice.pending, slice.cancelled],
+                                                            backgroundColor: ["#10b981", "#f59e0b", "#ef4444"],
+                                                        },
+                                                    ],
+                                                }}
+                                                options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }}
+                                            />
+                                        ) : (
+                                            <p className="self-center text-sm text-gray-400">No orders in range</p>
+                                        )}
                                     </div>
-                                    <p className="text-sm text-gray-500 dark:text-slate-400">Revenue (delivered)</p>
-                                    <h3 className="text-2xl font-bold tabular-nums">{fmtMoney(slice.revenue)}</h3>
+                                </div>
+                            </div>
+
+                            <div className="mb-8 grid grid-cols-1 gap-8 lg:grid-cols-2">
+                                <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                    <h4 className="mb-4 font-bold text-gray-800 dark:text-slate-100">Staff by department</h4>
+                                    <div className="h-64">
+                                        {metrics.hrStats.deptBreakdown.some((d) => d.name && d.name !== "—") ? (
+                                            <Bar
+                                                data={{
+                                                    labels: metrics.hrStats.deptBreakdown.map((d) => d.name),
+                                                    datasets: [{ label: "Staff", data: metrics.hrStats.deptBreakdown.map((d) => d.count), backgroundColor: "#6366f1", borderRadius: 6 }],
+                                                }}
+                                                options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }}
+                                            />
+                                        ) : (
+                                            <div className="flex h-full items-center justify-center text-sm text-gray-400">No department data in HR</div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                    <h4 className="mb-4 font-bold text-gray-800 dark:text-slate-100">Visitor platforms</h4>
+                                    <div className="mx-auto flex h-64 max-w-[280px] justify-center">
+                                        {metrics.platformData.length ? (
+                                            <Pie
+                                                data={{
+                                                    labels: metrics.platformData.map((d) => d.name),
+                                                    datasets: [
+                                                        {
+                                                            data: metrics.platformData.map((d) => d.value),
+                                                            backgroundColor: ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#0088fe", "#00c49f", "#94a3b8"],
+                                                        },
+                                                    ],
+                                                }}
+                                                options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }}
+                                            />
+                                        ) : (
+                                            <p className="self-center text-sm text-gray-400">No FCM tokens</p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
@@ -353,8 +656,9 @@ const Dashboard2 = () => {
                             </div>
 
                             <div className="mb-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
-                                <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm lg:col-span-2 dark:border-slate-800 dark:bg-slate-900">
+                                <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                                     <h4 className="mb-4 font-bold text-gray-700 dark:text-slate-200">Sales trend (today by hour)</h4>
+                                    <p className="mb-2 text-xs text-gray-500 dark:text-slate-400">Delivered revenue at key hours</p>
                                     <div className="h-48">
                                         <Line
                                             data={{
@@ -382,6 +686,19 @@ const Dashboard2 = () => {
                                     </div>
                                 </div>
                                 <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                    <h4 className="mb-4 font-bold text-gray-700 dark:text-slate-200">Orders today by hour</h4>
+                                    <p className="mb-2 text-xs text-gray-500 dark:text-slate-400">All statuses · calendar day</p>
+                                    <div className="h-48">
+                                        <Bar
+                                            data={{
+                                                labels: Array.from({ length: 24 }, (_, i) => `${i}h`),
+                                                datasets: [{ data: metrics.engagementHourToday, backgroundColor: "#0ea5e9", borderRadius: 4 }],
+                                            }}
+                                            options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                                     <h4 className="mb-4 font-bold text-gray-700 dark:text-slate-200">Orders summary</h4>
                                     <div className="h-48">
                                         <Bar
@@ -399,18 +716,18 @@ const Dashboard2 = () => {
 
                             <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
                                 <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                                    <h4 className="mb-6 font-bold text-gray-700 dark:text-slate-200">Top-selling lines (order items)</h4>
+                                    <h4 className="mb-6 font-bold text-gray-700 dark:text-slate-200">Top-selling lines ({periodLabelOverview})</h4>
                                     <div className="space-y-5">
-                                        {metrics.topToday.length === 0 ? (
+                                        {slice.topProducts.length === 0 ? (
                                             <p className="text-sm text-gray-400">No item-level sales in this range.</p>
                                         ) : (
-                                            metrics.topToday.map((row, i) => (
+                                            slice.topProducts.slice(0, 8).map((row, i) => (
                                                 <div key={i} className="flex items-center justify-between">
                                                     <div>
                                                         <p className="text-sm font-bold text-gray-800 dark:text-slate-100">{row.name}</p>
-                                                        <p className="text-xs text-gray-400">From orders</p>
+                                                        <p className="text-xs text-gray-400">From orders in range</p>
                                                     </div>
-                                                    <p className="text-sm font-bold tabular-nums">{row.sold} sold</p>
+                                                    <p className="text-sm font-bold tabular-nums">{row.count} sold</p>
                                                 </div>
                                             ))
                                         )}
@@ -511,6 +828,189 @@ const Dashboard2 = () => {
                                 <div className="rounded-xl border border-gray-100 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
                                     <p className="text-[10px] font-bold uppercase text-gray-400">Cancelled</p>
                                     <p className="mt-1 text-2xl font-black tabular-nums text-rose-600">{orderChartSlice.cancelled}</p>
+                                </div>
+                            </div>
+
+                            <p className="mb-4 text-sm text-gray-500 dark:text-slate-400">
+                                Order metrics for <span className="font-semibold text-gray-800 dark:text-slate-200">{ordersPeriodLabel}</span> (
+                                {orderChartSlice.totalOrders} orders). Revenue counts <span className="font-semibold">delivered</span> orders only.
+                            </p>
+                            <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
+                                <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                    <div className="mb-3 flex items-start justify-between gap-2">
+                                        <div className="rounded-xl bg-blue-50 p-3 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
+                                            <IndianRupee className="h-5 w-5" />
+                                        </div>
+                                        {(ordersRange === "7d" || ordersRange === "30d") && orderChartSlice.priorRevenue > 0 ? (
+                                            <span
+                                                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                                                    orderChartSlice.revenueDeltaPct >= 0
+                                                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200"
+                                                        : "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-200"
+                                                }`}
+                                            >
+                                                {orderChartSlice.revenueDeltaPct >= 0 ? "+" : ""}
+                                                {orderChartSlice.revenueDeltaPct}% vs prior {ordersRange === "7d" ? "week" : "month"}
+                                            </span>
+                                        ) : null}
+                                    </div>
+                                    <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-slate-400">Total sales</p>
+                                    <h3 className="mt-1 text-2xl font-black tabular-nums text-gray-900 dark:text-slate-100">{fmtMoney(orderChartSlice.revenue)}</h3>
+                                </div>
+                                <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                    <div className="mb-3 rounded-xl bg-purple-50 p-3 text-purple-600 dark:bg-purple-950/40 dark:text-purple-300">
+                                        <Package className="h-5 w-5" />
+                                    </div>
+                                    <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-slate-400">Total orders</p>
+                                    <h3 className="mt-1 text-2xl font-black text-gray-900 dark:text-slate-100">{orderChartSlice.totalOrders}</h3>
+                                </div>
+                                <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                    <div className="mb-3 rounded-xl bg-orange-50 p-3 text-orange-600 dark:bg-orange-950/40 dark:text-orange-300">
+                                        <Activity className="h-5 w-5" />
+                                    </div>
+                                    <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-slate-400">Avg order value</p>
+                                    <h3 className="mt-1 text-2xl font-black tabular-nums text-gray-900 dark:text-slate-100">
+                                        {fmtMoney(orderChartSlice.delivered > 0 ? orderChartSlice.revenue / orderChartSlice.delivered : 0)}
+                                    </h3>
+                                </div>
+                                <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                    <div className="mb-3 rounded-xl bg-red-50 p-3 text-red-600 dark:bg-red-950/40 dark:text-red-300">
+                                        <AlertTriangle className="h-5 w-5" />
+                                    </div>
+                                    <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-slate-400">Cancelled</p>
+                                    <h3 className="mt-1 text-2xl font-black text-rose-600 dark:text-rose-400">{orderChartSlice.cancelled}</h3>
+                                </div>
+                            </div>
+
+                            <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
+                                <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm lg:col-span-2 dark:border-slate-800 dark:bg-slate-900">
+                                    <h4 className="text-lg font-bold text-gray-800 dark:text-slate-100">Revenue trend</h4>
+                                    <p className="text-xs text-gray-500 dark:text-slate-400">Daily delivered revenue in the selected range</p>
+                                    <div className="mt-4 h-72 w-full">
+                                        {orderChartSlice.dailySeries.length ? (
+                                            <Line
+                                                data={{
+                                                    labels: orderChartSlice.dailySeries.map((d) => d.date),
+                                                    datasets: [
+                                                        {
+                                                            label: "Revenue (₹)",
+                                                            data: orderChartSlice.dailySeries.map((d) => d.revenue),
+                                                            borderColor: "#8b5cf6",
+                                                            backgroundColor: "rgba(139, 92, 246, 0.1)",
+                                                            tension: 0.35,
+                                                            fill: true,
+                                                        },
+                                                    ],
+                                                }}
+                                                options={{
+                                                    responsive: true,
+                                                    maintainAspectRatio: false,
+                                                    scales: { y: { beginAtZero: true }, x: { grid: { display: false } } },
+                                                }}
+                                            />
+                                        ) : (
+                                            <div className="flex h-full items-center justify-center text-sm text-gray-400">No dated orders in this range</div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                    <h4 className="text-lg font-bold text-gray-800 dark:text-slate-100">Top selling products</h4>
+                                    <p className="text-xs text-gray-500 dark:text-slate-400">Line items in range</p>
+                                    <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
+                                        {orderChartSlice.topProducts.length === 0 ? (
+                                            <p className="text-sm text-gray-400">No products in this range.</p>
+                                        ) : (
+                                            orderChartSlice.topProducts.map((prod, idx) => (
+                                                <div key={idx} className="flex items-center gap-3">
+                                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-xs font-bold text-gray-500 dark:bg-slate-800 dark:text-slate-400">
+                                                        #{idx + 1}
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="truncate text-sm font-bold text-gray-800 dark:text-slate-100">{prod.name}</p>
+                                                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-slate-800">
+                                                            <div
+                                                                className="h-full rounded-full bg-blue-500"
+                                                                style={{ width: `${(prod.count / ordersTopSoldMax) * 100}%` }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <span className="shrink-0 text-xs font-bold text-gray-500">{prod.count} sold</span>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="mb-8 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                <div className="border-b border-gray-100 bg-gray-50 p-4 dark:border-slate-800 dark:bg-slate-800/50">
+                                    <h4 className="font-bold text-gray-800 dark:text-slate-100">Recent orders</h4>
+                                    <p className="text-xs text-gray-500 dark:text-slate-400">Newest first · simplified view</p>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-sm">
+                                        <thead className="border-b border-gray-100 bg-gray-50 text-xs font-bold uppercase text-gray-500 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-400">
+                                            <tr>
+                                                <th className="p-4">Order ID</th>
+                                                <th className="p-4">Date &amp; time</th>
+                                                <th className="p-4">Amount</th>
+                                                <th className="p-4">Payment</th>
+                                                <th className="p-4">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+                                            {orderChartSlice.recentTransactions.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={5} className="p-8 text-center text-gray-400">
+                                                        No orders in the selected range
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                orderChartSlice.recentTransactions.map((order) => (
+                                                    <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40">
+                                                        <td className="p-4 font-mono text-xs font-bold text-blue-600 dark:text-blue-400">#{order.id}</td>
+                                                        <td className="p-4 text-gray-500 dark:text-slate-400">
+                                                            {new Date(order.date).toLocaleDateString()}{" "}
+                                                            <span className="text-xs opacity-70">
+                                                                {new Date(order.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-4 font-bold tabular-nums">{fmtMoney(order.amount)}</td>
+                                                        <td className="p-4">
+                                                            <span
+                                                                className={`rounded px-2 py-1 text-[10px] font-bold uppercase ${
+                                                                    order.method === "COD"
+                                                                        ? "bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-200"
+                                                                        : order.method === "Wallet"
+                                                                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
+                                                                          : "bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-300"
+                                                                }`}
+                                                            >
+                                                                {order.method}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-4">
+                                                            {order.statusLabel === "Delivered" && (
+                                                                <span className="flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                                                                    <CheckCircle className="h-3.5 w-3.5" /> Delivered
+                                                                </span>
+                                                            )}
+                                                            {order.statusLabel === "Cancelled" && (
+                                                                <span className="flex items-center gap-1 text-xs font-bold text-red-600 dark:text-red-400">
+                                                                    <XCircle className="h-3.5 w-3.5" /> Cancelled
+                                                                </span>
+                                                            )}
+                                                            {order.statusLabel === "Pending" && (
+                                                                <span className="flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400">
+                                                                    <Clock className="h-3.5 w-3.5" /> Pending
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
 
@@ -641,19 +1141,24 @@ const Dashboard2 = () => {
                             <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
                                     <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-100">Users & customers</h2>
-                                    <p className="text-sm text-gray-500 dark:text-slate-400">Device tokens from Firebase.</p>
+                                    <p className="text-sm text-gray-500 dark:text-slate-400">Registered tokens + anonymous visitors from Firebase.</p>
                                 </div>
                                 <div className="relative">
                                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                                     <input
                                         value={search}
                                         onChange={(e) => setSearch(e.target.value)}
-                                        placeholder="Search phone…"
-                                        className="w-full rounded-lg border border-gray-200 py-2 pl-10 pr-4 text-sm dark:border-slate-700 dark:bg-slate-900 sm:w-64"
+                                        placeholder="Search phone, id, platform…"
+                                        className="w-full rounded-lg border border-gray-200 py-2 pl-10 pr-4 text-sm dark:border-slate-700 dark:bg-slate-900 sm:w-72"
                                     />
                                 </div>
                             </header>
-                            <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
+                            <p className="mb-4 text-sm text-gray-500 dark:text-slate-400">
+                                Showing {Math.min(50, usersDirectoryRows.length)} of {usersDirectoryRows.length} in view (filter:{" "}
+                                <span className="font-semibold text-gray-700 dark:text-slate-300">{userFilter}</span>) ·{" "}
+                                {metrics.statsKpi.totalUsers} total tokens
+                            </p>
+                            <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-4">
                                 <div className="rounded-xl border border-gray-100 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
                                     <h4 className="mb-4 text-sm font-bold text-gray-700 dark:text-slate-200">New tokens (cumulative count)</h4>
                                     <div className="h-48">
@@ -663,10 +1168,10 @@ const Dashboard2 = () => {
                                                 datasets: [
                                                     {
                                                         data: [
-                                                            Math.max(0, metrics.usersList.length - 30),
-                                                            Math.max(0, metrics.usersList.length - 20),
-                                                            Math.max(0, metrics.usersList.length - 10),
-                                                            metrics.usersList.length,
+                                                            Math.max(0, metrics.statsKpi.totalUsers - 30),
+                                                            Math.max(0, metrics.statsKpi.totalUsers - 20),
+                                                            Math.max(0, metrics.statsKpi.totalUsers - 10),
+                                                            metrics.statsKpi.totalUsers,
                                                         ],
                                                         borderColor: "#2563eb",
                                                         fill: true,
@@ -681,25 +1186,84 @@ const Dashboard2 = () => {
                                 <div className="rounded-xl border border-gray-100 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
                                     <h4 className="mb-4 text-sm font-bold text-gray-700 dark:text-slate-200">Directory size</h4>
                                     <div className="flex h-48 items-center justify-center">
-                                        <p className="text-4xl font-black text-blue-600">{metrics.usersList.length}</p>
+                                        <p className="text-4xl font-black text-blue-600 dark:text-blue-400">{metrics.statsKpi.totalUsers}</p>
                                     </div>
                                 </div>
                                 <div className="rounded-xl border border-gray-100 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-                                    <h4 className="mb-4 text-sm font-bold text-gray-700 dark:text-slate-200">Repeat vs new (estimate)</h4>
+                                    <h4 className="mb-4 text-sm font-bold text-gray-700 dark:text-slate-200">Customers vs visitors</h4>
                                     <div className="mx-auto h-48 max-w-[200px]">
                                         <Doughnut
                                             data={{
-                                                labels: ["With orders", "Tokens only"],
-                                                datasets: [{ data: [Math.min(metrics.today.delivered, metrics.usersList.length), Math.max(1, metrics.usersList.length - metrics.today.delivered)], backgroundColor: ["#22c55e", "#94a3b8"] }],
+                                                labels: ["Delivered match", "Tokens only"],
+                                                datasets: [
+                                                    {
+                                                        data: (() => {
+                                                            const matched = metrics.usersExpanded.filter((u) => u.orderCompletedAt > 0).length;
+                                                            const rest = Math.max(0, metrics.usersExpanded.length - matched);
+                                                            return [Math.max(0, matched), Math.max(1, rest)];
+                                                        })(),
+                                                        backgroundColor: ["#22c55e", "#94a3b8"],
+                                                    },
+                                                ],
                                             }}
                                             options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }}
                                         />
                                     </div>
                                 </div>
+                                <div className="rounded-xl border border-gray-100 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+                                    <h4 className="mb-4 text-sm font-bold text-gray-700 dark:text-slate-200">Platforms (all tokens)</h4>
+                                    <div className="mx-auto flex h-48 max-w-[220px] justify-center">
+                                        {metrics.platformData.length ? (
+                                            <Pie
+                                                data={{
+                                                    labels: metrics.platformData.map((d) => d.name),
+                                                    datasets: [
+                                                        {
+                                                            data: metrics.platformData.map((d) => d.value),
+                                                            backgroundColor: ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#94a3b8"],
+                                                        },
+                                                    ],
+                                                }}
+                                                options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }}
+                                            />
+                                        ) : (
+                                            <p className="self-center text-sm text-gray-400">No data</p>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                             <div className="overflow-hidden rounded-xl border border-gray-100 bg-white dark:border-slate-800 dark:bg-slate-900">
-                                <div className="border-b border-gray-100 bg-gray-50 p-6 dark:border-slate-800 dark:bg-slate-800/50">
-                                    <h4 className="font-bold text-gray-800 dark:text-slate-100">Customer directory</h4>
+                                <div className="flex flex-col gap-4 border-b border-gray-100 bg-gray-50 p-4 dark:border-slate-800 dark:bg-slate-800/50 sm:flex-row sm:items-center sm:justify-between">
+                                    <h4 className="font-bold text-gray-800 dark:text-slate-100">User management</h4>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {(["all", "registered", "anonymous", "customers"] as const).map((f) => (
+                                            <button
+                                                key={f}
+                                                type="button"
+                                                onClick={() => setUserFilter(f)}
+                                                className={`rounded-lg px-3 py-1.5 text-xs font-bold capitalize ${
+                                                    userFilter === f
+                                                        ? "bg-white text-blue-600 shadow dark:bg-slate-900 dark:text-blue-400"
+                                                        : "text-gray-600 hover:bg-white/80 dark:text-slate-400 dark:hover:bg-slate-800"
+                                                }`}
+                                            >
+                                                {f}
+                                            </button>
+                                        ))}
+                                        <select
+                                            value={`${userSortConfig.key}:${userSortConfig.direction}`}
+                                            onChange={(e) => {
+                                                const [key, direction] = e.target.value.split(":") as [keyof ClubExpandedUser | "orderCompletedAt", "asc" | "desc"];
+                                                setUserSortConfig({ key, direction });
+                                            }}
+                                            className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-medium text-gray-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                                        >
+                                            <option value="updatedAt:desc">Last update · newest</option>
+                                            <option value="updatedAt:asc">Last update · oldest</option>
+                                            <option value="orderCompletedAt:desc">Customers first</option>
+                                            <option value="phone:asc">Phone A–Z</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left text-sm">
@@ -707,24 +1271,44 @@ const Dashboard2 = () => {
                                             <tr className="border-b text-xs uppercase text-gray-500 dark:border-slate-700 dark:text-slate-400">
                                                 <th className="p-4">User / token</th>
                                                 <th className="p-4">Platform</th>
+                                                <th className="p-4">Status</th>
                                                 <th className="p-4">Last update</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {metrics.usersList
-                                                .filter((u) => !search || u.phone.toLowerCase().includes(search.toLowerCase()) || u.id.toLowerCase().includes(search.toLowerCase()))
-                                                .map((u) => (
-                                                    <tr key={u.id} className="border-b border-gray-50 dark:border-slate-800">
-                                                        <td className="p-4">
-                                                            <p className="font-bold">{u.phone}</p>
-                                                            <p className="text-xs text-gray-400">{u.id}</p>
-                                                        </td>
-                                                        <td className="p-4">{u.platform}</td>
-                                                        <td className="p-4 text-gray-500">{u.updatedAt ? new Date(u.updatedAt).toLocaleString() : "—"}</td>
-                                                    </tr>
-                                                ))}
+                                            {usersDirectoryRows.slice(0, 50).map((u) => (
+                                                <tr key={`${u.isAnon ? "a" : "r"}-${u.id}`} className="border-b border-gray-50 dark:border-slate-800">
+                                                    <td className="p-4">
+                                                        <p className="font-bold">{u.phone}</p>
+                                                        <p className="text-xs text-gray-400">{u.id}</p>
+                                                        {u.isAnon ? (
+                                                            <span className="mt-1 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+                                                                Anonymous
+                                                            </span>
+                                                        ) : null}
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-bold uppercase text-gray-700 dark:bg-slate-800 dark:text-slate-200">
+                                                            {u.cleanPlatform}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4">
+                                                        {u.orderCompletedAt > 0 ? (
+                                                            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Customer</span>
+                                                        ) : (
+                                                            <span className="text-xs text-gray-400">Visitor</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="p-4 text-gray-500 dark:text-slate-400">
+                                                        {u.updatedAt ? new Date(u.updatedAt).toLocaleString() : "—"}
+                                                    </td>
+                                                </tr>
+                                            ))}
                                         </tbody>
                                     </table>
+                                    {usersDirectoryRows.length === 0 && (
+                                        <p className="p-8 text-center text-sm text-gray-400">No users match filters or search.</p>
+                                    )}
                                 </div>
                             </div>
                         </>
@@ -937,14 +1521,15 @@ const Dashboard2 = () => {
                             </header>
                             <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
                                 <div className="rounded-xl border border-gray-100 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-                                    <h4 className="mb-4 text-sm font-bold dark:text-slate-200">Deliveries today (count)</h4>
+                                    <h4 className="mb-4 text-sm font-bold dark:text-slate-200">Orders today by hour</h4>
+                                    <p className="mb-2 text-[10px] text-gray-500 dark:text-slate-400">All statuses · calendar day</p>
                                     <div className="h-40">
                                         <Line
                                             data={{
-                                                labels: ["8", "10", "12", "14", "16"],
+                                                labels: Array.from({ length: 24 }, (_, i) => `${i}h`),
                                                 datasets: [
                                                     {
-                                                        data: [2, 4, 6, 5, Math.min(metrics.today.delivered, 20)],
+                                                        data: metrics.today.hourOrders,
                                                         borderColor: "#f97316",
                                                         backgroundColor: "rgba(249,115,22,0.1)",
                                                         fill: true,
@@ -952,7 +1537,7 @@ const Dashboard2 = () => {
                                                     },
                                                 ],
                                             }}
-                                            options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }}
+                                            options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }}
                                         />
                                     </div>
                                 </div>
@@ -1024,91 +1609,192 @@ const Dashboard2 = () => {
                             <header className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                                 <div>
                                     <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-100">Business & finance</h2>
-                                    <p className="text-sm text-gray-500 dark:text-slate-400">Revenue from delivered orders (7-day window for charts).</p>
+                                    <p className="text-sm text-gray-500 dark:text-slate-400">
+                                        Order revenue uses <span className="font-semibold text-gray-700 dark:text-slate-300">{bizPeriodLabel}</span>; inventory is live from stock.
+                                    </p>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-3">
-                                    <div className="flex rounded-lg border border-gray-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
-                                        <button type="button" className="rounded-md bg-blue-600 px-4 py-1 text-sm font-medium text-white">
-                                            This week
-                                        </button>
+                                    <div className="flex rounded-lg border border-gray-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                                        {(["today", "7d", "30d", "all"] as const).map((r) => (
+                                            <button
+                                                key={r}
+                                                type="button"
+                                                onClick={() => setBizRange(r)}
+                                                className={`rounded-md px-3 py-1.5 text-xs font-semibold ${
+                                                    bizRange === r ? "bg-blue-600 text-white" : "text-gray-600 dark:text-slate-300"
+                                                }`}
+                                            >
+                                                {r === "today" ? "Today" : r === "7d" ? "7 days" : r === "30d" ? "30 days" : "All"}
+                                            </button>
+                                        ))}
                                     </div>
-                                    <button type="button" className="flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 dark:bg-slate-700">
+                                    <button
+                                        type="button"
+                                        className="flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 dark:bg-slate-700"
+                                    >
                                         <Download className="h-4 w-4" /> Export
                                     </button>
                                 </div>
                             </header>
-                            <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-                                <div className="rounded-xl border border-gray-100 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-                                    <p className="text-sm font-medium text-gray-500 dark:text-slate-400">Week revenue</p>
-                                    <h3 className="mt-2 text-2xl font-bold tabular-nums">{fmtMoney(metrics.week.revenue)}</h3>
+                            <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                                <div className="rounded-xl border border-gray-100 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+                                    <p className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-slate-400">Revenue ({bizPeriodLabel})</p>
+                                    <h3 className="mt-1 text-2xl font-black tabular-nums text-gray-900 dark:text-slate-100">{fmtMoney(bizSlice.revenue)}</h3>
+                                    <p className="mt-1 text-[10px] text-gray-400">Delivered orders only</p>
                                 </div>
-                                <div className="rounded-xl border border-gray-100 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-                                    <p className="text-sm font-medium text-gray-500 dark:text-slate-400">Inventory value</p>
-                                    <h3 className="mt-2 text-2xl font-bold text-blue-600 tabular-nums">{fmtMoney(metrics.stockValue)}</h3>
+                                <div className="rounded-xl border border-gray-100 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+                                    <p className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-slate-400">Avg order</p>
+                                    <h3 className="mt-1 text-2xl font-black tabular-nums">{fmtMoney(bizSlice.delivered ? bizSlice.revenue / bizSlice.delivered : 0)}</h3>
+                                    <p className="mt-1 text-[10px] text-gray-400">Mean on completed</p>
                                 </div>
-                                <div className="rounded-xl border border-gray-100 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-                                    <p className="text-sm font-medium text-gray-500 dark:text-slate-400">Completed (week)</p>
-                                    <h3 className="mt-2 text-2xl font-bold tabular-nums">{metrics.week.delivered}</h3>
+                                <div className="rounded-xl border border-gray-100 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+                                    <p className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-slate-400">Inventory value</p>
+                                    <h3 className="mt-1 text-2xl font-black text-blue-600 tabular-nums dark:text-blue-400">{fmtMoney(metrics.stockValue)}</h3>
+                                    <p className="mt-1 text-[10px] text-gray-400">Σ qty × offer (or MRP)</p>
                                 </div>
-                                <div className="rounded-xl border border-gray-100 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-                                    <p className="text-sm font-medium text-gray-500 dark:text-slate-400">Avg order (week)</p>
-                                    <h3 className="mt-2 text-2xl font-bold text-emerald-600 tabular-nums">
-                                        {fmtMoney(metrics.week.delivered ? metrics.week.revenue / metrics.week.delivered : 0)}
-                                    </h3>
+                                <div className="rounded-xl border border-gray-100 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+                                    <p className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-slate-400">Stock units</p>
+                                    <h3 className="mt-1 text-2xl font-black tabular-nums">{metrics.totalStockQuantity}</h3>
+                                    <p className="mt-1 text-[10px] text-gray-400">
+                                        {metrics.totalVariantSkus} variants · {metrics.outOfStockSkus} at zero
+                                    </p>
+                                </div>
+                                <div className="rounded-xl border border-gray-100 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+                                    <p className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-slate-400">Pipeline</p>
+                                    <h3 className="mt-1 text-2xl font-black text-amber-600 tabular-nums">{bizSlice.pending}</h3>
+                                    <p className="mt-1 text-[10px] text-gray-400">Non-delivered, non-cancelled</p>
+                                </div>
+                                <div className="rounded-xl border border-gray-100 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+                                    <p className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-slate-400">Fulfillment</p>
+                                    <h3 className="mt-1 text-2xl font-black text-emerald-600 tabular-nums dark:text-emerald-400">{bizSlice.completionRatePct}%</h3>
+                                    <p className="mt-1 text-[10px] text-gray-400">Delivered ÷ all in range</p>
                                 </div>
                             </div>
-                            <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
-                                <div className="rounded-xl border border-gray-100 bg-white p-6 lg:col-span-2 dark:border-slate-800 dark:bg-slate-900">
-                                    <h4 className="mb-4 text-sm font-bold text-gray-700 dark:text-slate-200">Revenue trend (7 days)</h4>
-                                    <div className="h-64">
-                                        <Line
-                                            data={{
-                                                labels: metrics.weekDailyRevenue.labels.length ? metrics.weekDailyRevenue.labels : ["—"],
-                                                datasets: [
-                                                    {
-                                                        label: "₹",
-                                                        data: metrics.weekDailyRevenue.values.length ? metrics.weekDailyRevenue.values : [0],
-                                                        borderColor: "#10b981",
-                                                        backgroundColor: "rgba(16,185,129,0.1)",
-                                                        fill: true,
-                                                        tension: 0.35,
-                                                    },
-                                                ],
-                                            }}
-                                            options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }}
-                                        />
+                            <div className="mb-8 grid grid-cols-1 gap-8 lg:grid-cols-2">
+                                <div className="rounded-xl border border-gray-100 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+                                    <h4 className="mb-1 text-lg font-bold text-gray-800 dark:text-slate-100">Inventory by category</h4>
+                                    <p className="mb-4 text-xs text-gray-500 dark:text-slate-400">Retail value by category (live)</p>
+                                    <div className="h-72">
+                                        {metrics.inventoryChartData.labels.length ? (
+                                            <Bar
+                                                data={{
+                                                    labels: metrics.inventoryChartData.labels,
+                                                    datasets: [{ label: "Value (₹)", data: metrics.inventoryChartData.values, backgroundColor: "#34d399", borderRadius: 4 }],
+                                                }}
+                                                options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }}
+                                            />
+                                        ) : (
+                                            <div className="flex h-full items-center justify-center text-sm text-gray-400">No inventory</div>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="rounded-xl border border-gray-100 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-                                    <h4 className="mb-4 text-sm font-bold text-gray-700 dark:text-slate-200">Payment split (week)</h4>
-                                    <div className="mx-auto h-64 max-w-[260px]">
-                                        {metrics.methodSplit.labels.length ? (
+                                    <h4 className="mb-1 text-lg font-bold text-gray-800 dark:text-slate-100">Revenue by payment method</h4>
+                                    <p className="mb-4 text-xs text-gray-500 dark:text-slate-400">Delivered in {bizPeriodLabel.toLowerCase()}</p>
+                                    <div className="h-72">
+                                        {(() => {
+                                            const labels = Object.keys(bizSlice.methodTotals).filter((k) => bizSlice.methodTotals[k] > 0);
+                                            const values = labels.map((k) => bizSlice.methodTotals[k]);
+                                            return labels.length ? (
+                                                <Bar
+                                                    data={{
+                                                        labels,
+                                                        datasets: [
+                                                            {
+                                                                label: "Revenue (₹)",
+                                                                data: values,
+                                                                backgroundColor: labels.map((_, i) => ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#64748b"][i % 6]),
+                                                            },
+                                                        ],
+                                                    }}
+                                                    options={{
+                                                        responsive: true,
+                                                        maintainAspectRatio: false,
+                                                        indexAxis: "y",
+                                                        plugins: { legend: { display: false } },
+                                                    }}
+                                                />
+                                            ) : (
+                                                <div className="flex h-full items-center justify-center text-sm text-gray-400">No delivered revenue in this range</div>
+                                            );
+                                        })()}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="mb-8 grid grid-cols-1 gap-8 lg:grid-cols-2">
+                                <div className="rounded-xl border border-gray-100 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+                                    <h4 className="mb-1 text-lg font-bold text-gray-800 dark:text-slate-100">Order status mix</h4>
+                                    <p className="mb-4 text-xs text-gray-500 dark:text-slate-400">
+                                        {bizPeriodLabel} · {bizSlice.totalOrders} orders in range
+                                    </p>
+                                    <div className="mx-auto flex h-64 max-w-[280px] justify-center">
+                                        {bizSlice.pending + bizSlice.delivered + bizSlice.cancelled > 0 ? (
                                             <Doughnut
                                                 data={{
-                                                    labels: metrics.methodSplit.labels,
-                                                    datasets: [{ data: metrics.methodSplit.pct, backgroundColor: ["#3b82f6", "#f59e0b", "#8b5cf6", "#10b981", "#64748b"] }],
+                                                    labels: ["Delivered", "Pending", "Cancelled"],
+                                                    datasets: [
+                                                        {
+                                                            data: [bizSlice.delivered, bizSlice.pending, bizSlice.cancelled],
+                                                            backgroundColor: ["#10b981", "#f59e0b", "#ef4444"],
+                                                        },
+                                                    ],
                                                 }}
                                                 options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }}
                                             />
                                         ) : (
-                                            <p className="pt-20 text-center text-sm text-gray-400">No data</p>
+                                            <p className="self-center text-sm text-gray-400">No orders</p>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="rounded-xl border border-gray-100 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+                                    <h4 className="mb-1 text-lg font-bold text-gray-800 dark:text-slate-100">Revenue trend</h4>
+                                    <p className="mb-4 text-xs text-gray-500 dark:text-slate-400">Daily delivered revenue</p>
+                                    <div className="h-64 w-full">
+                                        {bizSlice.dailySeries.length ? (
+                                            <Line
+                                                data={{
+                                                    labels: bizSlice.dailySeries.map((d) => d.date),
+                                                    datasets: [
+                                                        {
+                                                            label: "Revenue (₹)",
+                                                            data: bizSlice.dailySeries.map((d) => d.revenue),
+                                                            borderColor: "#8b5cf6",
+                                                            backgroundColor: "rgba(139, 92, 246, 0.12)",
+                                                            tension: 0.35,
+                                                            fill: true,
+                                                        },
+                                                    ],
+                                                }}
+                                                options={{ responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true }, x: { grid: { display: false } } } }}
+                                            />
+                                        ) : (
+                                            <div className="flex h-full items-center justify-center text-sm text-gray-400">No dated orders</div>
                                         )}
                                     </div>
                                 </div>
                             </div>
                             <div className="rounded-xl border border-gray-100 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-                                <h4 className="mb-4 text-sm font-bold">Profit vs activity (illustrative)</h4>
+                                <h4 className="mb-4 text-sm font-bold text-gray-800 dark:text-slate-100">Orders vs revenue (last days in range)</h4>
                                 <div className="h-56">
-                                    <Bar
-                                        data={{
-                                            labels: metrics.weekDailyRevenue.labels.slice(-5),
-                                            datasets: [
-                                                { label: "Revenue", data: metrics.weekDailyRevenue.values.slice(-5), backgroundColor: "#10b981", borderRadius: 4 },
-                                                { label: "Orders", data: metrics.weekDailyRevenue.values.slice(-5).map((v) => Math.max(1, Math.round(v / 500))), backgroundColor: "#ef4444", borderRadius: 4 },
-                                            ],
-                                        }}
-                                        options={{ responsive: true, maintainAspectRatio: false, scales: { x: { stacked: false }, y: { beginAtZero: true } } }}
-                                    />
+                                    {bizSlice.dailySeries.length ? (
+                                        <Bar
+                                            data={{
+                                                labels: bizSlice.dailySeries.map((d) => d.date),
+                                                datasets: [
+                                                    { label: "Order count", data: bizSlice.dailySeries.map((d) => d.count), backgroundColor: "#3b82f6", borderRadius: 4 },
+                                                    {
+                                                        label: "Revenue (₹k)",
+                                                        data: bizSlice.dailySeries.map((d) => Math.round(d.revenue / 1000)),
+                                                        backgroundColor: "#10b981",
+                                                        borderRadius: 4,
+                                                    },
+                                                ],
+                                            }}
+                                            options={{ responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }}
+                                        />
+                                    ) : (
+                                        <div className="flex h-full items-center justify-center text-sm text-gray-400">No data</div>
+                                    )}
                                 </div>
                             </div>
                         </>
@@ -1144,7 +1830,7 @@ const Dashboard2 = () => {
                                     { t: "Broadcasts (loaded)", v: metrics.notificationCount, sub: "root/notifications" },
                                     { t: "Support tickets", v: metrics.ticketCount, sub: "root/support_tickets" },
                                     { t: "Pending orders (today)", v: metrics.today.pending, sub: "root/order" },
-                                    { t: "App users (tokens)", v: metrics.usersList.length, sub: "root/fcm_tokens" },
+                                    { t: "App users (tokens)", v: metrics.statsKpi.totalUsers, sub: "root/fcm_tokens" },
                                 ].map((c, i) => (
                                     <div key={i} className="rounded-xl border border-gray-100 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
                                         <p className="mb-1 text-sm text-gray-500 dark:text-slate-400">{c.t}</p>

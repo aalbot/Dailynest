@@ -48,6 +48,38 @@ function orderSortTs(o: any): number {
     return 0;
 }
 
+function cleanPlatformName(platform: string) {
+    const p = (platform || "").toLowerCase();
+    if (!p) return "Unknown";
+    if (p.includes("android")) return "Android";
+    if (p.includes("windows")) return "Windows";
+    if (p.includes("web")) return "Web";
+    if (p.includes("macos")) return "macOS";
+    if (p.includes("ios")) return "iOS";
+    return platform || "Unknown";
+}
+
+type DailyPoint = { date: string; count: number; revenue: number };
+
+export type ClubRecentTransaction = {
+    id: string;
+    date: number;
+    amount: number;
+    method: string;
+    statusLabel: string;
+    statusBucket: ReturnType<typeof orderStatusBucket>;
+};
+
+export type ClubExpandedUser = {
+    id: string;
+    phone: string;
+    platform: string;
+    cleanPlatform: string;
+    updatedAt: number;
+    isAnon: boolean;
+    orderCompletedAt: number;
+};
+
 export type ClubOrderTableRow = {
     id: string;
     customerName: string;
@@ -101,6 +133,7 @@ export function useClubMetrics() {
         category: Record<string, any>;
         fcm_tokens: Record<string, any>;
         employees: Record<string, any>;
+        departments: Record<string, any>;
         notifications: Record<string, any>;
         supportTickets: Record<string, any>;
     }>({
@@ -110,6 +143,7 @@ export function useClubMetrics() {
         category: {},
         fcm_tokens: {},
         employees: {},
+        departments: {},
         notifications: {},
         supportTickets: {},
     });
@@ -161,6 +195,10 @@ export function useClubMetrics() {
             touchSync();
             setRaw((p) => ({ ...p, employees: s.val() ?? {} }));
         };
+        const onDepartments = (s: any) => {
+            touchSync();
+            setRaw((p) => ({ ...p, departments: s.val() ?? {} }));
+        };
         const onNotifications = (s: any) => {
             touchSync();
             setRaw((p) => ({ ...p, notifications: s.val() ?? {} }));
@@ -176,6 +214,7 @@ export function useClubMetrics() {
         root.child("category").on("value", onCategory, onFail("category"));
         root.child("fcm_tokens").on("value", onFcm, onFail("fcm_tokens"));
         hr.child("employees").on("value", onEmployees, onFail("nexus_hr/employees"));
+        hr.child("departments").on("value", onDepartments, onFail("nexus_hr/departments"));
 
         const notifQuery = root.child("notifications").limitToLast(150);
         notifQuery.on("value", onNotifications, () => {
@@ -200,6 +239,7 @@ export function useClubMetrics() {
             root.child("category").off("value", onCategory);
             root.child("fcm_tokens").off("value", onFcm);
             hr.child("employees").off("value", onEmployees);
+            hr.child("departments").off("value", onDepartments);
             notifQuery.off("value", onNotifications);
             ticketsQuery.off("value", onTickets);
             window.clearTimeout(t);
@@ -212,7 +252,9 @@ export function useClubMetrics() {
         const d7 = now - 7 * 86400000;
         const d30 = now - 30 * 86400000;
 
-        const allOrders = Object.entries(raw.order || {}).map(([id, v]) => ({ id, ...v }));
+        const allOrders = Object.entries(raw.order || {})
+            .filter(([id]) => id !== "counter")
+            .map(([id, v]) => ({ id, ...v }));
 
         const inRange = (o: any, range: ClubTimeRange) => {
             const ts = orderSortTs(o);
@@ -233,6 +275,7 @@ export function useClubMetrics() {
             const hourRevenue = new Array(24).fill(0);
             const hourOrders = new Array(24).fill(0);
             const productSales: Record<string, number> = {};
+            const timeMap: Record<string, DailyPoint> = {};
 
             list.forEach((o) => {
                 const b = orderStatusBucket(o.status);
@@ -249,15 +292,70 @@ export function useClubMetrics() {
                     const h = new Date(ts).getHours();
                     hourOrders[h]++;
                     if (b === "delivered") hourRevenue[h] += amount;
+                    const dKey = new Date(ts).toLocaleDateString("en-CA");
+                    if (!timeMap[dKey]) timeMap[dKey] = { date: dKey, count: 0, revenue: 0 };
+                    timeMap[dKey].count++;
+                    if (b === "delivered") timeMap[dKey].revenue += amount;
                 }
                 Object.keys(o).forEach((k) => {
                     if (k.startsWith("item") && o[k]) productSales[String(o[k])] = (productSales[String(o[k])] || 0) + 1;
                 });
             });
 
+            const dailySeries = Object.values(timeMap)
+                .sort((a, b) => a.date.localeCompare(b.date))
+                .slice(-14);
+
+            let priorRevenue = 0;
+            if (range === "7d") {
+                const startPrev = now - 14 * 86400000;
+                const endPrev = d7;
+                allOrders.forEach((o: any) => {
+                    const ts = orderSortTs(o);
+                    if (!ts || ts < startPrev || ts >= endPrev) return;
+                    if (orderStatusBucket(o.status) === "delivered") priorRevenue += parseOrderTotal(o).amount;
+                });
+            } else if (range === "30d") {
+                const startPrev = now - 60 * 86400000;
+                const endPrev = d30;
+                allOrders.forEach((o: any) => {
+                    const ts = orderSortTs(o);
+                    if (!ts || ts < startPrev || ts >= endPrev) return;
+                    if (orderStatusBucket(o.status) === "delivered") priorRevenue += parseOrderTotal(o).amount;
+                });
+            }
+            const revenueDeltaPct =
+                priorRevenue > 0 ? Math.round(((revenue - priorRevenue) / priorRevenue) * 100) : revenue > 0 ? 100 : 0;
+
+            const topProducts = Object.entries(productSales)
+                .map(([name, count]) => ({ name, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 10);
+
+            const recentTransactions: ClubRecentTransaction[] = [...list]
+                .filter((o: any) => orderSortTs(o) > 0)
+                .sort((a: any, b: any) => orderSortTs(b) - orderSortTs(a))
+                .slice(0, 25)
+                .map((o: any) => {
+                    const { amount, method } = parseOrderTotal(o);
+                    const b = orderStatusBucket(o.status);
+                    const statusLabel = b === "delivered" ? "Delivered" : b === "cancelled" ? "Cancelled" : "Pending";
+                    return {
+                        id: String(o.id ?? ""),
+                        date: orderSortTs(o),
+                        amount,
+                        method,
+                        statusLabel,
+                        statusBucket: b,
+                    };
+                });
+
             const ordersTable: ClubOrderTableRow[] = list
                 .map((o) => mapOrderTableRow(o))
                 .sort((a, b) => (b.sortTime || 0) - (a.sortTime || 0) || String(b.id).localeCompare(String(a.id)));
+
+            const denom = delivered + cancelled + pending;
+            const completionRatePct = denom > 0 ? Math.round((delivered / denom) * 1000) / 10 : 0;
 
             return {
                 list,
@@ -270,6 +368,13 @@ export function useClubMetrics() {
                 hourOrders,
                 productSales,
                 ordersTable,
+                dailySeries,
+                topProducts,
+                recentTransactions,
+                priorRevenue,
+                revenueDeltaPct,
+                totalOrders: list.length,
+                completionRatePct,
             };
         };
 
@@ -277,6 +382,71 @@ export function useClubMetrics() {
         const week = buildFor("7d");
         const month = buildFor("30d");
         const all = buildFor("all");
+
+        const deliveredLastByPhone = new Map<string, number>();
+        allOrders.forEach((o: any) => {
+            if (orderStatusBucket(o.status) !== "delivered") return;
+            const phone = String(o.phone || o.phnm || "").trim();
+            if (!phone) return;
+            const ts = orderSortTs(o);
+            const prev = deliveredLastByPhone.get(phone) || 0;
+            if (ts > prev) deliveredLastByPhone.set(phone, ts);
+        });
+
+        const usersExpanded: ClubExpandedUser[] = [];
+        const fcmRoot = raw.fcm_tokens || {};
+        Object.entries(fcmRoot).forEach(([key, value]: [string, any]) => {
+            if (key === "anonymous" || !value || typeof value !== "object") return;
+            const phone = String(value?.phone || value?.email || "—").trim();
+            usersExpanded.push({
+                id: key,
+                phone: value?.phone || value?.email || "—",
+                platform: value?.platform || "—",
+                cleanPlatform: cleanPlatformName(String(value?.platform || "")),
+                updatedAt: typeof value?.updatedAt === "number" ? value.updatedAt : 0,
+                isAnon: false,
+                orderCompletedAt: phone && phone !== "—" ? deliveredLastByPhone.get(phone) || 0 : 0,
+            });
+        });
+        const anonRoot = fcmRoot.anonymous;
+        if (anonRoot && typeof anonRoot === "object") {
+            Object.entries(anonRoot).forEach(([key, value]: [string, any]) => {
+                usersExpanded.push({
+                    id: key,
+                    phone: `Anonymous (${key.slice(0, 10)})`,
+                    platform: value?.platform || "—",
+                    cleanPlatform: cleanPlatformName(String(value?.platform || "")),
+                    updatedAt: typeof value?.updatedAt === "number" ? value.updatedAt : 0,
+                    isAnon: true,
+                    orderCompletedAt: 0,
+                });
+            });
+        }
+
+        let pulseTodayRevenue = 0,
+            pulseTodayOrders = 0,
+            pulseTodayDelivered = 0;
+        const engagementHourToday = new Array(24).fill(0);
+        allOrders.forEach((o: any) => {
+            const ts = orderSortTs(o);
+            if (!ts || ts < startToday) return;
+            pulseTodayOrders++;
+            engagementHourToday[new Date(ts).getHours()]++;
+            if (orderStatusBucket(o.status) === "delivered") {
+                pulseTodayDelivered++;
+                pulseTodayRevenue += parseOrderTotal(o).amount;
+            }
+        });
+        let pulseTodayUsers = 0;
+        usersExpanded.forEach((u) => {
+            if (u.updatedAt >= startToday) pulseTodayUsers++;
+        });
+        const pulse = {
+            revenue: pulseTodayRevenue,
+            orders: pulseTodayOrders,
+            deliveredToday: pulseTodayDelivered,
+            users: pulseTodayUsers,
+        };
 
         /** Same variant-level model as `Dashboard.tsx` → Inventory & Stocks (`allStockItems`, value by offer/MRP). */
         const allStockItems = Object.entries(raw.stock || {}).flatMap(([pid, variants]: [string, any]) => {
@@ -330,7 +500,7 @@ export function useClubMetrics() {
         const dayRev: Record<string, number> = {};
         week.list.forEach((o) => {
             if (orderStatusBucket(o.status) !== "delivered") return;
-            const ts = o.timestamp || o.createdAt;
+            const ts = orderSortTs(o);
             if (!ts) return;
             const key = new Date(ts).toISOString().slice(0, 10);
             dayRev[key] = (dayRev[key] || 0) + parseOrderTotal(o).amount;
@@ -376,16 +546,22 @@ export function useClubMetrics() {
             catalogRows.push({ code, name: p?.name || code, category: cat, price, qty, status });
         });
 
-        const usersList = Object.entries(raw.fcm_tokens || {})
-            .filter(([k]) => k !== "anonymous")
-            .map(([id, u]: [string, any]) => ({
-                id,
-                phone: u?.phone || u?.email || "—",
-                platform: u?.platform || "—",
-                updatedAt: u?.updatedAt || 0,
-            }))
-            .sort((a, b) => b.updatedAt - a.updatedAt)
-            .slice(0, 80);
+        const platformBuckets: Record<string, number> = {};
+        usersExpanded.forEach((u) => {
+            const k = u.cleanPlatform || "Unknown";
+            platformBuckets[k] = (platformBuckets[k] || 0) + 1;
+        });
+        const platformData = Object.entries(platformBuckets).map(([name, value]) => ({ name, value }));
+
+        const hrStats = {
+            totalEmployees: empList.length,
+            deptBreakdown: raw.departments
+                ? Object.values(raw.departments).map((d: any) => ({
+                      name: String(d?.name || "—"),
+                      count: empList.filter((e: any) => (e?.department || "") === d?.name).length,
+                  }))
+                : [],
+        };
 
         const slots = [8, 10, 12, 14, 16, 18, 20];
         const salesTrend = {
@@ -441,7 +617,7 @@ export function useClubMetrics() {
         const deliveredByDay: Record<string, number> = {};
         week.list.forEach((o) => {
             if (orderStatusBucket(o.status) !== "delivered") return;
-            const ts = o.timestamp || o.createdAt;
+            const ts = orderSortTs(o);
             if (!ts) return;
             const key = new Date(ts).toISOString().slice(0, 10);
             deliveredByDay[key] = (deliveredByDay[key] || 0) + 1;
@@ -468,11 +644,26 @@ export function useClubMetrics() {
             .sort((a, b) => b.ts - a.ts)
             .slice(0, 25);
 
+        const statsKpi = {
+            totalCategories: Object.keys(raw.category || {}).length,
+            totalUsers: usersExpanded.length,
+            totalVariants: allStockItems.length,
+            uniqueProductCount: Object.keys(raw.products || {}).length,
+            outOfStockSkus,
+            totalStockQuantity: stockQty,
+        };
+
         return {
             today,
             week,
             month,
             all,
+            pulse,
+            engagementHourToday,
+            usersExpanded,
+            platformData,
+            hrStats,
+            statsKpi,
             salesTrend,
             lowStockRows,
             lowStockAlerts: outOfStockSkus + lowStockProducts.length,
@@ -491,7 +682,6 @@ export function useClubMetrics() {
             methodSplit: { labels: methodLabels, values: methodValues, pct: methodPct },
             ridersSample: riders.slice(0, 12),
             catalogRows: catalogRows.slice(0, 60),
-            usersList,
             ordersTables: {
                 today: today.ordersTable,
                 week: week.ordersTable,
