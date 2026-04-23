@@ -26,43 +26,22 @@ import {
 import Navbar from "@/components/Navbar";
 import BackButton from "@/components/BackButton";
 import { toast } from "sonner";
+import {
+    ORDER_PROGRESS_STEPS,
+    ORDER_STATUS_DROPDOWN_OPTIONS,
+    canonicalOrderStatusForUi,
+    getOrderProgressStepIndex,
+} from "@/utils/orderStatus";
 
-/** Shown in Order progress + status dropdown (canonical flow). */
-export const ORDER_PROGRESS_STEPS = [
-    "Order Placed",
-    "Packed",
-    "Out for Delivery",
-    "Arriving",
-    "Delivered",
-] as const;
+export { ORDER_PROGRESS_STEPS, canonicalOrderStatusForUi, getOrderProgressStepIndex };
 
-const STATUS_OPTIONS = [...ORDER_PROGRESS_STEPS, "Cancelled"] as string[];
+const STATUS_OPTIONS = ORDER_STATUS_DROPDOWN_OPTIONS;
 
 /** Non-order nodes stored under `root/order` (e.g. counters) — must not appear as rows. */
 const EXCLUDED_ORDER_NODE_KEYS = new Set(["counter"]);
 
 function stripNonOrderNodes<T extends Record<string, unknown>>(raw: T): Record<string, unknown> {
     return Object.fromEntries(Object.entries(raw).filter(([k]) => !EXCLUDED_ORDER_NODE_KEYS.has(k)));
-}
-
-/** Legacy statuses still in Firebase — map to progress index for the timeline. */
-const LEGACY_STATUS_PROGRESS_INDEX: Record<string, number> = {
-    "Order Placed": 0,
-    "Accepted by Store": 0,
-    "Packing Order": 1,
-    Packed: 1,
-    "Ready for Pickup": 2,
-    "Out for Delivery": 2,
-    "On the Way": 3,
-    Arrival: 3,
-    Arriving: 3,
-    Delivered: 4,
-};
-
-export function getOrderProgressStepIndex(status: string | null | undefined): number {
-    const s = typeof status === "string" ? status.trim() : "";
-    if (s === "Cancelled") return -1;
-    return LEGACY_STATUS_PROGRESS_INDEX[s] ?? 0;
 }
 
 const OrderManagement = () => {
@@ -73,8 +52,7 @@ const OrderManagement = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [isMuted, setIsMuted] = useState(false);
     const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
-    const [alertData, setAlertData] = useState<any>(null);
-    /** Order ids that just appeared (Firebase child_added) — strong highlight for a short window. */
+    /** Order ids that just became “Order Placed” — 1s blink highlight. */
     const [newOrderHighlightIds, setNewOrderHighlightIds] = useState<string[]>([]);
     const newOrderHighlightTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
     /** From navbar / toast “View order” — scroll + ring this row. */
@@ -201,38 +179,6 @@ const OrderManagement = () => {
         osc.stop(ctx.currentTime + 0.2);
     };
 
-    const playAlertSound = () => {
-        if (!isAudioInitializedRef.current || isMuted || !audioContextRef.current) return;
-        const ctx = audioContextRef.current;
-        const t = ctx.currentTime;
-
-        // First chirp
-        const osc1 = ctx.createOscillator();
-        const gain1 = ctx.createGain();
-        osc1.connect(gain1);
-        gain1.connect(ctx.destination);
-        osc1.type = "sine";
-        osc1.frequency.setValueAtTime(600, t);
-        osc1.frequency.exponentialRampToValueAtTime(1000, t + 0.1);
-        gain1.gain.setValueAtTime(0.5, t);
-        gain1.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
-        osc1.start(t);
-        osc1.stop(t + 0.1);
-
-        // Second chirp
-        const osc2 = ctx.createOscillator();
-        const gain2 = ctx.createGain();
-        osc2.connect(gain2);
-        gain2.connect(ctx.destination);
-        osc2.type = "sine";
-        osc2.frequency.setValueAtTime(600, t + 0.15);
-        osc2.frequency.exponentialRampToValueAtTime(1000, t + 0.25);
-        gain2.gain.setValueAtTime(0.5, t + 0.15);
-        gain2.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
-        osc2.start(t + 0.15);
-        osc2.stop(t + 0.25);
-    };
-
     const toggleMute = () => {
         initAudio();
         setIsMuted(!isMuted);
@@ -253,54 +199,57 @@ const OrderManagement = () => {
             if (!key || EXCLUDED_ORDER_NODE_KEYS.has(key)) return;
 
             if (!ordersBootstrapDoneRef.current) {
-                prevOrdersRef.current[key] = newOrder;
+                prevOrdersRef.current[key] = { ...newOrder, status: canonicalOrderStatusForUi(newOrder.status) };
                 return;
             }
 
             const prevOrders = prevOrdersRef.current;
             const oldOrder = prevOrders[key];
+            const normalizedStatus = canonicalOrderStatusForUi(newOrder.status);
+            const normalizedOrder = { ...newOrder, status: normalizedStatus };
 
-            // Side effects (Beep/Alert)
+            const becameOrderPlaced =
+                normalizedStatus === "Order Placed" &&
+                ordersBootstrapDoneRef.current &&
+                ((event === "added" && !oldOrder) ||
+                    (event === "changed" &&
+                        oldOrder &&
+                        canonicalOrderStatusForUi(oldOrder.status) !== "Order Placed"));
+
+            // Beep on other status / time updates (not double with new Order Placed below).
             if (oldOrder) {
-                if (oldOrder.status !== newOrder.status || oldOrder.last_updated !== newOrder.last_updated) {
+                const changed =
+                    canonicalOrderStatusForUi(oldOrder.status) !== normalizedStatus ||
+                    oldOrder.last_updated !== newOrder.last_updated;
+                if (changed && !becameOrderPlaced) {
                     playBeep();
                 }
             }
 
-            if (newOrder.status === "Order Placed") {
-                if (!oldOrder && ordersBootstrapDoneRef.current) {
-                    setAlertData({ id: key, ...newOrder });
-                    playAlertSound();
-                } else if (oldOrder && oldOrder.status !== "Order Placed" && ordersBootstrapDoneRef.current) {
-                    setAlertData({ id: key, ...newOrder });
-                    playAlertSound();
-                }
-            }
-
-            // Only real inserts get the row highlight — `child_changed` can fire for keys not yet in
-            // `prevOrdersRef` (query window edge), which used to re-queue highlight + infinite pulse.
-            if (
-                event === "added" &&
-                !oldOrder &&
-                key &&
-                ordersBootstrapDoneRef.current
-            ) {
+            // New “Order Placed”: 1s row blink; toast + beep sound come from NotificationContext on every route.
+            if (becameOrderPlaced) {
                 setNewOrderHighlightIds((prev) => (prev.includes(key) ? prev : [...prev, key]));
                 if (newOrderHighlightTimers.current[key]) clearTimeout(newOrderHighlightTimers.current[key]);
                 newOrderHighlightTimers.current[key] = setTimeout(() => {
                     setNewOrderHighlightIds((prev) => prev.filter((id) => id !== key));
                     delete newOrderHighlightTimers.current[key];
-                }, 120_000);
+                }, 1_000);
             }
 
-            setOrders((prev) => ({ ...prev, [key]: newOrder }));
-            prevOrdersRef.current[key] = newOrder;
+            setOrders((prev) => ({ ...prev, [key]: normalizedOrder }));
+            prevOrdersRef.current[key] = normalizedOrder;
         };
 
         ordersQuery.once("value", (snapshot) => {
             const val = stripNonOrderNodes((snapshot.val() || {}) as Record<string, unknown>);
-            prevOrdersRef.current = { ...val };
-            setOrders(val as Record<string, any>);
+            const normalizedVal = Object.fromEntries(
+                Object.entries(val).map(([k, row]) => {
+                    const r = row as Record<string, any>;
+                    return [k, { ...r, status: canonicalOrderStatusForUi(r.status) }];
+                })
+            );
+            prevOrdersRef.current = { ...normalizedVal };
+            setOrders(normalizedVal as Record<string, any>);
             ordersBootstrapDoneRef.current = true;
             if (isInitialLoadRef.current) isInitialLoadRef.current = false;
             setLoading(false);
@@ -462,11 +411,6 @@ const OrderManagement = () => {
         if (newSet.has(id)) newSet.delete(id);
         else newSet.add(id);
         setExpandedOrders(newSet);
-    };
-
-    const dismissAlert = () => {
-        initAudio(); // Ensure context is running on interaction
-        setAlertData(null);
     };
 
     /** Full-row tint by pipeline step (legacy strings map via `getOrderProgressStepIndex`). */
@@ -676,7 +620,7 @@ const OrderManagement = () => {
                                     const isNavHighlight = navHighlightOrderId === order.id;
                                     const rowTone = getOrderRowTone(order.status);
                                     const newOrderRowClass =
-                                        "relative z-0 ring-2 ring-amber-400/70 ring-offset-2 ring-offset-white dark:ring-offset-slate-950 shadow-[0_0_20px_-2px_rgba(251,191,36,0.45)] bg-amber-50/40 dark:bg-amber-950/25";
+                                        "relative z-[1] ring-2 ring-amber-400/80 ring-offset-2 ring-offset-white dark:ring-offset-slate-950 shadow-[0_0_16px_-4px_rgba(251,191,36,0.5)] animate-new-order-row-blink";
                                     const navHighlightClass =
                                         "relative z-[2] ring-2 ring-sky-500/90 ring-offset-2 ring-offset-white shadow-[0_0_0_3px_rgba(14,165,233,0.35),0_12px_40px_-12px_rgba(14,165,233,0.25)] dark:ring-sky-400/85 dark:ring-offset-slate-950 dark:shadow-[0_0_0_3px_rgba(56,189,248,0.3),0_12px_40px_-12px_rgba(56,189,248,0.2)]";
 
@@ -900,29 +844,6 @@ const OrderManagement = () => {
 
                 </div>
             </main>
-
-            {/* Alert Modal */}
-            {alertData && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-                    <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl p-6 text-center shadow-2xl animate-in zoom-in-95 duration-300 border border-slate-200 dark:border-slate-800 overflow-hidden relative">
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500" />
-                        <div className="w-20 h-20 bg-rose-100 dark:bg-rose-900/50 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <Bell size={40} className="text-rose-600 dark:text-rose-400" />
-                        </div>
-                        <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">New Order!</h2>
-                        <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-3 mb-6 border border-slate-100 dark:border-slate-700">
-                            <div className="font-bold text-lg">#{alertData.id}</div>
-                            <div className="text-sm text-slate-500">Total: ₹{alertData.total}</div>
-                        </div>
-                        <button
-                            onClick={dismissAlert}
-                            className="w-full py-4 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 font-bold text-lg rounded-2xl shadow-xl active:scale-95 transition-all"
-                        >
-                            Acknowledge
-                        </button>
-                    </div>
-                </div>
-            )}
 
             {/* Delivery Assignment Modal */}
             {showAssignModal && (

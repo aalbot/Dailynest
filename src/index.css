@@ -318,6 +318,34 @@
     }
   }
 
+  /** New order row on Orders page — ~1s blink then stops */
+  @keyframes new-order-row-blink {
+
+    0%,
+    100% {
+      opacity: 1;
+    }
+
+    33% {
+      opacity: 0.45;
+    }
+
+    66% {
+      opacity: 1;
+    }
+  }
+
+  .animate-new-order-row-blink {
+    animation: new-order-row-blink 1s ease-in-out forwards;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-new-order-row-blink {
+      animation: none;
+      opacity: 1;
+    }
+  }
+
   .animate-float {
     animation: float 6s ease-in-out infinite;
   }

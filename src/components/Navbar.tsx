@@ -476,36 +476,76 @@ const Navbar = () => {
                         {notifications.map((n) => (
                           <div
                             key={n.id}
-                            onClick={() => {
-                              markAsRead(n.id);
-                              if (n.type === "order") {
-                                navigate(
-                                  "/orders",
-                                  n.orderId ? { state: { highlightOrderId: n.orderId } } : undefined
-                                );
-                              } else if (n.type === "delivery") {
-                                navigate("/delivery");
-                              }
-                              setNotificationsOpen(false);
-                            }}
-                            className={`p-3 border-b border-slate-50 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group ${!n.read ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
+                            className={`border-b border-slate-50 dark:border-slate-800 last:border-0 transition-colors group ${!n.read ? "bg-blue-50/50 dark:bg-blue-900/10" : ""}`}
                           >
-                            <div className="flex justify-between items-start gap-3">
-                              <div className="flex-1">
-                                <h4 className={`text-sm font-medium mb-0.5 ${!n.read ? 'text-blue-700 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300'}`}>
-                                  {n.title}
-                                </h4>
-                                <p className="text-xs text-slate-500 dark:text-slate-400 leading-snug">
-                                  {n.message}
-                                </p>
-                                <span className="text-[10px] text-slate-400 mt-1.5 block">
-                                  {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </span>
+                            <button
+                              type="button"
+                              className="w-full p-3 text-left hover:bg-slate-50/80 dark:hover:bg-slate-800/50 rounded-none transition-colors"
+                              onClick={() => markAsRead(n.id)}
+                            >
+                              <div className="flex justify-between items-start gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <h4 className={`text-sm font-medium mb-0.5 ${!n.read ? "text-blue-700 dark:text-blue-400" : "text-slate-700 dark:text-slate-300"}`}>
+                                    {n.title}
+                                  </h4>
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-snug">
+                                    {n.message}
+                                  </p>
+                                  <span className="text-[10px] text-slate-400 mt-1.5 block">
+                                    {new Date(n.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                  </span>
+                                </div>
+                                {!n.read && (
+                                  <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+                                )}
                               </div>
-                              {!n.read && (
-                                <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-                              )}
-                            </div>
+                            </button>
+                            {(n.type === "order" || n.type === "stock" || n.type === "delivery") && (
+                              <div className="flex flex-wrap gap-2 px-3 pb-3">
+                                {n.type === "order" && (
+                                  <button
+                                    type="button"
+                                    className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500"
+                                    onClick={() => {
+                                      markAsRead(n.id);
+                                      setNotificationsOpen(false);
+                                      navigate(
+                                        "/orders",
+                                        n.orderId ? { state: { highlightOrderId: n.orderId } } : undefined
+                                      );
+                                    }}
+                                  >
+                                    View order
+                                  </button>
+                                )}
+                                {n.type === "stock" && (
+                                  <button
+                                    type="button"
+                                    className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-amber-700 dark:bg-amber-600 dark:hover:bg-amber-500"
+                                    onClick={() => {
+                                      markAsRead(n.id);
+                                      setNotificationsOpen(false);
+                                      navigate("/stock-entry");
+                                    }}
+                                  >
+                                    View stock
+                                  </button>
+                                )}
+                                {n.type === "delivery" && (
+                                  <button
+                                    type="button"
+                                    className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                                    onClick={() => {
+                                      markAsRead(n.id);
+                                      setNotificationsOpen(false);
+                                      navigate("/delivery");
+                                    }}
+                                  >
+                                    View delivery
+                                  </button>
+                                )}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>

@@ -5,6 +5,7 @@ import { getToken, onMessage } from "firebase/messaging";
 import { ref, set, update } from "firebase/database";
 import { toast } from "sonner";
 import { adjustStockForOrder } from "@/utils/stockManagement";
+import { canonicalOrderStatusForUi } from "@/utils/orderStatus";
 import { CONFIG } from "@/config";
 
 export interface Notification {
@@ -97,7 +98,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         const handleOrderAdded = (snapshot: any) => {
             const key = snapshot.key;
             const newOrder = snapshot.val();
-            if (!key) return;
+            if (!key || key === "counter") return;
 
             if (!ordersBootstrappedRef.current) {
                 prevOrdersRef.current[key] = newOrder;
@@ -105,7 +106,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             }
 
             const existed = Object.prototype.hasOwnProperty.call(prevOrdersRef.current, key);
-            if (newOrder.status === "Order Placed" && !existed) {
+            if (canonicalOrderStatusForUi(newOrder.status) === "Order Placed" && !existed) {
                 addNotification({
                     id: `order_${key}_placed`,
                     title: "New Order Received",
@@ -123,7 +124,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         const handleOrderChanged = (snapshot: any) => {
             const key = snapshot.key;
             const newOrder = snapshot.val();
-            if (!key) return;
+            if (!key || key === "counter") return;
 
             if (!ordersBootstrappedRef.current) {
                 prevOrdersRef.current[key] = newOrder;
@@ -145,7 +146,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             }
 
             // Status moved back to placed (e.g. correction) — treat as a new actionable order
-            if (oldOrder && oldOrder.status !== "Order Placed" && newOrder.status === "Order Placed") {
+            if (
+                oldOrder &&
+                canonicalOrderStatusForUi(oldOrder.status) !== "Order Placed" &&
+                canonicalOrderStatusForUi(newOrder.status) === "Order Placed"
+            ) {
                 addNotification({
                     id: `order_${key}_placed_${Date.now()}`,
                     title: "New Order Received",
@@ -169,7 +174,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         };
 
         ordersQuery.once("value", (snapshot) => {
-            const val = snapshot.val() || {};
+            const raw = snapshot.val() || {};
+            const val = Object.fromEntries(Object.entries(raw).filter(([k]) => k !== "counter"));
             prevOrdersRef.current = { ...val };
             setOrders(val);
             ordersBootstrappedRef.current = true;
@@ -404,22 +410,44 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             navigate("/orders", { state: { highlightOrderId: newNotification.orderId } });
         };
 
-        toast(newNotification.title, {
-            description: newNotification.message,
-            duration: newNotification.type === "order" ? 12_000 : 6_000,
-            action: isDefaultPermission
-                ? {
-                      label: "Enable Notifications",
-                      onClick: () => requestPermission(),
-                  }
-                : {
-                      label: "View order",
-                      onClick: () => {
-                          if (newNotification.type === "order") goOrder();
-                          else if (newNotification.type === "delivery") navigate("/delivery");
+        const duration = newNotification.type === "order" ? 12_000 : 6_000;
+
+        if (newNotification.type === "order") {
+            toast(newNotification.title, {
+                description: newNotification.message,
+                duration,
+                action: {
+                    label: "View order",
+                    onClick: () => goOrder(),
+                },
+                ...(isDefaultPermission
+                    ? {
+                          cancel: {
+                              label: "Enable notifications",
+                              onClick: () => requestPermission(),
+                          },
+                      }
+                    : {}),
+            });
+        } else {
+            toast(newNotification.title, {
+                description: newNotification.message,
+                duration,
+                action: isDefaultPermission
+                    ? {
+                          label: "Enable Notifications",
+                          onClick: () => requestPermission(),
+                      }
+                    : {
+                          label: newNotification.type === "delivery" ? "Open delivery" : "Open",
+                          onClick: () => {
+                              if (newNotification.type === "delivery") navigate("/delivery");
+                              else navigate("/notifications");
+                          },
                       },
-                  },
-        });
+            });
+        }
+
         playNotificationSound();
     };
 

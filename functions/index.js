@@ -86,3 +86,32 @@ exports.onTaskCreate = functions.database.ref("/root/nexus_hr/tasks/{taskId}")
 
         return Promise.all(promises);
     });
+
+/**
+ * When a new row is created under root/order, ensure canonical initial status.
+ * Covers orders created by external clients that omit or mis-set `status`.
+ * Skips the `counter` helper node.
+ */
+exports.onOrderCreate = functions.database.ref("/root/order/{orderId}")
+    .onCreate(async (snapshot, context) => {
+        const orderId = context.params.orderId;
+        if (orderId === "counter") {
+            return null;
+        }
+
+        const data = snapshot.val();
+        if (!data || typeof data !== "object") {
+            return null;
+        }
+
+        if (data.status === "Order Placed") {
+            return null;
+        }
+
+        await admin.database().ref(`/root/order/${orderId}`).update({
+            status: "Order Placed",
+            last_updated: new Date().toISOString(),
+        });
+
+        return null;
+    });
