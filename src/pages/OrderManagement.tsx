@@ -51,6 +51,16 @@ const OrderManagement = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [isMuted, setIsMuted] = useState(false);
+
+    /** Navbar `SearchBar` dispatches this on each keystroke — keep the orders list in sync. */
+    useEffect(() => {
+        const onGlobalSearch = (e: Event) => {
+            const detail = (e as CustomEvent<string>).detail;
+            setSearchTerm(typeof detail === "string" ? detail : "");
+        };
+        window.addEventListener("global-search", onGlobalSearch as EventListener);
+        return () => window.removeEventListener("global-search", onGlobalSearch as EventListener);
+    }, []);
     const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
     /** Order ids that just became “Order Placed” — 1s blink highlight. */
     const [newOrderHighlightIds, setNewOrderHighlightIds] = useState<string[]>([]);
@@ -304,14 +314,29 @@ const OrderManagement = () => {
         // This ensures orders don't jump around or disappear when status changes.
         list.sort((a, b) => b.id.localeCompare(a.id));
 
-        if (searchTerm) {
-            const lower = searchTerm.toLowerCase();
-            list = list.filter(
-                (o) =>
-                    o.id.toLowerCase().includes(lower) ||
-                    (o.name && o.name.toLowerCase().includes(lower)) ||
-                    (o.phnm && o.phnm.includes(lower))
-            );
+        const q = searchTerm.trim().toLowerCase();
+        if (q) {
+            const blob = (o: Record<string, any>) => {
+                const itemBits = Object.keys(o)
+                    .filter((k) => k.startsWith("item") && o[k] != null && o[k] !== "")
+                    .map((k) => String(o[k]));
+                const parts = [
+                    o.id,
+                    o.name,
+                    o.phnm,
+                    o.phone,
+                    o.status,
+                    o.adrs,
+                    o.adrsName,
+                    o.total,
+                    o.delivery_partner_name,
+                    o.delivery_partner_id,
+                    o.delivery_partner_phone,
+                    ...itemBits,
+                ];
+                return parts.map((p) => String(p ?? "").toLowerCase()).join("\n");
+            };
+            list = list.filter((o) => blob(o).includes(q));
         }
         return list;
     }, [orders, searchTerm, activeTab]);
