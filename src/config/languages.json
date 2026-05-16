@@ -45,7 +45,8 @@
             "test": "Test App",
             "broadcast": "Broadcast",
             "bannerManage": "Banner Manage",
-            "pos": "POS"
+            "pos": "POS",
+            "generateApp": "Generate App"
         },
         "gateway": {
             "badge": "Unified Access Control",
@@ -338,7 +339,8 @@
             "test": "تطبيق تجريبي",
             "broadcast": "البث",
             "bannerManage": "إدارة اللافتة",
-            "pos": "نظام البيع"
+            "pos": "نظام البيع",
+            "generateApp": "إنشاء تطبيق"
         },
         "gateway": {
             "badge": "التحكم الموحد في الوصول",
@@ -631,7 +633,8 @@
             "test": "ടെസ്റ്റ് ആപ്പ്",
             "broadcast": "ബ്രോഡ്‌കാസ്റ്റ്",
             "bannerManage": "ബാനർ മാനേജ്",
-            "pos": "POS"
+            "pos": "POS",
+            "generateApp": "ആപ്പ് സൃഷ്ടിക്കുക"
         },
         "gateway": {
             "badge": "യുണിഫൈഡ് ആക്‌സസ് കൺട്രോൾ",

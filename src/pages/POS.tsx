@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/database';
 import './POS.css';
@@ -45,6 +47,8 @@ interface HeldOrder {
 }
 
 const POS: React.FC = () => {
+  const navigate = useNavigate();
+
   // --- State ---
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>(['All']);
@@ -73,7 +77,47 @@ const POS: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const mockScanTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [lastScanInfo, setLastScanInfo] = useState('No recent scan');
+
+  const stopCamera = useCallback(() => {
+    if (mockScanTimeoutRef.current) {
+      clearTimeout(mockScanTimeoutRef.current);
+      mockScanTimeoutRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraActive(false);
+  }, []);
+
+  const handleLeavePOS = useCallback(() => {
+    stopCamera();
+    navigate('/apps');
+  }, [navigate, stopCamera]);
+
+  useEffect(() => {
+    return () => stopCamera();
+  }, [stopCamera]);
+
+  useEffect(() => {
+    const onPageHide = () => stopCamera();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') stopCamera();
+    };
+
+    window.addEventListener('pagehide', onPageHide);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      window.removeEventListener('pagehide', onPageHide);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [stopCamera]);
 
   // --- Firebase Loading ---
   useEffect(() => {
@@ -262,20 +306,17 @@ const POS: React.FC = () => {
 
   const toggleCamera = async () => {
     if (isCameraActive) {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop());
-        streamRef.current = null;
-      }
-      setIsCameraActive(false);
+      stopCamera();
     } else {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
         if (videoRef.current) videoRef.current.srcObject = stream;
         streamRef.current = stream;
         setIsCameraActive(true);
-        
+
         // Mock scan
-        setTimeout(() => {
+        mockScanTimeoutRef.current = setTimeout(() => {
+          mockScanTimeoutRef.current = null;
           if (products.length > 0) {
             const randomP = products[Math.floor(Math.random() * products.length)];
             setLastScanInfo(`+1 ${randomP.name}`);
@@ -327,13 +368,25 @@ const POS: React.FC = () => {
     <div className={`pos-container ${isLightTheme ? 'light-theme' : ''}`}>
       <div className="pos-wrapper">
         <div className="pos-topbar">
-          <div className="pos-brand">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-              <polyline points="2 17 12 22 22 17"></polyline>
-              <polyline points="2 12 12 17 22 12"></polyline>
-            </svg>
-            AXIS POS
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={handleLeavePOS}
+              className="pos-held-btn"
+              style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+              aria-label="Back to apps"
+            >
+              <ArrowLeft size={18} />
+              Back
+            </button>
+            <div className="pos-brand">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                <polyline points="2 17 12 22 22 17"></polyline>
+                <polyline points="2 12 12 17 22 12"></polyline>
+              </svg>
+              AXIS POS
+            </div>
           </div>
 
           <div className="pos-status-row">

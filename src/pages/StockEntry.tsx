@@ -20,8 +20,12 @@ import {
     Percent,
     ShoppingBag,
     Layers,
-    ListFilter
+    ListFilter,
+    Menu,
+    X,
 } from "lucide-react";
+
+type SidebarSection = "stock" | "priority";
 
 interface Product {
     code: string;
@@ -79,6 +83,7 @@ const StockEntry = () => {
     const [priorityItems, setPriorityItems] = useState<PriorityItem[]>([]);
 
     const [activeView, setActiveView] = useState<"stock" | "priority">("stock");
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -99,6 +104,7 @@ const StockEntry = () => {
 
     const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const formProductSuggestTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const formRef = useRef<HTMLDivElement>(null);
 
     const [formProductSuggestions, setFormProductSuggestions] = useState<Product[]>([]);
     const [formCodeFocused, setFormCodeFocused] = useState(false);
@@ -230,7 +236,7 @@ const StockEntry = () => {
         setCurrentProduct(p);
         setFormProductSuggestions([]);
         void loadStockView(p.code);
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     };
 
     useEffect(() => {
@@ -259,7 +265,7 @@ const StockEntry = () => {
         });
 
         void loadStockView(productCode);
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
         toast.success("Product loaded from analytics");
 
         navigate(location.pathname, { replace: true, state: {} });
@@ -439,7 +445,7 @@ const StockEntry = () => {
             suggestionBox: data.prioritySuggestionBox || "0",
             suggestionSearch: data.prioritySuggestionSearch || "0"
         });
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
         toast.info("Loaded for editing");
     };
 
@@ -472,153 +478,173 @@ const StockEntry = () => {
         setFormProductSuggestions([]);
     };
 
+    const NavItem = ({
+        id,
+        icon: Icon,
+        label,
+    }: {
+        id: SidebarSection;
+        icon: React.ElementType;
+        label: string;
+    }) => (
+        <button
+            type="button"
+            onClick={() => {
+                setActiveView(id);
+                setSidebarOpen(false);
+                if (id === "stock") setPriorityFilter("");
+            }}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl w-full transition-all ${
+                activeView === id
+                    ? "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 font-semibold"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+            }`}
+        >
+            <Icon size={20} />
+            <span>{label}</span>
+        </button>
+    );
+
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans transition-colors duration-300">
-            <Navbar />
+        <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans transition-colors duration-300">
+            <div className="fixed top-0 left-0 right-0 z-50">
+                <Navbar />
+            </div>
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+            <aside className="w-[240px] hidden md:flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl pt-20 pb-4 px-3 z-40 fixed top-0 bottom-0 left-0">
+                <div className="mb-4 px-1">
+                    <BackButton />
+                </div>
+                <div className="px-2 mb-5">
+                    <h1 className="text-base font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                        <Package size={18} className="text-blue-500 shrink-0" />
+                        Stocks
+                    </h1>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-tight">
+                        Inventory &amp; pricing
+                    </p>
+                </div>
+                <nav className="space-y-1 px-1">
+                    <NavItem id="stock" icon={ShoppingBag} label="Stock Variants" />
+                    <NavItem id="priority" icon={Award} label="Priority Rankings" />
+                </nav>
+            </aside>
 
-                {/* Header */}
-                <div className="flex flax-col md:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
+            <main className="flex-1 md:ml-[240px] pt-16 h-full min-h-0 flex flex-col overflow-hidden">
+                <div className="md:hidden flex items-center justify-between px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
+                    <div className="flex items-center gap-2 min-w-0">
                         <BackButton />
-                        <div>
-                            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 flex items-center gap-2">
-                                <Package className="text-blue-600 dark:text-blue-400" />
-                                Stock & Price Manager
-                            </h1>
-                            <p className="text-slate-500 dark:text-slate-400 mt-1">Manage inventory, pricing, and variant rankings</p>
-                        </div>
+                        <span className="font-bold text-sm truncate">Stock &amp; Price Manager</span>
                     </div>
+                    <button
+                        type="button"
+                        onClick={() => setSidebarOpen(true)}
+                        className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg shrink-0"
+                        aria-label="Open menu"
+                    >
+                        <Menu size={18} />
+                    </button>
                 </div>
 
-                {/* Filters */}
-                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-lg dark:shadow-slate-950/20 flex flex-col md:flex-row gap-4 items-start md:items-center transition-all hover:shadow-xl sticky top-20 z-40">
-                    <div className="relative flex-[2] w-full group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
-                        <input
-                            type="text"
-                            placeholder="Search Product Name or Code..."
-                            value={searchTerm}
-                            onChange={handleSearchTermChange}
-                            className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
-                        />
-                        {showSearchResults && (
-                            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl overflow-hidden z-50 max-h-72 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-200">
-                                {searchResults.map(p => (
-                                    <div
-                                        key={p.code}
-                                        onMouseDown={(e) => e.preventDefault()}
-                                        onClick={() => {
-                                            applyProductToStockForm(p);
+                {sidebarOpen && (
+                    <div
+                        className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm md:hidden"
+                        onClick={() => setSidebarOpen(false)}
+                    >
+                        <div
+                            className="absolute left-0 top-0 bottom-0 w-[260px] bg-white dark:bg-slate-900 p-5 flex flex-col shadow-xl"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex justify-between items-center mb-6">
+                                <span className="font-bold text-slate-800 dark:text-slate-100">Menu</span>
+                                <button type="button" onClick={() => setSidebarOpen(false)} aria-label="Close menu">
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <nav className="space-y-1">
+                                <NavItem id="stock" icon={ShoppingBag} label="Stock Variants" />
+                                <NavItem id="priority" icon={Award} label="Priority Rankings" />
+                            </nav>
+                        </div>
+                    </div>
+                )}
+
+                <div className="flex-1 min-h-0 p-3 md:p-4 overflow-hidden">
+                    <div className="h-full grid grid-cols-1 grid-rows-2 lg:grid-rows-1 lg:grid-cols-12 gap-3 md:gap-4 min-h-0">
+                        <div
+                            ref={formRef}
+                            className="lg:col-span-5 flex flex-col min-h-0 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden"
+                        >
+                            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 px-4 py-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
+                                <Edit2 size={16} className="text-blue-500" />
+                                Add / Update Stock
+                            </h2>
+
+                            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 space-y-3">
+                                <div className="space-y-1 relative">
+                                    <label htmlFor="code" className="text-[10px] font-semibold text-slate-500 uppercase">Product Code (Lookup)</label>
+                                    <input
+                                        type="text"
+                                        id="code"
+                                        value={formData.code}
+                                        onChange={handleFormCodeChange}
+                                        onFocus={() => setFormCodeFocused(true)}
+                                        onBlur={() => {
+                                            window.setTimeout(() => setFormCodeFocused(false), 200);
                                         }}
-                                        className="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors border-b border-slate-100 dark:border-slate-800 last:border-none"
-                                    >
-                                        <img decoding="async" loading="lazy" src={p.pic || "https://via.placeholder.com/30"} alt={p.name} className="w-10 h-10 rounded-lg object-cover bg-slate-100 dark:bg-slate-800" />
-                                        <div>
-                                            <div className="font-semibold text-slate-900 dark:text-slate-100">{p.name}</div>
-                                            <div className="text-xs text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded w-fit">{p.code}</div>
+                                        placeholder="Search code or name…"
+                                        required
+                                        autoComplete="off"
+                                        className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-slate-100 font-mono text-sm"
+                                    />
+                                    {formCodeFocused && formProductSuggestions.length > 0 && (
+                                        <div
+                                            className="absolute left-0 right-0 top-full z-50 mt-1 max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900 custom-scrollbar"
+                                            role="listbox"
+                                        >
+                                            {formProductSuggestions.map((p) => (
+                                                <button
+                                                    key={p.code}
+                                                    type="button"
+                                                    role="option"
+                                                    onMouseDown={(e) => e.preventDefault()}
+                                                    onClick={() => applyProductToStockForm(p)}
+                                                    className="flex w-full items-center gap-2 border-b border-slate-100 p-2 text-left last:border-none hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800"
+                                                >
+                                                    <img
+                                                        decoding="async"
+                                                        loading="lazy"
+                                                        src={p.pic || "https://via.placeholder.com/40"}
+                                                        alt=""
+                                                        className="h-9 w-9 shrink-0 rounded-lg object-cover bg-slate-100 dark:bg-slate-800"
+                                                    />
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{p.name}</div>
+                                                        <div className="mt-0.5 font-mono text-[10px] text-slate-500">{p.code}</div>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {currentProduct && (
+                                    <div className="flex items-center gap-3 p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-900/30 shrink-0">
+                                        <img decoding="async" loading="lazy" src={currentProduct.pic || "https://via.placeholder.com/60"} alt="Preview" className="w-12 h-12 rounded-lg object-cover bg-white shrink-0 aspect-square" />
+                                        <div className="min-w-0">
+                                            <div className="font-semibold text-sm text-blue-700 dark:text-blue-300 truncate">{currentProduct.name}</div>
+                                            <div className="text-[10px] text-blue-600 dark:text-blue-400 font-mono mt-0.5">{currentProduct.code}</div>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="relative flex-1 w-full md:w-auto min-w-[200px] group">
-                        <ListFilter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
-                        <select
-                            value={priorityFilter}
-                            onChange={(e) => setPriorityFilter(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all cursor-pointer appearance-none"
-                        >
-                            <option value="">View Rankings</option>
-                            <option value="priorityTrending">Trending (T)</option>
-                            <option value="priorityExclusive">Exclusive (E)</option>
-                            <option value="priorityBestseller">Best Seller (B)</option>
-                            <option value="prioritySuggestionBox">Sugg. Box (SB)</option>
-                            <option value="prioritySuggestionSearch">Sugg. Search (SS)</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
-
-                    {/* Form Card */}
-                    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 md:p-8">
-                        <div className="flex items-center gap-2 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
-                            <Edit2 className="text-blue-500" size={20} />
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Add / Update Stock</h2>
-                        </div>
-
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                            <div className="space-y-2 relative">
-                                <label htmlFor="code" className="text-sm font-semibold text-slate-700 dark:text-slate-300">Product Code (Lookup)</label>
-                                <input
-                                    type="text"
-                                    id="code"
-                                    value={formData.code}
-                                    onChange={handleFormCodeChange}
-                                    onFocus={() => setFormCodeFocused(true)}
-                                    onBlur={() => {
-                                        window.setTimeout(() => setFormCodeFocused(false), 200);
-                                    }}
-                                    placeholder="Search code or name…"
-                                    required
-                                    autoComplete="off"
-                                    className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-slate-100 font-mono transition-all"
-                                />
-                                {formCodeFocused && formProductSuggestions.length > 0 && (
-                                    <div
-                                        className="absolute left-0 right-0 top-full z-50 mt-2 max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900 custom-scrollbar animate-in fade-in zoom-in-95 duration-200"
-                                        role="listbox"
-                                    >
-                                        {formProductSuggestions.map((p) => (
-                                            <button
-                                                key={p.code}
-                                                type="button"
-                                                role="option"
-                                                onMouseDown={(e) => e.preventDefault()}
-                                                onClick={() => applyProductToStockForm(p)}
-                                                className="flex w-full items-center gap-3 border-b border-slate-100 p-3 text-left transition-colors last:border-none hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800"
-                                            >
-                                                <img
-                                                    decoding="async"
-                                                    loading="lazy"
-                                                    src={p.pic || "https://via.placeholder.com/40"}
-                                                    alt=""
-                                                    className="h-10 w-10 shrink-0 rounded-lg bg-slate-100 object-cover dark:bg-slate-800"
-                                                />
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="truncate font-semibold text-slate-900 dark:text-slate-100">{p.name}</div>
-                                                    <div className="mt-0.5 w-fit rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                                                        {p.code}
-                                                    </div>
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </div>
                                 )}
-                            </div>
 
-                            {currentProduct && (
-                                <div className="flex items-center gap-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-900/30 animate-in fade-in zoom-in-95 duration-300">
-                                    <img decoding="async" loading="lazy" src={currentProduct.pic || "https://via.placeholder.com/60"} alt="Preview" className="w-16 h-16 rounded-lg object-cover bg-white" />
-                                    <div>
-                                        <div className="font-bold text-blue-700 dark:text-blue-300 text-lg">{currentProduct.name}</div>
-                                        <div className="text-sm text-blue-600 dark:text-blue-400 font-mono bg-blue-100 dark:bg-blue-900/40 px-2 py-0.5 rounded w-fit mt-1">{currentProduct.code}</div>
-                                    </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-semibold text-slate-500 uppercase">Variant Key</label>
+                                    <input type="text" id="key" value={formData.key} onChange={handleInputChange} placeholder="01" required className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-slate-100 font-mono font-bold text-sm" />
                                 </div>
-                            )}
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Variant Key</label>
-                                    <input type="text" id="key" value={formData.key} onChange={handleInputChange} placeholder="01" required className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-slate-100 font-mono font-bold" />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Packaging</label>
-                                    <select id="pkg" value={formData.pkg} onChange={handleInputChange} className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-slate-100 cursor-pointer appearance-none">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-semibold text-slate-500 uppercase">Packaging</label>
+                                    <select id="pkg" value={formData.pkg} onChange={handleInputChange} className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-slate-100 cursor-pointer appearance-none text-sm">
                                         <option value="bottle">Bottle</option>
                                         <option value="cover">Cover</option>
                                         <option value="box">Box</option>
@@ -626,98 +652,135 @@ const StockEntry = () => {
                                         <option value="piece">Piece</option>
                                     </select>
                                 </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Unit Value (g/ml)</label>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-semibold text-slate-500 uppercase">Unit Value (g/ml)</label>
                                     <div className="relative">
-                                        <Layers size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                        <input type="number" id="unitValue" value={formData.unitValue} onChange={handleInputChange} required min="1" className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-slate-100" />
+                                        <Layers size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                                        <input type="number" id="unitValue" value={formData.unitValue} onChange={handleInputChange} required min="1" className="w-full pl-8 pr-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-slate-100 text-sm" />
                                     </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Qty In Stock</label>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-semibold text-slate-500 uppercase">Qty In Stock</label>
                                     <div className="relative">
-                                        <Box size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                        <input type="number" id="quantity" value={formData.quantity} onChange={handleInputChange} required min="0" className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-slate-100" />
+                                        <Box size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                                        <input type="number" id="quantity" value={formData.quantity} onChange={handleInputChange} required min="0" className="w-full pl-8 pr-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-slate-100 text-sm" />
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">MRP</label>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-semibold text-slate-500 uppercase">MRP</label>
                                     <div className="relative">
-                                        <DollarSign size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                        <input type="number" id="mrp" value={formData.mrp} onChange={handleInputChange} required min="0.01" step="0.01" className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-slate-100" />
+                                        <DollarSign size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                                        <input type="number" id="mrp" value={formData.mrp} onChange={handleInputChange} required min="0.01" step="0.01" className="w-full pl-8 pr-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-slate-100 text-sm" />
                                     </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Offer Price</label>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-semibold text-slate-500 uppercase">Offer Price</label>
                                     <div className="relative">
-                                        <Tag size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                        <input type="number" id="offerPrice" value={formData.offerPrice} onChange={handleInputChange} min="0" step="0.01" className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-slate-100" />
+                                        <Tag size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                                        <input type="number" id="offerPrice" value={formData.offerPrice} onChange={handleInputChange} min="0" step="0.01" className="w-full pl-8 pr-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-slate-100 text-sm" />
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Tax %</label>
-                                <div className="relative">
-                                    <Percent size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                    <input type="number" id="tax" value={formData.tax} onChange={handleInputChange} required min="0" max="100" className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-slate-100" />
-                                </div>
-                            </div>
-
-                            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                                <label className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 block">Priority Rankings (Optional)</label>
-                                <div className="grid grid-cols-5 gap-2">
-                                    <div className="space-y-1 text-center">
-                                        <label className="text-xs font-medium text-slate-500">Trend</label>
-                                        <input type="text" id="trending" value={formData.trending} onChange={handleInputChange} className="w-full text-center py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-lg text-sm text-slate-900 dark:text-slate-100 font-medium" />
-                                    </div>
-                                    <div className="space-y-1 text-center">
-                                        <label className="text-xs font-medium text-slate-500">Excl.</label>
-                                        <input type="text" id="exclusive" value={formData.exclusive} onChange={handleInputChange} className="w-full text-center py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-lg text-sm text-slate-900 dark:text-slate-100 font-medium" />
-                                    </div>
-                                    <div className="space-y-1 text-center">
-                                        <label className="text-xs font-medium text-slate-500">Best</label>
-                                        <input type="text" id="bestSeller" value={formData.bestSeller} onChange={handleInputChange} className="w-full text-center py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-lg text-sm text-slate-900 dark:text-slate-100 font-medium" />
-                                    </div>
-                                    <div className="space-y-1 text-center">
-                                        <label className="text-xs font-medium text-slate-500">S.Box</label>
-                                        <input type="text" id="suggestionBox" value={formData.suggestionBox} onChange={handleInputChange} className="w-full text-center py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-lg text-sm text-slate-900 dark:text-slate-100 font-medium" />
-                                    </div>
-                                    <div className="space-y-1 text-center">
-                                        <label className="text-xs font-medium text-slate-500">S.Srch</label>
-                                        <input type="text" id="suggestionSearch" value={formData.suggestionSearch} onChange={handleInputChange} className="w-full text-center py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-lg text-sm text-slate-900 dark:text-slate-100 font-medium" />
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-semibold text-slate-500 uppercase">Tax %</label>
+                                    <div className="relative">
+                                        <Percent size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                                        <input type="number" id="tax" value={formData.tax} onChange={handleInputChange} required min="0" max="100" className="w-full pl-8 pr-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-slate-100 text-sm" />
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="flex gap-3 pt-2">
-                                <button type="submit" className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 rounded-xl shadow-lg shadow-blue-500/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-                                    <Save size={18} /> Save Variant
-                                </button>
-                                <button type="button" onClick={resetForm} className="px-5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-medium rounded-xl transition-all active:scale-[0.98]">
-                                    <RotateCcw size={18} />
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-
-                    {/* List Card */}
-                    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 md:p-8 flex flex-col h-full min-h-[500px]">
-                        <div className="flex items-center gap-2 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
-                            {activeView === "stock" ? <ShoppingBag className="text-emerald-500" size={20} /> : <Award className="text-amber-500" size={20} />}
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-                                {activeView === "stock" ? "Stock Variants" : "Priority Rankings"}
-                            </h2>
+                                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 shrink-0">
+                                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Priority Rankings (Optional)</label>
+                                    <div className="grid grid-cols-5 gap-1.5">
+                                        <div className="space-y-0.5 text-center">
+                                            <label className="text-[9px] font-medium text-slate-500">Trend</label>
+                                            <input type="text" id="trending" value={formData.trending} onChange={handleInputChange} className="w-full text-center py-1.5 bg-slate-50 dark:bg-slate-800 border-none rounded-lg text-xs text-slate-900 dark:text-slate-100 font-medium" />
+                                        </div>
+                                        <div className="space-y-0.5 text-center">
+                                            <label className="text-[9px] font-medium text-slate-500">Excl.</label>
+                                            <input type="text" id="exclusive" value={formData.exclusive} onChange={handleInputChange} className="w-full text-center py-1.5 bg-slate-50 dark:bg-slate-800 border-none rounded-lg text-xs text-slate-900 dark:text-slate-100 font-medium" />
+                                        </div>
+                                        <div className="space-y-0.5 text-center">
+                                            <label className="text-[9px] font-medium text-slate-500">Best</label>
+                                            <input type="text" id="bestSeller" value={formData.bestSeller} onChange={handleInputChange} className="w-full text-center py-1.5 bg-slate-50 dark:bg-slate-800 border-none rounded-lg text-xs text-slate-900 dark:text-slate-100 font-medium" />
+                                        </div>
+                                        <div className="space-y-0.5 text-center">
+                                            <label className="text-[9px] font-medium text-slate-500">S.Box</label>
+                                            <input type="text" id="suggestionBox" value={formData.suggestionBox} onChange={handleInputChange} className="w-full text-center py-1.5 bg-slate-50 dark:bg-slate-800 border-none rounded-lg text-xs text-slate-900 dark:text-slate-100 font-medium" />
+                                        </div>
+                                        <div className="space-y-0.5 text-center">
+                                            <label className="text-[9px] font-medium text-slate-500">S.Srch</label>
+                                            <input type="text" id="suggestionSearch" value={formData.suggestionSearch} onChange={handleInputChange} className="w-full text-center py-1.5 bg-slate-50 dark:bg-slate-800 border-none rounded-lg text-xs text-slate-900 dark:text-slate-100 font-medium" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2 pt-1 shrink-0">
+                                    <button type="submit" className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-2 rounded-lg shadow-lg shadow-blue-500/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm">
+                                        <Save size={16} /> Save Variant
+                                    </button>
+                                    <button type="button" onClick={resetForm} className="px-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition-all">
+                                        <RotateCcw size={16} />
+                                    </button>
+                                </div>
+                            </form>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto pr-2 -mr-2 space-y-3 custom-scrollbar">
-                            {activeView === "stock" && (
+                        <div className="lg:col-span-7 flex flex-col min-h-0 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+                            <div className="flex flex-col gap-2 px-4 py-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
+                                <div className="flex items-center gap-2">
+                                    {activeView === "stock" ? <ShoppingBag className="text-emerald-500" size={16} /> : <Award className="text-amber-500" size={16} />}
+                                    <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                                        {activeView === "stock" ? "Stock Variants" : "Priority Rankings"}
+                                    </h2>
+                                </div>
+                                {activeView === "stock" ? (
+                                    <div className="relative group">
+                                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                        <input
+                                            type="text"
+                                            placeholder="Search product name or code..."
+                                            value={searchTerm}
+                                            onChange={handleSearchTermChange}
+                                            className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border-none rounded-lg text-xs focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-slate-100 outline-none"
+                                        />
+                                        {showSearchResults && (
+                                            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl overflow-hidden z-50 max-h-48 overflow-y-auto custom-scrollbar">
+                                                {searchResults.map((p) => (
+                                                    <div
+                                                        key={p.code}
+                                                        onMouseDown={(e) => e.preventDefault()}
+                                                        onClick={() => applyProductToStockForm(p)}
+                                                        className="flex items-center gap-2 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer border-b border-slate-100 dark:border-slate-800 last:border-none"
+                                                    >
+                                                        <img decoding="async" loading="lazy" src={p.pic || "https://via.placeholder.com/30"} alt={p.name} className="w-8 h-8 rounded-lg object-cover" />
+                                                        <div className="min-w-0">
+                                                            <div className="text-sm font-semibold truncate">{p.name}</div>
+                                                            <div className="text-[10px] font-mono text-slate-500">{p.code}</div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="relative">
+                                        <ListFilter className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                        <select
+                                            value={priorityFilter}
+                                            onChange={(e) => setPriorityFilter(e.target.value)}
+                                            className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border-none rounded-lg text-xs focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-slate-100 cursor-pointer appearance-none"
+                                        >
+                                            <option value="">Select ranking category...</option>
+                                            <option value="priorityTrending">Trending (T)</option>
+                                            <option value="priorityExclusive">Exclusive (E)</option>
+                                            <option value="priorityBestseller">Best Seller (B)</option>
+                                            <option value="prioritySuggestionBox">Sugg. Box (SB)</option>
+                                            <option value="prioritySuggestionSearch">Sugg. Search (SS)</option>
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3 bg-slate-50/80 dark:bg-slate-950/50 space-y-2">
+                                {activeView === "stock" && (
                                 <>
                                     {stockVariants.length === 0 ? (
                                         <div className="h-full flex flex-col items-center justify-center text-slate-400">
@@ -762,36 +825,49 @@ const StockEntry = () => {
                             {activeView === "priority" && (
                                 <>
                                     {priorityItems.length === 0 ? (
-                                        <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                                            <ListFilter size={48} className="mb-4 opacity-50 text-slate-300 dark:text-slate-700" />
-                                            <p>No items ranked in this category.</p>
+                                        <div className="h-full min-h-[120px] flex flex-col items-center justify-center text-slate-400">
+                                            <ListFilter size={32} className="mb-2 opacity-30" />
+                                            <p className="text-sm text-center">
+                                                {priorityFilter ? "No items ranked in this category." : "Select a ranking category above."}
+                                            </p>
                                         </div>
                                     ) : (
                                         priorityItems.map((item) => (
-                                            <div key={`${item.pCode}-${item.vKey}`} className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-2xl p-3 pr-4 transition-all">
-                                                <div className="flex flex-col items-center justify-center min-w-[3rem]">
-                                                    <div className="text-2xl font-black text-blue-500/20 md:text-blue-500/10">#</div>
-                                                    <div className="text-xl font-bold text-blue-600 dark:text-blue-400 -mt-4">{item.rank}</div>
+                                            <div
+                                                key={`${item.pCode}-${item.vKey}`}
+                                                className="flex items-center gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 hover:shadow-md transition-all"
+                                            >
+                                                <div className="flex flex-col items-center justify-center min-w-[2.5rem] shrink-0">
+                                                    <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{item.rank}</div>
                                                 </div>
-
-                                                <img decoding="async" loading="lazy" src={item.pic || "https://via.placeholder.com/50"} className="w-12 h-12 rounded-lg object-cover bg-white" alt="prod" />
-
+                                                <img
+                                                    decoding="async"
+                                                    loading="lazy"
+                                                    src={item.pic || "https://via.placeholder.com/50"}
+                                                    className="w-10 h-10 rounded-lg object-cover bg-slate-100 dark:bg-slate-800 shrink-0 aspect-square"
+                                                    alt="prod"
+                                                />
                                                 <div className="flex-1 min-w-0">
-                                                    <div className="font-bold text-slate-800 dark:text-slate-100 truncate">{item.name}</div>
-                                                    <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                                                        <span>{item.pCode}</span>
-                                                        <span className="bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded font-mono text-slate-700 dark:text-slate-300">{item.vKey}</span>
+                                                    <div className="font-semibold text-sm text-slate-800 dark:text-slate-100 truncate">{item.name}</div>
+                                                    <div className="text-[10px] text-slate-500 flex items-center gap-1.5 mt-0.5">
+                                                        <span className="font-mono">{item.pCode}</span>
+                                                        <span className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded font-mono">{item.vKey}</span>
                                                     </div>
                                                 </div>
-
-                                                <button onClick={() => handleEdit(item.pCode, item.vKey, item.data)} className="p-2 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
-                                                    <Edit2 size={16} />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleEdit(item.pCode, item.vKey, item.data)}
+                                                    className="p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 shrink-0"
+                                                >
+                                                    <Edit2 size={14} />
                                                 </button>
                                             </div>
                                         ))
                                     )}
                                 </>
                             )}
+
+                            </div>
                         </div>
                     </div>
                 </div>

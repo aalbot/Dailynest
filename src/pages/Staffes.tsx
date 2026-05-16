@@ -496,88 +496,54 @@ function useUIActions(logic: any) {
         }
     };
 }
-function renderPageHeader(actions: any) {
+function getManHoursToday(data: PageData) {
+    const today = new Date().toISOString().split("T")[0];
+    const todayLaps = data.attendance.filter((a) => a.dateString === today);
+    const completed = todayLaps.reduce((acc, curr) => acc + parseFloat(curr.totalHours || "0"), 0);
+    const liveSecs = data.staffMembers
+        .filter((s) => s.checkedIn && s.lastCheckIn)
+        .reduce((acc, s) => {
+            const start = new Date(s.lastCheckIn!).getTime();
+            return acc + Math.max(0, (data.currentTime.getTime() - start) / 1000);
+        }, 0);
+    return (completed + liveSecs / 3600).toFixed(1);
+}
+
+function renderPageHeader(actions: any, data: PageData) {
+    const totalStaff = data.staffMembers.length;
+    const currentlyIn = data.staffMembers.filter((s) => s.checkedIn).length;
+    const manHours = getManHoursToday(data);
+
     return (
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-            <div className="flex items-center gap-4">
+        <div className="shrink-0 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex min-w-0 items-center gap-3">
                 <BackButton />
-                <div>
-                    <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Onboard</h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1">Manage and view internal staff directory</p>
-                </div>
+                <h1 className="truncate text-lg font-bold text-slate-900 dark:text-white">Onboard</h1>
             </div>
 
-            <Button onClick={actions.onAddStaffClick}>
-                <UserPlus className="w-4 h-4 mr-2" />
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1.5 font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                    <Users className="h-3.5 w-3.5" />
+                    {totalStaff} staff
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-2.5 py-1.5 font-semibold text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                    {currentlyIn} in
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1.5 font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                    <Clock className="h-3.5 w-3.5" />
+                    {manHours}h today
+                </span>
+            </div>
+
+            <Button size="sm" className="h-9 shrink-0 rounded-xl" onClick={actions.onAddStaffClick}>
+                <UserPlus className="mr-1.5 h-4 w-4" />
                 Add Staff
             </Button>
         </div>
     );
 }
 
-function StatsGrid({ data }: { data: PageData }) {
-    const totalStaff = data.staffMembers.length;
-    const currentlyIn = data.staffMembers.filter(s => s.checkedIn).length;
-
-    return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-            <Card className="bg-white dark:bg-slate-900 border-none shadow-sm h-full rounded-2xl overflow-hidden">
-                <CardContent className="p-6 flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                        <Users className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Staff</p>
-                        <p className="text-2xl font-bold text-slate-900 dark:text-white">{totalStaff}</p>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card className="bg-white dark:bg-slate-900 border-none shadow-sm h-full rounded-2xl overflow-hidden">
-                <CardContent className="p-6 flex items-center gap-4 border-l-4 border-indigo-500">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black">
-                        <div className="relative">
-                            <Users className="w-6 h-6" />
-                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900 animate-pulse" />
-                        </div>
-                    </div>
-                    <div>
-                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Currently In</p>
-                        <p className="text-2xl font-bold text-slate-900 dark:text-white">{currentlyIn}</p>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card className="bg-white dark:bg-slate-900 border-none shadow-sm h-full rounded-2xl overflow-hidden">
-                <CardContent className="p-6 flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                        <Clock className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Man-Hours</p>
-                        <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                            {(() => {
-                                const today = new Date().toISOString().split('T')[0];
-                                const todayLaps = data.attendance.filter(a => a.dateString === today);
-                                const completed = todayLaps.reduce((acc, curr) => acc + parseFloat(curr.totalHours || "0"), 0);
-
-                                // Add live sessions
-                                const liveSecs = data.staffMembers
-                                    .filter(s => s.checkedIn && s.lastCheckIn)
-                                    .reduce((acc, s) => {
-                                        const start = new Date(s.lastCheckIn!).getTime();
-                                        return acc + Math.max(0, (data.currentTime.getTime() - start) / 1000);
-                                    }, 0);
-
-                                return (completed + (liveSecs / 3600)).toFixed(1);
-                            })()}h
-                        </p>
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
-    );
-}
 function useDerivedUIData(data: PageData) {
     const filteredStaff = useMemo(() => {
         return data.staffMembers.filter(s =>
@@ -622,75 +588,88 @@ export function UI({ data, logic }: UIProps) {
     const { filteredStaff, availableApps } = useDerivedUIData(data);
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+        <div className="flex h-screen overflow-hidden bg-slate-50 font-sans transition-colors duration-300 dark:bg-slate-950">
             <Navbar />
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-                {renderPageHeader(actions)}
+            <main className="flex h-full min-h-0 flex-1 flex-col overflow-hidden pt-16">
+                {renderPageHeader(actions, data)}
 
-                <StatsGrid data={data} />
-
-                {/* Content Section */}
-                <Card className="bg-white dark:bg-slate-900 border-none shadow-sm rounded-2xl overflow-hidden">
-                    <CardHeader className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-6 p-6">
-                        <CardTitle className="text-xl font-bold text-slate-900 dark:text-white">Staff Directory</CardTitle>
-                        <div className="flex items-center gap-3 w-full sm:w-auto">
-                            <div className="relative flex-1 sm:w-64">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                                <Input
-                                    placeholder="Search staff..."
-                                    value={data.searchTerm}
-                                    onChange={(e) => actions.onSearchChange(e.target.value)}
-                                    className="pl-10 h-10 bg-slate-50 dark:bg-slate-800 border-none rounded-xl"
-                                />
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3 md:p-4">
+                    <Card className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                        <CardHeader className="shrink-0 space-y-0 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
+                                    Staff Directory
+                                </CardTitle>
+                                <div className="relative w-full sm:w-56">
+                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                    <Input
+                                        placeholder="Search staff..."
+                                        value={data.searchTerm}
+                                        onChange={(e) => actions.onSearchChange(e.target.value)}
+                                        className="h-9 rounded-xl border-none bg-slate-50 pl-9 text-sm dark:bg-slate-800"
+                                    />
+                                </div>
                             </div>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <Tabs defaultValue="directory" className="w-full">
-                            <div className="px-6 border-b border-slate-100 dark:border-slate-800">
-                                <TabsList className="bg-transparent h-14 p-0 gap-8">
-                                    <TabsTrigger value="directory" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 rounded-none h-14 font-bold text-slate-500">
-                                        Staff Directory
-                                    </TabsTrigger>
-                                    <TabsTrigger value="verification" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 rounded-none h-14 font-bold text-slate-500 relative">
-                                        Pending Verification
-                                        {data.pendingRequests.length > 0 && (
-                                            <span className="ml-2 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center animate-bounce">
-                                                {data.pendingRequests.length}
-                                            </span>
-                                        )}
-                                    </TabsTrigger>
-                                </TabsList>
-                            </div>
+                        </CardHeader>
 
-                            <TabsContent value="directory" className="p-0 mt-0">
-                                <StaffTable
-                                    staff={filteredStaff}
-                                    attendance={data.attendance}
-                                    currentTime={data.currentTime}
-                                    onEdit={actions.onEditStaff}
-                                    onDelete={actions.onDeleteStaff}
-                                />
-                            </TabsContent>
+                        <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
+                            <Tabs defaultValue="directory" className="flex min-h-0 flex-1 flex-col">
+                                <div className="shrink-0 border-b border-slate-100 px-4 dark:border-slate-800">
+                                    <TabsList className="h-10 gap-6 bg-transparent p-0">
+                                        <TabsTrigger
+                                            value="directory"
+                                            className="h-10 rounded-none border-b-2 border-transparent px-0 text-sm font-bold text-slate-500 data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:shadow-none"
+                                        >
+                                            Staff Directory
+                                        </TabsTrigger>
+                                        <TabsTrigger
+                                            value="verification"
+                                            className="relative h-10 rounded-none border-b-2 border-transparent px-0 text-sm font-bold text-slate-500 data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:shadow-none"
+                                        >
+                                            Pending Verification
+                                            {data.pendingRequests.length > 0 && (
+                                                <span className="ml-2 flex h-5 w-5 animate-bounce items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
+                                                    {data.pendingRequests.length}
+                                                </span>
+                                            )}
+                                        </TabsTrigger>
+                                    </TabsList>
+                                </div>
 
-                            <TabsContent value="verification" className="p-0 mt-0">
-                                <VerificationTable
-                                    requests={data.pendingRequests}
-                                    onApprove={actions.onApprove}
-                                    onReject={actions.onReject}
-                                />
-                            </TabsContent>
-                        </Tabs>
-                    </CardContent>
-                </Card>
+                                <TabsContent
+                                    value="directory"
+                                    className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden p-0 focus-visible:outline-none data-[state=inactive]:hidden"
+                                >
+                                    <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar">
+                                        <StaffTable
+                                            staff={filteredStaff}
+                                            attendance={data.attendance}
+                                            currentTime={data.currentTime}
+                                            onEdit={actions.onEditStaff}
+                                            onDelete={actions.onDeleteStaff}
+                                        />
+                                    </div>
+                                </TabsContent>
 
-                {/* Modal */}
-                <StaffModal
-                    data={data}
-                    apps={availableApps}
-                    actions={actions}
-                />
+                                <TabsContent
+                                    value="verification"
+                                    className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden p-0 focus-visible:outline-none data-[state=inactive]:hidden"
+                                >
+                                    <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar">
+                                        <VerificationTable
+                                            requests={data.pendingRequests}
+                                            onApprove={actions.onApprove}
+                                            onReject={actions.onReject}
+                                        />
+                                    </div>
+                                </TabsContent>
+                            </Tabs>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <StaffModal data={data} apps={availableApps} actions={actions} />
             </main>
         </div>
     );
@@ -710,24 +689,24 @@ const VerificationTable = ({ requests, onApprove, onReject }: any) => {
             <table className="w-full text-left">
                 <thead>
                     <tr className="bg-slate-50/50 dark:bg-slate-800/30 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
-                        <th className="px-6 py-4">Requester</th>
-                        <th className="px-6 py-4">Role Requested</th>
-                        <th className="px-6 py-4">Time</th>
-                        <th className="px-6 py-4 text-right">Decision</th>
+                        <th className="px-4 py-2.5">Requester</th>
+                        <th className="px-4 py-2.5">Role Requested</th>
+                        <th className="px-4 py-2.5">Time</th>
+                        <th className="px-4 py-2.5 text-right">Decision</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {requests.length === 0 ? (
                         <tr>
-                            <td colSpan={4} className="px-6 py-12 text-center text-slate-500 font-medium">
-                                <ShieldCheck className="w-12 h-12 mx-auto mb-4 opacity-10" />
+                            <td colSpan={4} className="px-4 py-8 text-center text-slate-500 font-medium">
+                                <ShieldCheck className="mx-auto mb-3 h-10 w-10 opacity-10" />
                                 No pending verifications
                             </td>
                         </tr>
                     ) : (
                         requests.map((r: any) => (
                             <tr key={r.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
-                                <td className="px-6 py-4">
+                                <td className="px-4 py-2.5">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600">
                                             <UserPlus size={20} />
@@ -738,15 +717,15 @@ const VerificationTable = ({ requests, onApprove, onReject }: any) => {
                                         </div>
                                     </div>
                                 </td>
-                                <td className="px-6 py-4">
+                                <td className="px-4 py-2.5">
                                     <Badge className="bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-100 uppercase text-[10px] tracking-widest font-black">
                                         {r.roleType}
                                     </Badge>
                                 </td>
-                                <td className="px-6 py-4 text-xs text-slate-500">
+                                <td className="px-4 py-2.5 text-xs text-slate-500">
                                     {new Date(r.timestamp).toLocaleString()}
                                 </td>
-                                <td className="px-6 py-4 text-right">
+                                <td className="px-4 py-2.5 text-right">
                                     <div className="flex items-center justify-end gap-2">
                                         <Button
                                             size="sm"
@@ -788,25 +767,25 @@ const StaffTable = ({ staff, attendance, currentTime, onEdit, onDelete }: StaffT
             <table className="w-full text-left">
                 <thead>
                     <tr className="bg-slate-50/50 dark:bg-slate-800/30 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
-                        <th className="px-6 py-4">Staff Member</th>
-                        <th className="px-6 py-4">Username</th>
-                        <th className="px-6 py-4">Role</th>
-                        <th className="px-6 py-4">Status</th>
-                        <th className="px-6 py-4">Working Hours</th>
-                        <th className="px-6 py-4 text-right">Actions</th>
+                        <th className="px-4 py-2.5">Staff Member</th>
+                        <th className="px-4 py-2.5">Username</th>
+                        <th className="px-4 py-2.5">Role</th>
+                        <th className="px-4 py-2.5">Status</th>
+                        <th className="px-4 py-2.5">Working Hours</th>
+                        <th className="px-4 py-2.5 text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {staff.length === 0 ? (
                         <tr>
-                            <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                            <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
                                 No staff members found
                             </td>
                         </tr>
                     ) : (
                         staff.map((s) => (
                             <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors group">
-                                <td className="px-6 py-4">
+                                <td className="px-4 py-2.5">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
                                             <Users size={20} />
@@ -817,17 +796,17 @@ const StaffTable = ({ staff, attendance, currentTime, onEdit, onDelete }: StaffT
                                         </div>
                                     </div>
                                 </td>
-                                <td className="px-6 py-4">
+                                <td className="px-4 py-2.5">
                                     <span className="text-sm font-mono text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">
                                         @{s.username}
                                     </span>
                                 </td>
-                                <td className="px-6 py-4">
+                                <td className="px-4 py-2.5">
                                     <Badge variant="outline" className="rounded-lg border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-medium">
                                         {s.role}
                                     </Badge>
                                 </td>
-                                <td className="px-6 py-4">
+                                <td className="px-4 py-2.5">
                                     <div className="flex items-center gap-2">
                                         <div className={`w-2 h-2 rounded-full ${s.checkedIn ? "bg-emerald-500 animate-pulse" : "bg-slate-300 dark:bg-slate-700"}`} />
                                         <span className={`text-xs font-bold ${s.checkedIn ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500"}`}>
@@ -835,7 +814,7 @@ const StaffTable = ({ staff, attendance, currentTime, onEdit, onDelete }: StaffT
                                         </span>
                                     </div>
                                 </td>
-                                <td className="px-6 py-4">
+                                <td className="px-4 py-2.5">
                                     <div className="text-xs font-medium text-slate-600 dark:text-slate-400">
                                         {(() => {
                                             const today = new Date().toISOString().split('T')[0];
@@ -858,7 +837,7 @@ const StaffTable = ({ staff, attendance, currentTime, onEdit, onDelete }: StaffT
                                         })()}
                                     </div>
                                 </td>
-                                <td className="px-6 py-4 text-right">
+                                <td className="px-4 py-2.5 text-right">
                                     <div className="flex items-center justify-end gap-2 transition-opacity">
                                         <Button variant="ghost" size="icon" onClick={() => onEdit(s)} className="h-8 w-8 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-900/20">
                                             <Edit className="w-4 h-4" />

@@ -32,6 +32,7 @@ const WalletSuggestions = lazy(() => import("./pages/WalletSuggestions"));
 const Broadcast = lazy(() => import("./pages/Broadcast"));
 const BannerManage = lazy(() => import("./pages/BannerManage"));
 const POS = lazy(() => import("./pages/POS"));
+const GenerateApp = lazy(() => import("./pages/GenerateApp"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 import ScrollToTop from "./components/ScrollToTop";
@@ -105,6 +106,7 @@ const App = () => (
                     <Route path="/broadcast" element={<Broadcast />} />
                     <Route path="/banner-manage" element={<BannerManage />} />
                     <Route path="/pos" element={<POS />} />
+                    <Route path="/generate-app" element={<GenerateApp />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>

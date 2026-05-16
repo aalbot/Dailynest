@@ -22,6 +22,7 @@ import {
   ShieldAlert,
   MessageSquare,
   Image,
+  Sparkles,
 } from "lucide-react";
 import AppIcon from "./AppIcon";
 import { AddAppModal } from "./AddAppModal";
@@ -61,6 +62,7 @@ const initialApps = [
   { icon: MessageSquare, label: "Broadcast", colorClass: "app-icon-emerald", path: "/broadcast", key: "apps.broadcast" },
   { icon: Image, label: "Banner Manage", colorClass: "app-icon-teal", path: "/banner-manage", key: "apps.bannerManage" },
   { icon: ShoppingBag, label: "POS", colorClass: "app-icon-green", path: "/pos", key: "apps.pos" },
+  { icon: Sparkles, label: "Generate App", colorClass: "app-icon-violet", path: "/generate-app", key: "apps.generateApp", superadminOnly: true },
 ];
 
 const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolean; searchQuery?: string }) => {
@@ -116,7 +118,9 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
   };
 
   // Helper to check if an app should be visible
-  const isAppVisible = (path: string) => {
+  const isAppVisible = (path: string, superadminOnly = false) => {
+    if (superadminOnly && userRole !== "superadmin") return false;
+
     const override = systemOverrides[path.replace(/\//g, '_')];
     if (override?.isHidden) return false;
 
@@ -130,7 +134,7 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
   const filteredInitialApps = initialApps.filter(app => {
     const override = systemOverrides[app.path.replace(/\//g, '_')];
     const finalLabel = override?.name || app.label;
-    return isAppVisible(app.path) && finalLabel.toLowerCase().includes(searchQuery.toLowerCase());
+    return isAppVisible(app.path, app.superadminOnly) && finalLabel.toLowerCase().includes(searchQuery.toLowerCase());
   });
   const filteredCustomApps = customApps.filter(app => {
     const path = app.path || "/";
