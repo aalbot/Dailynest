@@ -44,7 +44,8 @@
             "infra": "Infra",
             "test": "Test App",
             "broadcast": "Broadcast",
-            "bannerManage": "Banner Manage"
+            "bannerManage": "Banner Manage",
+            "pos": "POS"
         },
         "gateway": {
             "badge": "Unified Access Control",
@@ -336,7 +337,8 @@
             "infra": "البنية التحتية",
             "test": "تطبيق تجريبي",
             "broadcast": "البث",
-            "bannerManage": "إدارة اللافتة"
+            "bannerManage": "إدارة اللافتة",
+            "pos": "نظام البيع"
         },
         "gateway": {
             "badge": "التحكم الموحد في الوصول",
@@ -628,7 +630,8 @@
             "infra": "ഇൻഫ്രാ",
             "test": "ടെസ്റ്റ് ആപ്പ്",
             "broadcast": "ബ്രോഡ്‌കാസ്റ്റ്",
-            "bannerManage": "ബാനർ മാനേജ്"
+            "bannerManage": "ബാനർ മാനേജ്",
+            "pos": "POS"
         },
         "gateway": {
             "badge": "യുണിഫൈഡ് ആക്‌സസ് കൺട്രോൾ",

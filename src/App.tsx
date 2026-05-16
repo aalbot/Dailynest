@@ -31,6 +31,7 @@ const WalletCustomersLayout = lazy(() => import("./layouts/WalletCustomersLayout
 const WalletSuggestions = lazy(() => import("./pages/WalletSuggestions"));
 const Broadcast = lazy(() => import("./pages/Broadcast"));
 const BannerManage = lazy(() => import("./pages/BannerManage"));
+const POS = lazy(() => import("./pages/POS"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 import ScrollToTop from "./components/ScrollToTop";
@@ -103,6 +104,7 @@ const App = () => (
                     <Route path="/infra" element={<InfraConsole />} />
                     <Route path="/broadcast" element={<Broadcast />} />
                     <Route path="/banner-manage" element={<BannerManage />} />
+                    <Route path="/pos" element={<POS />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>

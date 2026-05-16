@@ -60,6 +60,7 @@ const initialApps = [
   { icon: ShieldAlert, label: "Infra", colorClass: "app-icon-red", path: "/infra", key: "apps.infra" },
   { icon: MessageSquare, label: "Broadcast", colorClass: "app-icon-emerald", path: "/broadcast", key: "apps.broadcast" },
   { icon: Image, label: "Banner Manage", colorClass: "app-icon-teal", path: "/banner-manage", key: "apps.bannerManage" },
+  { icon: ShoppingBag, label: "POS", colorClass: "app-icon-green", path: "/pos", key: "apps.pos" },
 ];
 
 const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolean; searchQuery?: string }) => {
