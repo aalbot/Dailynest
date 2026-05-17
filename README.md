@@ -1,4 +1,4 @@
-# DailyClub Digital Ecosystem
+# DailyNest Digital Ecosystem
 
 A premium, high-performance enterprise portal designed for real-time collaboration, task management, and digital automation. Built with a modern architectural stack, it serves as a centralized hub for managing staff, attendance, products, and custom applications.
 
@@ -97,7 +97,7 @@ const compatStorage = firebase.storage();
 ```
 
 The configuration is centrally managed in `src/config/index.ts` using the following parameters:
-- **Bucket Identification**: `dclub-32718.firebasestorage.app`
+- **Bucket Identification**: `dailynest-2457b.firebasestorage.app`
 - **Region**: Default multi-region or specific region as configured in the Firebase Console.
 
 ## 📂 Project Structure
@@ -125,4 +125,5 @@ The configuration is centrally managed in `src/config/index.ts` using the follow
    ```
 
 ---
-*Built with ❤️ for the DailyClub Digital Ecosystem.*
+*Built with ❤️ for the DailyNest Digital Ecosystem.*
+# Dailynest
