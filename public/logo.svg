@@ -1,19 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="DailyNest">
   <defs>
-    <linearGradient id="dn-bg" x1="10" y1="6" x2="54" y2="58" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#3B82F6"/>
-      <stop offset="0.55" stop-color="#6366F1"/>
-      <stop offset="1" stop-color="#8B5CF6"/>
+    <linearGradient id="dn-bg" x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2563EB"/>
+      <stop offset="0.5" stop-color="#4F46E5"/>
+      <stop offset="1" stop-color="#7C3AED"/>
     </linearGradient>
-    <linearGradient id="dn-nest" x1="18" y1="24" x2="46" y2="48" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFFFFF" stop-opacity="0.95"/>
-      <stop offset="1" stop-color="#E0E7FF" stop-opacity="0.9"/>
+    <linearGradient id="dn-stroke" x1="16" y1="22" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.98"/>
+      <stop offset="1" stop-color="#E0E7FF" stop-opacity="0.88"/>
     </linearGradient>
   </defs>
-  <rect width="64" height="64" rx="16" fill="url(#dn-bg)"/>
-  <path d="M14 36C14 27.5 22.2 21 32 21C41.8 21 50 27.5 50 36" stroke="url(#dn-nest)" stroke-width="3.25" stroke-linecap="round"/>
-  <path d="M18 36L32 47L46 36" stroke="url(#dn-nest)" stroke-width="3.25" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M27 35.5L32 30.5L37 35.5V41.5H27V35.5Z" fill="white" fill-opacity="0.96"/>
-  <path d="M30.5 35.5H33.5V38.5H30.5V35.5Z" fill="#6366F1" fill-opacity="0.85"/>
-  <circle cx="32" cy="28" r="2.25" fill="white" fill-opacity="0.9"/>
+  <rect width="64" height="64" rx="18" fill="url(#dn-bg)"/>
+  <rect x="6" y="6" width="52" height="52" rx="14" fill="#FFFFFF" fill-opacity="0.07"/>
+  <path d="M13 34.5C13 26.8 21 21 32 21C43 21 51 26.8 51 34.5" stroke="url(#dn-stroke)" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M17.5 34.5L32 46.5L46.5 34.5" stroke="url(#dn-stroke)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M25.5 33L32 26.5L38.5 33V40.5H25.5V33Z" fill="#FFFFFF" fill-opacity="0.97"/>
+  <path d="M29.5 33H34.5V37H29.5V33Z" fill="#4F46E5"/>
+  <circle cx="32" cy="24" r="2.75" fill="#FFFFFF" fill-opacity="0.92"/>
 </svg>

@@ -1,3 +1,4 @@
+import { DEFAULT_BRANDING, normalizeBranding } from "./branding";
 
 const getStoredConfig = () => {
     try {
@@ -15,7 +16,7 @@ const getStoredBranding = () => {
     try {
         if (typeof window !== 'undefined') {
             const stored = localStorage.getItem('APP_BRANDING_OVERRIDE');
-            if (stored) return JSON.parse(stored);
+            if (stored) return normalizeBranding(JSON.parse(stored));
         }
     } catch (e) {
         console.error("Failed to load branding override", e);
@@ -32,11 +33,6 @@ const DEFAULT_FIREBASE = {
     messagingSenderId: "1061145447202",
     appId: "1:1061145447202:web:f5b522a0a25f8757f3337b",
     measurementId: "G-047X9P8L89"
-};
-
-const DEFAULT_BRANDING = {
-    appName: "DailyNest",
-    logoUrl: "/logo.svg"
 };
 
 export const CONFIG = {

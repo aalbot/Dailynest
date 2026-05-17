@@ -324,6 +324,11 @@ const Gateway = () => {
 
             <div className="relative z-10 w-full max-w-5xl">
                 <div className="text-center mb-6 space-y-2 animate-reveal-up">
+                    <img
+                        src={branding.logoUrl}
+                        alt={branding.appName}
+                        className="mx-auto mb-4 h-20 w-20 rounded-3xl object-contain shadow-2xl shadow-indigo-500/25 ring-1 ring-white/30 dark:ring-white/10"
+                    />
                     <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-medium uppercase tracking-[0.2em] backdrop-blur-md mb-2 transition-colors duration-300 ${isDark ? 'bg-white/5 border-white/10 text-white/60' : 'bg-white border-slate-200 text-slate-500 shadow-sm'}`}>
                         <Sparkles className="w-3.5 h-3.5 text-blue-500" />
                         <span>{getTranslation("gateway.badge")}</span>
@@ -341,8 +346,12 @@ const Gateway = () => {
                         <div className={`absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r transition-all duration-500 ${isSignup ? 'from-indigo-500 via-purple-500 to-pink-500' : 'from-blue-500 via-indigo-500 to-violet-500'}`} />
 
                         <CardHeader className="text-center p-6 sm:p-8 pb-0">
-                            <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl transition-all duration-500 ${isSignup ? 'bg-purple-500/10 border-purple-500/20 text-purple-500' : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-500'} border`}>
-                                {isSignup ? <UserPlus className="w-10 h-10" /> : <Shield className="w-10 h-10" />}
+                            <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl transition-all duration-500 overflow-hidden ${isSignup ? 'bg-purple-500/10 border-purple-500/20' : 'bg-indigo-500/10 border-indigo-500/20'} border`}>
+                                {isSignup ? (
+                                    <UserPlus className="w-10 h-10 text-purple-500" />
+                                ) : (
+                                    <img src={branding.logoUrl} alt={branding.appName} className="h-full w-full object-contain p-2" />
+                                )}
                             </div>
                             <CardTitle className={`text-3xl font-black transition-colors ${isDark ? 'text-white' : 'text-slate-900'}`}>
                                 {isSignup ? getTranslation("gateway.signup.title") : getTranslation("gateway.login.title")}

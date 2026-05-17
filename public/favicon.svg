@@ -1,12 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" aria-label="DailyNest">
   <defs>
-    <linearGradient id="fav-bg" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#3B82F6"/>
-      <stop offset="1" stop-color="#8B5CF6"/>
+    <linearGradient id="fav-bg" x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#7C3AED"/>
     </linearGradient>
   </defs>
-  <rect width="32" height="32" rx="8" fill="url(#fav-bg)"/>
-  <path d="M7 18C7 13.5 11 10 16 10C21 10 25 13.5 25 18" stroke="white" stroke-width="2" stroke-linecap="round"/>
-  <path d="M9 18L16 24L23 18" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M13.5 17.5L16 15L18.5 17.5V20.5H13.5V17.5Z" fill="white"/>
+  <rect width="32" height="32" rx="9" fill="url(#fav-bg)"/>
+  <path d="M6.5 17.5C6.5 13.8 10.5 11 16 11C21.5 11 25.5 13.8 25.5 17.5" stroke="white" stroke-width="2" stroke-linecap="round"/>
+  <path d="M8.5 17.5L16 23.5L23.5 17.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M12.5 16.5L16 13.5L19.5 16.5V20H12.5V16.5Z" fill="white"/>
 </svg>

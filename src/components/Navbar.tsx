@@ -244,7 +244,12 @@ const Navbar = () => {
 
   const displayName = userRole === "superadmin" ? "Superadmin" : userRole === "admin" ? "Administrator" : (staffName || "Staff Member");
   const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  const userEmail = userRole === "superadmin" ? "superadmin@dailynest.com" : userRole === "admin" ? "admin@dailynest.com" : `${staffName?.toLowerCase().replace(/\s/g, '') || 'staff'}@dailynest.staff`;
+  const userEmail =
+    userRole === "superadmin"
+      ? "superadmin@dailynest.com"
+      : userRole === "admin"
+        ? "admin@dailynest.com"
+        : `${staffName?.toLowerCase().replace(/\s/g, "") || "staff"}@dailynest.staff`;
 
   const allApps = allAppsRaw.filter(app => {
     // If the app is marked as hidden via Infra, hide it for everyone.

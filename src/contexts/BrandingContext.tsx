@@ -1,11 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { firebase } from '@/lib/firebase';
 import { CONFIG } from '@/config';
-
-interface BrandingConfig {
-    appName: string;
-    logoUrl: string;
-}
+import { DEFAULT_BRANDING, normalizeBranding, type BrandingConfig } from '@/config/branding';
 
 interface BrandingContextType {
     config: BrandingConfig;
@@ -15,19 +11,18 @@ interface BrandingContextType {
 const BrandingContext = createContext<BrandingContextType | undefined>(undefined);
 
 export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [config, setConfig] = useState<BrandingConfig>(CONFIG.BRANDING);
+    const [config, setConfig] = useState<BrandingConfig>(normalizeBranding(CONFIG.BRANDING));
 
     useEffect(() => {
         const db = firebase.database();
         const brandingRef = db.ref('root/infra/branding');
 
-        const handleData = (snapshot: any) => {
+        const handleData = (snapshot: { val: () => Partial<BrandingConfig> | null }) => {
             const data = snapshot.val();
             if (data) {
-                setConfig({
-                    appName: data.appName || CONFIG.BRANDING.appName,
-                    logoUrl: data.logoUrl || CONFIG.BRANDING.logoUrl,
-                });
+                setConfig(normalizeBranding(data));
+            } else {
+                setConfig(DEFAULT_BRANDING);
             }
         };
 
@@ -38,11 +33,12 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         };
     }, []);
 
-    // Effect to update document title, favicon, and meta tags
     useEffect(() => {
-        document.title = config.appName;
+        const title = config.appName === 'DailyNest'
+            ? 'DailyNest Admin Dashboard'
+            : `${config.appName} Admin Dashboard`;
+        document.title = title;
 
-        // Update favicon if logoUrl is provided
         let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
         if (!link) {
             link = document.createElement('link');
@@ -51,24 +47,26 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
         if (link) {
             link.href = config.logoUrl;
+            link.type = config.logoUrl.endsWith('.svg') ? 'image/svg+xml' : 'image/png';
         }
 
-        // Update meta tags
         const metaDescription = document.querySelector('meta[name="description"]');
-        if (metaDescription) metaDescription.setAttribute("content", `${config.appName} Admin Dashboard`);
+        if (metaDescription) metaDescription.setAttribute('content', `${config.appName} Admin Dashboard`);
 
         const metaAuthor = document.querySelector('meta[name="author"]');
-        if (metaAuthor) metaAuthor.setAttribute("content", config.appName);
+        if (metaAuthor) metaAuthor.setAttribute('content', config.appName);
 
         const ogTitle = document.querySelector('meta[property="og:title"]');
-        if (ogTitle) ogTitle.setAttribute("content", `${config.appName} Admin Dashboard`);
+        if (ogTitle) ogTitle.setAttribute('content', title);
     }, [config]);
 
     const updateBranding = async (newConfig: BrandingConfig) => {
         try {
-            await firebase.database().ref('root/infra/branding').set(newConfig);
+            const normalized = normalizeBranding(newConfig);
+            await firebase.database().ref('root/infra/branding').set(normalized);
+            setConfig(normalized);
         } catch (error) {
-            console.error("Failed to update branding:", error);
+            console.error('Failed to update branding:', error);
             throw error;
         }
     };
