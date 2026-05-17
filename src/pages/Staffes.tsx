@@ -40,6 +40,7 @@ import { toast } from "sonner";
 import { dataProvider } from "@/data";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { STAFF_ASSIGNABLE_APPS } from "@/config/apps";
 /* =====================================================
    ACTION REQUEST (LOCAL, FRAMEWORK-COMPATIBLE)
    ===================================================== */
@@ -71,24 +72,12 @@ const actionRequestBus = {
    CONSTANTS
    ===================================================== */
 
-const initialAppsList = [
-    { id: "dashboard", label: "Dashboard", path: "/dashboard", icon: TrendingUp },
-    { id: "employee-management", label: "Employee Management", path: "/employee-management", icon: Users },
-    { id: "overview", label: "Report", path: "/overview", icon: LayoutDashboard },
-    { id: "orders", label: "Orders", path: "/orders", icon: ClipboardList },
-    { id: "delivery", label: "Delivery", path: "/delivery", icon: Truck },
-    { id: "stock-entry", label: "Stocks", path: "/stock-entry", icon: Package },
-    { id: "product-entry", label: "Products", path: "/product-entry", icon: ShoppingBag },
-    { id: "back-office", label: "Purchase", path: "/back-office", icon: Building2 },
-    { id: "premium-entry", label: "Wallet & users", path: "/premium-entry", icon: Crown },
-    { id: "rating-entry", label: "Promotions", path: "/rating-entry", icon: Star },
-    { id: "keyword-entry", label: "SEO", path: "/keyword-entry", icon: Keyboard },
-    { id: "tasks", label: "Task Manager", path: "/tasks", icon: Grid3X3 },
-    { id: "notifications", label: "Notification", path: "/notifications", icon: Bell },
-    { id: "staffes", label: "Onboard", path: "/staffes", icon: Users },
-    { id: "broadcast", label: "Broadcast", path: "/broadcast", icon: MessageSquare },
-    { id: "banner-manage", label: "Banner Manage", path: "/banner-manage", icon: Image },
-];
+const initialAppsList = STAFF_ASSIGNABLE_APPS.map((app) => ({
+    id: app.path.replace(/^\//, ""),
+    label: app.label,
+    path: app.path,
+    icon: app.icon,
+}));
 // Import the logger
 import { logger } from "@/data/utils/LogManager";
 

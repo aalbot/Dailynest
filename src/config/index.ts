@@ -24,19 +24,19 @@ const getStoredBranding = () => {
 };
 
 const DEFAULT_FIREBASE = {
-    apiKey: "AIzaSyBUhKliTOKWKVW-TCTaYiRN9FXCjoxcsHg",
-    authDomain: "dclub-32718.firebaseapp.com",
-    databaseURL: "https://dclub-32718-default-rtdb.firebaseio.com",
-    projectId: "dclub-32718",
-    storageBucket: "dclub-32718.firebasestorage.app",
-    messagingSenderId: "401946278556",
-    appId: "1:401946278556:web:efd912ca5196ce248b0b59",
-    measurementId: "G-Q9RC6QRR7K"
+    apiKey: "AIzaSyAo1waDH7OuJ2FwW0ttUZUh7w4nuPUVThg",
+    authDomain: "dailynest-2457b.firebaseapp.com",
+    databaseURL: "https://dailynest-2457b-default-rtdb.firebaseio.com",
+    projectId: "dailynest-2457b",
+    storageBucket: "dailynest-2457b.firebasestorage.app",
+    messagingSenderId: "1061145447202",
+    appId: "1:1061145447202:web:f5b522a0a25f8757f3337b",
+    measurementId: "G-047X9P8L89"
 };
 
 const DEFAULT_BRANDING = {
-    appName: "DailyClub",
-    logoUrl: "/logo.png"
+    appName: "DailyNest",
+    logoUrl: "/logo.svg"
 };
 
 export const CONFIG = {
@@ -47,12 +47,11 @@ export const CONFIG = {
     },
     FCM: {
         vapidKey: "BORUQ2p7jMkhKXyww597I0dBGQvgfocigWjbu0kJ1CSjF7J4J6pJJE8lti_JI7c0KLdZy7EDgNm3hNblJA6ne1U",
-        serverKey: "YOUR_FCM_SERVER_KEY" // Get this from Firebase Console > Project Settings > Cloud Messaging > Cloud Messaging API (Legacy)
+        serverKey: "YOUR_FCM_SERVER_KEY"
     },
     ASSETS: {
         notificationSound: "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"
     },
-    /** WhatsApp Business (Facebook Graph API) – used by Broadcast to send custom messages */
     WHATSAPP: {
         apiVersion: "v22.0",
         phoneNumberId: "1018202878043686",

@@ -4,8 +4,6 @@ import { firebase, messaging, db as modularDb } from "@/lib/firebase";
 import { getToken, onMessage } from "firebase/messaging";
 import { ref, set, update } from "firebase/database";
 import { toast } from "sonner";
-import { adjustStockForOrder } from "@/utils/stockManagement";
-import { canonicalOrderStatusForUi } from "@/utils/orderStatus";
 import { CONFIG } from "@/config";
 
 export interface Notification {
@@ -14,8 +12,7 @@ export interface Notification {
     message: string;
     timestamp: number;
     read: boolean;
-    type: 'order' | 'delivery' | 'info' | 'stock';
-    orderId?: string;
+    type: "info";
 }
 
 interface NotificationContextType {
@@ -31,11 +28,6 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [orders, setOrders] = useState<Record<string, any>>({});
-    const [stockLevels, setStockLevels] = useState<Record<string, number>>({});
-    const isInitialLoad = useRef(true);
-    const productData = useRef<any>(null);
-    const processingOrders = useRef<Set<string>>(new Set());
     const hiddenNotificationsRef = useRef<Record<string, boolean>>({});
     const navigate = useNavigate();
     const location = useLocation();
@@ -45,7 +37,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return userName.replace(/[.$#[\]]/g, "_");
     };
 
-    // 1. Initial Load & Sync from Firebase
     useEffect(() => {
         const userKey = getSafeUserKey();
         const db = firebase.database();
@@ -54,8 +45,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         const handleHiddenChange = (snapshot: any) => {
             const hidden = snapshot.val() || {};
             hiddenNotificationsRef.current = hidden;
-            setNotifications(prev =>
-                prev.map(n => hidden[n.id] ? { ...n, read: true } : n)
+            setNotifications((prev) =>
+                prev.map((n) => (hidden[n.id] ? { ...n, read: true } : n))
             );
         };
 
@@ -63,218 +54,15 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return () => hiddenRef.off("value", handleHiddenChange);
     }, []);
 
-    // Sound logic
     const playNotificationSound = () => {
         try {
             const audio = new Audio(CONFIG.ASSETS.notificationSound);
             audio.volume = 0.5;
-            audio.play().catch(e => console.log("Audio play failed (user interaction needed first)", e));
-        } catch (e) {
-            console.error("Error playing sound", e);
+            audio.play().catch(() => {});
+        } catch {
+            /* ignore */
         }
     };
-
-    const prevOrdersRef = useRef<Record<string, any>>({});
-    const prevStockLevelsRef = useRef<Record<string, number>>({});
-    /** After first `once("value")` — avoids treating every synced row as a new order. */
-    const ordersBootstrappedRef = useRef(false);
-
-    // 2. Efficient Order Listening
-    useEffect(() => {
-        const db = firebase.database();
-        const ordersRef = db.ref("root/order");
-        const ordersQuery = ordersRef.limitToLast(10); // Reduced initial sync bandwidth
-
-        const runStockReduceIfNeeded = (key: string, newOrder: any) => {
-            if (!newOrder.stock_reduced && newOrder.status !== "Cancelled" && !processingOrders.current.has(key)) {
-                processingOrders.current.add(key);
-                adjustStockForOrder(newOrder, "reduce")
-                    .then(() => db.ref(`root/order/${key}`).update({ stock_reduced: true }))
-                    .catch((err) => console.error(`Failed to reduce stock for ${key}`, err))
-                    .finally(() => processingOrders.current.delete(key));
-            }
-        };
-
-        const handleOrderAdded = (snapshot: any) => {
-            const key = snapshot.key;
-            const newOrder = snapshot.val();
-            if (!key || key === "counter") return;
-
-            if (!ordersBootstrappedRef.current) {
-                prevOrdersRef.current[key] = newOrder;
-                return;
-            }
-
-            const existed = Object.prototype.hasOwnProperty.call(prevOrdersRef.current, key);
-            if (canonicalOrderStatusForUi(newOrder.status) === "Order Placed" && !existed) {
-                addNotification({
-                    id: `order_${key}_placed`,
-                    title: "New Order Received",
-                    message: `Order #${key} has been placed.`,
-                    type: "order",
-                    orderId: key,
-                });
-            }
-
-            setOrders((prev) => ({ ...prev, [key]: newOrder }));
-            prevOrdersRef.current[key] = newOrder;
-            runStockReduceIfNeeded(key, newOrder);
-        };
-
-        const handleOrderChanged = (snapshot: any) => {
-            const key = snapshot.key;
-            const newOrder = snapshot.val();
-            if (!key || key === "counter") return;
-
-            if (!ordersBootstrappedRef.current) {
-                prevOrdersRef.current[key] = newOrder;
-                return;
-            }
-
-            const oldOrder = prevOrdersRef.current[key];
-
-            // Alert when order goes out for delivery (assigned to driver)
-            const pickupReady = (s: string) => s === "Out for Delivery" || s === "Ready for Pickup";
-            if (oldOrder && !pickupReady(oldOrder.status) && pickupReady(newOrder.status)) {
-                addNotification({
-                    id: `order_${key}_pickup`,
-                    title: "Out for Delivery",
-                    message: `Order #${key} is out for delivery.`,
-                    type: "delivery",
-                    orderId: key,
-                });
-            }
-
-            // Status moved back to placed (e.g. correction) — treat as a new actionable order
-            if (
-                oldOrder &&
-                canonicalOrderStatusForUi(oldOrder.status) !== "Order Placed" &&
-                canonicalOrderStatusForUi(newOrder.status) === "Order Placed"
-            ) {
-                addNotification({
-                    id: `order_${key}_placed_${Date.now()}`,
-                    title: "New Order Received",
-                    message: `Order #${key} has been placed.`,
-                    type: "order",
-                    orderId: key,
-                });
-            }
-
-            // Stock restoration for cancellations
-            if (newOrder.status === "Cancelled" && newOrder.stock_reduced && !processingOrders.current.has(key)) {
-                processingOrders.current.add(key);
-                adjustStockForOrder(newOrder, "increase")
-                    .then(() => db.ref(`root/order/${key}`).update({ stock_reduced: false }))
-                    .catch((err) => console.error(`Failed to restore stock for ${key}`, err))
-                    .finally(() => processingOrders.current.delete(key));
-            }
-
-            setOrders((prev) => ({ ...prev, [key]: newOrder }));
-            prevOrdersRef.current[key] = newOrder;
-        };
-
-        ordersQuery.once("value", (snapshot) => {
-            const raw = snapshot.val() || {};
-            const val = Object.fromEntries(Object.entries(raw).filter(([k]) => k !== "counter"));
-            prevOrdersRef.current = { ...val };
-            setOrders(val);
-            ordersBootstrappedRef.current = true;
-            isInitialLoad.current = false;
-        });
-
-        ordersQuery.on("child_added", handleOrderAdded);
-        ordersQuery.on("child_changed", handleOrderChanged);
-
-        return () => {
-            ordersQuery.off("child_added", handleOrderAdded);
-            ordersQuery.off("child_changed", handleOrderChanged);
-            ordersBootstrappedRef.current = false;
-        };
-    }, []);
-
-    // 3. Optimized Stock Monitoring
-    useEffect(() => {
-        const db = firebase.database();
-        const stockRef = db.ref("root/stock");
-        const prodRef = db.ref("root/products");
-
-        prodRef.once("value", (snap) => {
-            productData.current = snap.val() || {};
-        });
-
-        const handleStockUpdate = (snapshot: any) => {
-            const prodId = snapshot.key;
-            const variants = snapshot.val();
-            if (!prodId || !variants) return;
-
-            const currentStockLevels = prevStockLevelsRef.current;
-
-            Object.entries(variants).forEach(([varId, variant]: [string, any]) => {
-                const qty = parseInt(variant.quantity) || 0;
-                const stockKey = `${prodId}_${varId}`;
-                const prevQty = currentStockLevels[stockKey] ?? 100;
-
-                if (!isInitialLoad.current && prevQty > 5 && qty <= 5) {
-                    const pName = productData.current?.[prodId]?.name || "Unknown Product";
-                    addNotification({
-                        id: `stock_${prodId}_${varId}`,
-                        title: "Low Stock Alert",
-                        message: `${pName} is running low (Current Qty: ${qty})`,
-                        type: 'stock'
-                    });
-                }
-                currentStockLevels[stockKey] = qty;
-            });
-
-            // Update state efficiently
-            const flatLevels: Record<string, number> = {};
-            Object.entries(variants).forEach(([vId, v]: [string, any]) => {
-                flatLevels[`${prodId}_${vId}`] = parseInt(v.quantity) || 0;
-            });
-            setStockLevels(prev => ({ ...prev, ...flatLevels }));
-        };
-
-        // Use child_changed to only download updates
-        stockRef.on("child_added", handleStockUpdate);
-        stockRef.on("child_changed", handleStockUpdate);
-
-        return () => {
-            stockRef.off("child_added", handleStockUpdate);
-            stockRef.off("child_changed", handleStockUpdate);
-        };
-    }, []);
-
-    // 4. Broadcast Listener
-    useEffect(() => {
-        const db = firebase.database();
-        const now = Date.now();
-        const broadcastRef = db.ref("root/notifications").orderByChild("timestamp").startAt(now);
-
-        const onBroadcast = (snapshot: any) => {
-            const data = snapshot.val();
-            if (data) {
-                const targetIds = data.targetEmployeeIds;
-                const currentEmpId = sessionStorage.getItem("employee_id");
-                const role = sessionStorage.getItem("user_role");
-
-                // Show if:
-                // 1. User is admin
-                // 2. Notification is a global broadcast (no targetIds)
-                // 3. User's employeeId is in targetIds
-                if (role === 'admin' || !targetIds || (currentEmpId && targetIds.includes(currentEmpId))) {
-                    addNotification({
-                        id: snapshot.key || Date.now().toString(),
-                        title: data.title,
-                        message: data.message,
-                        type: data.type || 'info'
-                    });
-                }
-            }
-        };
-
-        broadcastRef.on("child_added", onBroadcast);
-        return () => broadcastRef.off("child_added", onBroadcast);
-    }, []);
 
     const registerDevice = async () => {
         if (!messaging) return;
@@ -284,32 +72,28 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
         try {
             const token = await getToken(messaging, {
-                vapidKey: CONFIG.FCM.vapidKey
+                vapidKey: CONFIG.FCM.vapidKey,
             });
 
             if (token) {
-                console.log(`%cFCM Token Generated for User: ${currentStaffId}`, "color: #2196F3; font-weight: bold;");
-
-                // 1. Update Employee Record (ONLY if employee_id exists)
                 if (currentEmployeeId) {
                     const employeeRef = ref(modularDb, `root/nexus_hr/employees/${currentEmployeeId}`);
                     await update(employeeRef, {
                         FcmToken: token,
                         lastTokenUpdate: Date.now(),
-                        deviceInfo: navigator.userAgent
+                        deviceInfo: navigator.userAgent,
                     });
-                    console.log(`%c✓ Token Stored in Employee Record (root/nexus_hr/employees/${currentEmployeeId})`, "color: #4CAF50; font-weight: bold;");
                 }
 
-                // 2. Maintain token mapping in staff_tokens (keyed by staff registration ID)
-                const tokenRef = ref(modularDb, `root/staff_tokens/${currentStaffId}/${token.replace(/[.$#[\]]/g, "_")}`);
+                const tokenRef = ref(
+                    modularDb,
+                    `root/staff_tokens/${currentStaffId}/${token.replace(/[.$#[\]]/g, "_")}`
+                );
                 await set(tokenRef, {
                     token,
                     lastUpdated: Date.now(),
-                    userAgent: navigator.userAgent
+                    userAgent: navigator.userAgent,
                 });
-
-                console.log("%c🚀 FCM Registration Complete", "color: #4CAF50; font-weight: bold; font-size: 12px;");
             }
         } catch (error) {
             console.error("FCM Registration failed:", error);
@@ -317,11 +101,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     };
 
     const requestPermission = async (): Promise<boolean> => {
-        if (!('Notification' in window)) return false;
+        if (!("Notification" in window)) return false;
 
         try {
             const permission = await Notification.requestPermission();
-            if (permission === 'granted') {
+            if (permission === "granted") {
                 await registerDevice();
                 toast.success("Notifications enabled successfully!");
                 return true;
@@ -333,150 +117,136 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }
     };
 
-    // 5. FCM Push Notification Setup
+    useEffect(() => {
+        const db = firebase.database();
+        const now = Date.now();
+        const broadcastRef = db.ref("root/notifications").orderByChild("timestamp").startAt(now);
+
+        const onBroadcast = (snapshot: any) => {
+            const data = snapshot.val();
+            if (!data) return;
+
+            const targetIds = data.targetEmployeeIds;
+            const currentEmpId = sessionStorage.getItem("employee_id");
+            const role = sessionStorage.getItem("user_role");
+
+            if (
+                role === "admin" ||
+                role === "superadmin" ||
+                !targetIds ||
+                (currentEmpId && targetIds.includes(currentEmpId))
+            ) {
+                addNotification({
+                    id: snapshot.key || Date.now().toString(),
+                    title: data.title,
+                    message: data.message,
+                });
+            }
+        };
+
+        broadcastRef.on("child_added", onBroadcast);
+        return () => broadcastRef.off("child_added", onBroadcast);
+    }, []);
+
     useEffect(() => {
         if (!messaging) return;
 
         const initFCM = async () => {
-            if (Notification.permission === 'granted') {
+            if (Notification.permission === "granted") {
                 await registerDevice();
             }
         };
 
         initFCM();
 
-        // Handle foreground messages
         const unsubscribe = onMessage(messaging, (payload) => {
-            console.log("Foreground message received:", payload);
             if (payload.notification) {
                 addNotification({
                     id: payload.messageId || Date.now().toString(),
                     title: payload.notification.title || "New Notification",
                     message: payload.notification.body || "",
-                    type: 'info'
                 });
             }
         });
 
         return () => unsubscribe();
-    }, [location.pathname]); // Re-check on nav, but mainly relies on staff_id presence
+    }, [location.pathname]);
 
-    const addNotification = (n: Omit<Notification, "timestamp" | "read">) => {
-        // 1. Suppress on Login/Signup page
-        if (location.pathname === '/' || location.pathname === '/gateway') return;
-
-        // 2. Filter by Authorized Applications for non-admins
-        const role = sessionStorage.getItem("user_role");
-        if (role !== 'admin') {
-            const allowedAppsJSON = sessionStorage.getItem("allowed_apps");
-            const allowedApps: string[] = JSON.parse(allowedAppsJSON || "[]");
-
-            const typeToPathMap: Record<string, string> = {
-                'order': '/orders',
-                'delivery': '/delivery',
-                'stock': '/stock-entry',
-                'info': '/notifications'
-            };
-
-            const requiredPath = typeToPathMap[n.type];
-            // If the notification type is associated with an app the user doesn't have, ignore it
-            // 'info' is treated as restricted to the Notifications app.
-            if (requiredPath && !allowedApps.includes(requiredPath)) {
-                return;
-            }
-        }
+    const addNotification = (n: Omit<Notification, "timestamp" | "read" | "type">) => {
+        if (location.pathname === "/") return;
 
         const id = n.id;
         if (hiddenNotificationsRef.current[id]) return;
 
-        setNotifications(prev => {
-            if (prev.some(notif => notif.id === id)) return prev;
-            const newNotif: Notification = { ...n, timestamp: Date.now(), read: false };
+        setNotifications((prev) => {
+            if (prev.some((notif) => notif.id === id)) return prev;
+            const newNotif: Notification = { ...n, timestamp: Date.now(), read: false, type: "info" };
             setTimeout(() => triggerNotificationEffects(newNotif), 0);
             return [newNotif, ...prev];
         });
     };
 
     const triggerNotificationEffects = (newNotification: Notification) => {
-        if (location.pathname === "/" || location.pathname.startsWith("/delivery") || newNotification.type === "stock") return;
+        if (location.pathname === "/") return;
 
         const isDefaultPermission = Notification.permission === "default";
 
-        const goOrder = () => {
-            if (newNotification.type !== "order" || !newNotification.orderId) {
-                navigate("/orders");
-                return;
-            }
-            navigate("/orders", { state: { highlightOrderId: newNotification.orderId } });
-        };
-
-        const duration = newNotification.type === "order" ? 12_000 : 6_000;
-
-        if (newNotification.type === "order") {
-            toast(newNotification.title, {
-                description: newNotification.message,
-                duration,
-                action: {
-                    label: "View order",
-                    onClick: () => goOrder(),
-                },
-                ...(isDefaultPermission
-                    ? {
-                          cancel: {
-                              label: "Enable notifications",
-                              onClick: () => requestPermission(),
-                          },
-                      }
-                    : {}),
-            });
-        } else {
-            toast(newNotification.title, {
-                description: newNotification.message,
-                duration,
-                action: isDefaultPermission
-                    ? {
-                          label: "Enable Notifications",
-                          onClick: () => requestPermission(),
-                      }
-                    : {
-                          label: newNotification.type === "delivery" ? "Open delivery" : "Open",
-                          onClick: () => {
-                              if (newNotification.type === "delivery") navigate("/delivery");
-                              else navigate("/notifications");
-                          },
-                      },
-            });
-        }
+        toast(newNotification.title, {
+            description: newNotification.message,
+            duration: 6000,
+            action: isDefaultPermission
+                ? {
+                      label: "Enable Notifications",
+                      onClick: () => requestPermission(),
+                  }
+                : {
+                      label: "Open Apps",
+                      onClick: () => navigate("/apps"),
+                  },
+        });
 
         playNotificationSound();
     };
 
     const markAsRead = (id: string) => {
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+        setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
         const userKey = getSafeUserKey();
         firebase.database().ref(`root/user_metadata/${userKey}/hidden_notifications/${id}`).set(true);
     };
 
     const markAllAsRead = () => {
         const userKey = getSafeUserKey();
-        const updates: any = {};
-        notifications.forEach(n => { updates[n.id] = true; });
+        const updates: Record<string, boolean> = {};
+        notifications.forEach((n) => {
+            updates[n.id] = true;
+        });
         firebase.database().ref(`root/user_metadata/${userKey}/hidden_notifications`).update(updates);
-        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     };
 
     const clearNotifications = () => {
         const userKey = getSafeUserKey();
-        const updates: any = {};
-        notifications.forEach(n => { updates[n.id] = true; });
+        const updates: Record<string, boolean> = {};
+        notifications.forEach((n) => {
+            updates[n.id] = true;
+        });
         firebase.database().ref(`root/user_metadata/${userKey}/hidden_notifications`).update(updates);
         setNotifications([]);
     };
 
-    const unreadCount = notifications.filter(n => !n.read).length;
+    const unreadCount = notifications.filter((n) => !n.read).length;
 
     return (
-        <NotificationContext.Provider value={{ notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications, requestPermission }}>
+        <NotificationContext.Provider
+            value={{
+                notifications,
+                unreadCount,
+                markAsRead,
+                markAllAsRead,
+                clearNotifications,
+                requestPermission,
+            }}
+        >
             {children}
         </NotificationContext.Provider>
     );

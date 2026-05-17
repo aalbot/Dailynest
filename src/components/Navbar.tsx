@@ -1,17 +1,7 @@
 import { toast } from "sonner";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  Crown,
-  Star,
   Package,
-  ShoppingBag,
-  Truck,
-  LayoutDashboard,
-  ClipboardList,
-  Keyboard,
-  Building2,
-  Grid3X3,
-  Bell,
   Sun,
   Moon,
   X,
@@ -20,15 +10,12 @@ import {
   Settings,
   LogOut,
   User,
-  Users,
-  Sparkles,
-  TrendingUp,
   LogIn,
   Clock,
-  MessageSquare,
-  Image,
   Search,
+  Bell,
 } from "lucide-react";
+import { GALLERY_APPS } from "@/config/apps";
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useNotification } from "@/contexts/NotificationContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -43,26 +30,14 @@ import SearchBar from "./SearchBar";
 import { normalizeDestinationUrl, isCustomAppExternalDestination } from "@/utils/destinationUrl";
 
 
-const defaultAppItems = [
-  { icon: TrendingUp, label: "Dashboard", path: "/dashboard", color: "bg-rose-500" },
-  { icon: Users, label: "Employee Management", path: "/employee-management", color: "bg-indigo-600" },
-  { icon: LayoutDashboard, label: "Report", path: "/overview", color: "bg-cyan-500" },
-  { icon: Sparkles, label: "AI Chat", path: "/chat", color: "bg-blue-600" },
-  { icon: ClipboardList, label: "Orders", path: "/orders", color: "bg-pink-500" },
-  { icon: Truck, label: "Delivery", path: "/delivery", color: "bg-emerald-500" },
-  { icon: Package, label: "Stocks", path: "/stock-entry", color: "bg-blue-500" },
-  { icon: ShoppingBag, label: "Products", path: "/product-entry", color: "bg-violet-500" },
-  { icon: Building2, label: "Purchase", path: "/back-office", color: "bg-teal-500" },
-  { icon: Crown, label: "Wallet & users", path: "/premium-entry", color: "bg-yellow-500" },
-  { icon: Star, label: "Promotions", path: "/rating-entry", color: "bg-orange-500" },
-  { icon: Keyboard, label: "SEO", path: "/keyword-entry", color: "bg-indigo-500" },
-  { icon: Grid3X3, label: "Task Manager", path: "/tasks", color: "bg-violet-600" },
-  { icon: Bell, label: "Notification", path: "/notifications", color: "bg-red-500" },
-  { icon: Users, label: "Staff", path: "/staffes", color: "bg-cyan-600" },
-  { icon: Settings, label: "Infra", path: "/infra", color: "bg-slate-800" },
-  { icon: MessageSquare, label: "Broadcast", path: "/broadcast", color: "bg-emerald-600" },
-  { icon: Image, label: "Banner Manage", path: "/banner-manage", color: "bg-teal-600" },
-];
+const defaultAppItems = GALLERY_APPS.map((app) => ({
+  icon: app.icon,
+  label: app.label,
+  path: app.path,
+  color: app.defaultColor,
+  superadminOnly: app.superadminOnly,
+  translationKey: app.key,
+}));
 
 const Navbar = () => {
   const location = useLocation();
@@ -233,35 +208,12 @@ const Navbar = () => {
   const allAppsRaw = [
     ...defaultAppItems.map(app => {
       // Map path to a translation key
-      const keyMap: Record<string, string> = {
-        "/dashboard": "dashboard",
-        "/employee-management": "employeeManagement",
-        "/overview": "overview",
-        "/chat": "chat",
-        "/orders": "orders",
-        "/delivery": "delivery",
-        "/stock-entry": "stocks",
-        "/product-entry": "products",
-        "/back-office": "purchase",
-        "/premium-entry": "wallet",
-        "/rating-entry": "promotions",
-        "/keyword-entry": "seo",
-        "/tasks": "taskManager",
-        "/notifications": "notifications",
-        "/staffes": "staff",
-        "/staff-test": "test",
-        "/customers": "customers",
-        "/broadcast": "broadcast",
-        "/banner-manage": "bannerManage"
-      };
-
-      const key = `apps.${keyMap[app.path] || 'default'}`;
       const overrodeItem = systemOverrides[app.path.replace(/\//g, '_')];
 
       return {
         ...app,
         icon: (overrodeItem?.icon && iconMap[overrodeItem.icon]) ? iconMap[overrodeItem.icon] : app.icon,
-        label: overrideLabel(app.path, getTranslation(key, {}, app.label)),
+        label: overrideLabel(app.path, getTranslation(app.translationKey, {}, app.label)),
         color: overrodeItem?.color || app.color,
         openInNewTab: false,
         isHidden: overrodeItem?.isHidden || false,
@@ -292,16 +244,16 @@ const Navbar = () => {
 
   const displayName = userRole === "superadmin" ? "Superadmin" : userRole === "admin" ? "Administrator" : (staffName || "Staff Member");
   const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  const userEmail = userRole === "superadmin" ? "superadmin@dailyclub.com" : userRole === "admin" ? "admin@dailyclub.com" : `${staffName?.toLowerCase().replace(/\s/g, '') || 'staff'}@dailyclub.staff`;
+  const userEmail = userRole === "superadmin" ? "superadmin@dailynest.com" : userRole === "admin" ? "admin@dailynest.com" : `${staffName?.toLowerCase().replace(/\s/g, '') || 'staff'}@dailynest.staff`;
 
   const allApps = allAppsRaw.filter(app => {
     // If the app is marked as hidden via Infra, hide it for everyone.
     if (app.isHidden) return false;
 
-    if (userRole === "superadmin") return true; 
+    if ("superadminOnly" in app && app.superadminOnly && userRole !== "superadmin") return false;
+    if (userRole === "superadmin") return true;
     if (userRole === "admin") return app.path !== "/infra";
     if (userRole === "staff") return allowedApps.includes(app.path) && app.path !== "/infra";
-    if (userRole === "delivery") return app.path === "/delivery";
     return false;
   });
 
@@ -500,52 +452,6 @@ const Navbar = () => {
                                 )}
                               </div>
                             </button>
-                            {(n.type === "order" || n.type === "stock" || n.type === "delivery") && (
-                              <div className="flex flex-wrap gap-2 px-3 pb-3">
-                                {n.type === "order" && (
-                                  <button
-                                    type="button"
-                                    className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500"
-                                    onClick={() => {
-                                      markAsRead(n.id);
-                                      setNotificationsOpen(false);
-                                      navigate(
-                                        "/orders",
-                                        n.orderId ? { state: { highlightOrderId: n.orderId } } : undefined
-                                      );
-                                    }}
-                                  >
-                                    View order
-                                  </button>
-                                )}
-                                {n.type === "stock" && (
-                                  <button
-                                    type="button"
-                                    className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-amber-700 dark:bg-amber-600 dark:hover:bg-amber-500"
-                                    onClick={() => {
-                                      markAsRead(n.id);
-                                      setNotificationsOpen(false);
-                                      navigate("/stock-entry");
-                                    }}
-                                  >
-                                    View stock
-                                  </button>
-                                )}
-                                {n.type === "delivery" && (
-                                  <button
-                                    type="button"
-                                    className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500"
-                                    onClick={() => {
-                                      markAsRead(n.id);
-                                      setNotificationsOpen(false);
-                                      navigate("/delivery");
-                                    }}
-                                  >
-                                    View delivery
-                                  </button>
-                                )}
-                              </div>
-                            )}
                           </div>
                         ))}
                       </div>

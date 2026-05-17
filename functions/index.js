@@ -6,7 +6,7 @@ const admin = require("firebase-admin");
 // const serviceAccount = require("./service-account.json");
 // admin.initializeApp({
 //   credential: admin.credential.cert(serviceAccount),
-//   databaseURL: "https://dclub-32718-default-rtdb.firebaseio.com" // Replace with yours if different
+//   databaseURL: "https://dailynest-2457b-default-rtdb.firebaseio.com"
 // });
 
 // STANDARD INITIALIZATION (Best for deployment):

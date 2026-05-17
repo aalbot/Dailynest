@@ -11,7 +11,7 @@ export const sendTaskUpdateEmail = async (
     // It should probably be a Google Apps Script Web App URL (e.g., script.google.com/macros/s/.../exec).
     const API_URL = "https://script.google.com/macros/s/AKfycbx7.../exec"; // Placeholder for the actual script ID if known, or use the one user provided if insisted.
 
-    // User provided URL: https://console.firebase.google.com/project/dclub-32718/overview
+    // Firebase project: https://console.firebase.google.com/project/dailynest-2457b
     // I will use a placeholder variable for now and comment on it.
     const USER_PROVIDED_URL = "https://sendemail-3gcc2acnha-uc.a.run.app";
 
