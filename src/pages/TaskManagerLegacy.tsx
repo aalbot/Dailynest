@@ -104,6 +104,11 @@ import {
     DEFAULT_TASK_STATUS_ADMIN,
     DEFAULT_TASK_STATUS_EMP
 } from "./TaskManager/constants";
+import {
+    getDefaultTaskAttributes,
+    normalizeTaskAttributes,
+    type TaskAttributesState,
+} from "./TaskManager/normalizeTaskAttributes";
 
 // --- Types & Constants ---
 const STAGES = ['Office', 'Engineer', 'Purchase', 'Delivery', 'Finance'];
@@ -587,17 +592,7 @@ const TaskManager = () => {
     const [commentText, setCommentText] = useState("");
     const [selectedCommenterId, setSelectedCommenterId] = useState<string>(loggedInEmpId || "");
     const [isAttributeManagerOpen, setIsAttributeManagerOpen] = useState(false);
-    const [taskAttributes, setTaskAttributes] = useState<any>({
-        priorities: TASK_PRIORITIES,
-        statuses: ['Raised', 'Open', 'Pending', 'In Progress', 'Testing', 'Resolved', 'Reopened', 'Hold', 'On Hold', 'Completed'],
-        types: TASK_TYPES,
-        subTypes: TASK_SUB_TYPES,
-        components: TASK_COMPONENTS,
-        versions: ['v1.0', 'v1.1'],
-        settings: {
-            maxAttachments: 10
-        }
-    });
+    const [taskAttributes, setTaskAttributes] = useState<TaskAttributesState>(getDefaultTaskAttributes());
 
     useEffect(() => {
         if (loggedInEmpId) {
@@ -829,48 +824,67 @@ const TaskManager = () => {
         const db = firebase.database();
         const tasksRef = db.ref('root/nexus_hr/tasks');
 
-        const onValueChange = (snap: any) => {
+        const finishLoading = () => setIsLoading(false);
+
+        const onValueChange = (snap: { val: () => Record<string, unknown> | null }) => {
             const data = snap.val();
             if (data) {
                 setTasks(Object.values(data));
             } else {
                 setTasks([]);
             }
-            setIsLoading(false);
+            finishLoading();
         };
 
-        tasksRef.on('value', onValueChange);
-        return () => tasksRef.off('value', onValueChange);
-    }, []);
+        const onError = (error: Error) => {
+            console.error("Task Manager: failed to load tasks", error);
+            setTasks([]);
+            finishLoading();
+            toast({
+                title: "Could not load tasks",
+                description: error.message || "Check your connection and try again.",
+                variant: "destructive",
+            });
+        };
+
+        tasksRef.on('value', onValueChange, onError);
+
+        const loadTimeout = window.setTimeout(finishLoading, 12000);
+
+        return () => {
+            window.clearTimeout(loadTimeout);
+            tasksRef.off('value', onValueChange);
+        };
+    }, [toast]);
 
     useEffect(() => {
         const db = firebase.database();
         const attrRef = db.ref('root/nexus_hr/taskAttribute');
 
-        const onAttrChange = (snap: any) => {
+        const onAttrChange = (snap: { val: () => Record<string, unknown> | null }) => {
             const data = snap.val();
             if (data) {
-                setTaskAttributes(data);
+                setTaskAttributes(normalizeTaskAttributes(data));
             } else {
-                const initial = {
-                    priorities: TASK_PRIORITIES,
-                    statuses: ['Raised', 'Open', 'Pending', 'In Progress', 'Testing', 'Resolved', 'Reopened', 'Hold', 'On Hold', 'Completed'],
-                    types: TASK_TYPES,
-                    subTypes: TASK_SUB_TYPES,
-                    components: TASK_COMPONENTS,
-                    versions: ['v1.0', 'v1.1'],
-                    settings: {
-                        maxAttachments: 10
-                    }
-                };
+                const initial = getDefaultTaskAttributes();
                 attrRef.set(initial);
                 setTaskAttributes(initial);
             }
         };
 
-        attrRef.on('value', onAttrChange);
+        const onError = (error: Error) => {
+            console.error("Task Manager: failed to load attributes", error);
+            setTaskAttributes(getDefaultTaskAttributes());
+            toast({
+                title: "Could not load task settings",
+                description: error.message || "Using default task settings.",
+                variant: "destructive",
+            });
+        };
+
+        attrRef.on('value', onAttrChange, onError);
         return () => attrRef.off('value', onAttrChange);
-    }, []);
+    }, [toast]);
 
     const sendTaskNotification = (targetIds: string[], title: string, message: string) => {
         if (!targetIds || targetIds.length === 0) return;
