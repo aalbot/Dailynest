@@ -14,7 +14,7 @@ import { CONFIG } from "@/config";
 // Your web app's Firebase configuration
 const getStoredConfig = () => {
     try {
-        const stored = typeof window !== 'undefined' ? localStorage.getItem('firebase_config_override') : null;
+        const stored = typeof window !== 'undefined' ? localStorage.getItem('FIREBASE_CONFIG_OVERRIDE') : null;
         return stored ? JSON.parse(stored) : null;
     } catch { return null; }
 };

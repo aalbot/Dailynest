@@ -1,16 +1,14 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
-import { Bell, Info, ClipboardList, Truck, Package, CheckCheck, Trash2 } from "lucide-react";
+import { Bell, Info, CheckCheck, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useNotification } from "@/contexts/NotificationContext";
 import { Button } from "@/components/ui/button";
 import { useLang } from "@/contexts/LanguageContext";
 
 const NotificationWidget = () => {
-    const navigate = useNavigate();
     const { notifications, markAllAsRead, clearNotifications, markAsRead } = useNotification();
     const { getTranslation } = useLang();
-    const unreadNotifications = notifications.filter(n => !n.read);
+    const unreadNotifications = notifications.filter((n) => !n.read);
 
     return (
         <Card className="hidden xl:flex h-full min-h-0 flex-col border-white/40 dark:border-white/10 shadow-2xl bg-white/70 dark:bg-slate-900/40 backdrop-blur-xl transition-colors duration-500">
@@ -57,10 +55,7 @@ const NotificationWidget = () => {
 
                                 <div className="mb-1 flex items-center justify-between gap-2">
                                     <div className="flex min-w-0 items-center gap-1.5">
-                                        {item.type === "order" && <ClipboardList className="h-3.5 w-3.5 shrink-0 text-pink-500" />}
-                                        {item.type === "delivery" && <Truck className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
-                                        {item.type === "stock" && <Package className="h-3.5 w-3.5 shrink-0 text-amber-500" />}
-                                        {item.type === "info" && <Info className="h-3.5 w-3.5 shrink-0 text-blue-500" />}
+                                        <Info className="h-3.5 w-3.5 shrink-0 text-blue-500" />
                                         <h4 className="truncate text-sm font-medium text-slate-800 dark:text-slate-200">{item.title}</h4>
                                     </div>
                                     <Button
@@ -75,54 +70,10 @@ const NotificationWidget = () => {
 
                                 <p className="mb-1.5 line-clamp-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{item.message}</p>
 
-                                <span className="mb-2 block text-[10px] font-medium text-slate-400">
+                                <span className="block text-[10px] font-medium text-slate-400">
                                     {new Date(item.timestamp).toLocaleDateString()} •{" "}
                                     {new Date(item.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                                 </span>
-
-                                {(item.type === "order" || item.type === "stock" || item.type === "delivery") && (
-                                    <div className="flex flex-wrap gap-2">
-                                        {item.type === "order" ? (
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                className="h-8 whitespace-nowrap bg-blue-600 text-xs font-semibold text-white hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500"
-                                                onClick={() => {
-                                                    markAsRead(item.id);
-                                                    navigate("/orders", item.orderId ? { state: { highlightOrderId: item.orderId } } : undefined);
-                                                }}
-                                            >
-                                                {getTranslation("notificationWidget.viewOrder")}
-                                            </Button>
-                                        ) : null}
-                                        {item.type === "stock" ? (
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                className="h-8 whitespace-nowrap bg-amber-600 text-xs font-semibold text-white hover:bg-amber-700 dark:bg-amber-600 dark:hover:bg-amber-500"
-                                                onClick={() => {
-                                                    markAsRead(item.id);
-                                                    navigate("/stock-entry");
-                                                }}
-                                            >
-                                                {getTranslation("notificationWidget.viewStock")}
-                                            </Button>
-                                        ) : null}
-                                        {item.type === "delivery" ? (
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                className="h-8 whitespace-nowrap bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500"
-                                                onClick={() => {
-                                                    markAsRead(item.id);
-                                                    navigate("/delivery");
-                                                }}
-                                            >
-                                                {getTranslation("notificationWidget.viewDelivery")}
-                                            </Button>
-                                        ) : null}
-                                    </div>
-                                )}
                             </div>
                         ))}
 

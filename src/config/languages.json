@@ -1,8 +1,8 @@
 {
     "en": {
         "common": {
-            "appName": "DailyClub",
-            "portalName": "DailyClub Digital Ecosystem",
+            "appName": "DailyNest",
+            "portalName": "DailyNest Digital Ecosystem",
             "languageName": "English (US)",
             "allSystemsOperational": "All Systems Operational",
             "checkIn": "Check In",
@@ -50,7 +50,7 @@
         },
         "gateway": {
             "badge": "Unified Access Control",
-            "title": "DailyClub",
+            "title": "DailyNest",
             "subtitle": "One ecosystem. Infinite possibilities. Infinite Access.",
             "signupSubtitle": "Join our ecosystem. Waiting for your application.",
             "copyright": "{appName} Digital Ecosystem • All Systems Operational",
@@ -75,7 +75,7 @@
                 "title": "Member Signup",
                 "description": "Complete the form to request portal access.",
                 "roleTypeLabel": "Select Membership Type",
-                "roleStaffLabel": "DailyClub Staff",
+                "roleStaffLabel": "DailyNest Staff",
                 "roleDeliveryLabel": "Delivery Partner",
                 "roleExternalLabel": "External User",
                 "nameLabel": "Full Name",
@@ -110,7 +110,7 @@
             "searchPlaceholder": "Search apps...",
             "pendingAccess": {
                 "title": "Waiting for access",
-                "description": "Welcome to the DailyClub portal! Your account verification is currently in progress. The administrator will review your application and grant access shortly.",
+                "description": "Welcome to the DailyNest portal! Your account verification is currently in progress. The administrator will review your application and grant access shortly.",
                 "statusBadge": "Status: Pending Verification",
                 "returnToLogin": "Return to login"
             }
@@ -194,7 +194,7 @@
             "signedOut": "Signed out successfully"
         },
         "backOffice": {
-            "title": "DailyClub BackOffice",
+            "title": "DailyNest BackOffice",
             "tabs": {
                 "categories": "Categories",
                 "products": "Products",
@@ -246,7 +246,7 @@
             }
         },
         "navbar": {
-            "branding": "DailyClub",
+            "branding": "DailyNest",
             "searchPlaceholder": "Search menus...",
             "notificationsTitle": "Notifications",
             "markAllRead": "Mark all as read",
@@ -488,7 +488,7 @@
             "signedOut": "تم تسجيل الخروج بنجاح"
         },
         "backOffice": {
-            "title": "DailyClub إدارة المكتب الخلفي",
+            "title": "DailyNest إدارة المكتب الخلفي",
             "tabs": {
                 "categories": "الفئات",
                 "products": "المنتجات",

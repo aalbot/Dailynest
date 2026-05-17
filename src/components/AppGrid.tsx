@@ -1,29 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import {
-  Crown,
-  Star,
-  Package,
-  ShoppingBag,
-  Truck,
-  LayoutDashboard,
-  ClipboardList,
-  Keyboard,
-  Building2,
-  TrendingUp,
-
-  Plus,
-  Edit,
-  Trash,
-  Settings,
-  Users,
-  Grid3X3,
-  Bell,
-  ShieldAlert,
-  MessageSquare,
-  Image,
-  Sparkles,
-} from "lucide-react";
+import { Package, Plus, Edit, Trash } from "lucide-react";
 import AppIcon from "./AppIcon";
 import { AddAppModal } from "./AddAppModal";
 import firebase from "firebase/compat/app";
@@ -31,6 +8,7 @@ import "firebase/compat/database";
 import { iconMap } from "@/utils/appIcons";
 import { useLang } from "@/contexts/LanguageContext";
 import { normalizeDestinationUrl, isCustomAppExternalDestination } from "@/utils/destinationUrl";
+import { GALLERY_APPS } from "@/config/apps";
 
 import {
   AlertDialog,
@@ -43,28 +21,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-const initialApps = [
-  { icon: TrendingUp, label: "Dashboard", colorClass: "app-icon-rose", path: "/dashboard", key: "apps.dashboard" },
-  { icon: Users, label: "Employee Management", colorClass: "app-icon-indigo", path: "/employee-management", key: "apps.employeeManagement" },
-  { icon: LayoutDashboard, label: "Report", colorClass: "app-icon-cyan", path: "/overview", key: "apps.overview" },
-  { icon: ClipboardList, label: "Orders", colorClass: "app-icon-pink", path: "/orders", key: "apps.orders" },
-  { icon: Truck, label: "Delivery", colorClass: "app-icon-green", path: "/delivery", key: "apps.delivery" },
-  { icon: Package, label: "Stocks", colorClass: "app-icon-blue", path: "/stock-entry", key: "apps.stocks" },
-  { icon: ShoppingBag, label: "Products", colorClass: "app-icon-purple", path: "/product-entry", key: "apps.products" },
-  { icon: Building2, label: "Purchase", colorClass: "app-icon-teal", path: "/back-office", key: "apps.purchase" },
-  { icon: Crown, label: "Wallet & users", colorClass: "app-icon-yellow", path: "/premium-entry", key: "apps.wallet" },
-  { icon: Star, label: "Promotions", colorClass: "app-icon-orange", path: "/rating-entry", key: "apps.promotions" },
-  { icon: Keyboard, label: "SEO", colorClass: "app-icon-indigo", path: "/keyword-entry", key: "apps.seo" },
-  { icon: Grid3X3, label: "Task Manager", colorClass: "app-icon-violet", path: "/tasks", key: "apps.taskManager" },
-  { icon: Bell, label: "Notification", colorClass: "app-icon-red", path: "/notifications", key: "apps.notifications" },
-  { icon: Users, label: "Onboard", colorClass: "app-icon-cyan", path: "/staffes", key: "apps.staff" },
-  { icon: ShieldAlert, label: "Infra", colorClass: "app-icon-red", path: "/infra", key: "apps.infra" },
-  { icon: MessageSquare, label: "Broadcast", colorClass: "app-icon-emerald", path: "/broadcast", key: "apps.broadcast" },
-  { icon: Image, label: "Banner Manage", colorClass: "app-icon-teal", path: "/banner-manage", key: "apps.bannerManage" },
-  { icon: ShoppingBag, label: "POS", colorClass: "app-icon-green", path: "/pos", key: "apps.pos" },
-  { icon: Sparkles, label: "Generate App", colorClass: "app-icon-violet", path: "/generate-app", key: "apps.generateApp", superadminOnly: true },
-];
-
 const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolean; searchQuery?: string }) => {
   const [customApps, setCustomApps] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -72,13 +28,11 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
   const [appToDelete, setAppToDelete] = useState<string | null>(null);
   const { getTranslation } = useLang();
 
-  // RBAC State
   const [userRole, setUserRole] = useState<string | null>(null);
   const [allowedApps, setAllowedApps] = useState<string[]>([]);
   const [systemOverrides, setSystemOverrides] = useState<Record<string, any>>({});
 
   useEffect(() => {
-    // Check RBAC
     const role = sessionStorage.getItem("user_role");
     const allowed = JSON.parse(sessionStorage.getItem("allowed_apps") || "[]");
     setUserRole(role);
@@ -90,7 +44,9 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
     const onValueChange = (snapshot: any) => {
       const data = snapshot.val();
       if (data) {
-        const loadedApps = Object.values(data);
+        const loadedApps = Object.values(data).filter(
+          (app: any) => app && typeof app === "object" && app.id && app.name
+        );
         setCustomApps(loadedApps);
       } else {
         setCustomApps([]);
@@ -117,60 +73,60 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
     }
   };
 
-  // Helper to check if an app should be visible
   const isAppVisible = (path: string, superadminOnly = false) => {
     if (superadminOnly && userRole !== "superadmin") return false;
 
-    const override = systemOverrides[path.replace(/\//g, '_')];
+    const override = systemOverrides[path.replace(/\//g, "_")];
     if (override?.isHidden) return false;
 
     if (userRole === "superadmin") return true;
     if (userRole === "admin") return path !== "/infra";
     if (userRole === "staff") return allowedApps.includes(path) && path !== "/infra";
-    if (userRole === "delivery") return path === "/delivery";
     return false;
   };
 
-  const filteredInitialApps = initialApps.filter(app => {
-    const override = systemOverrides[app.path.replace(/\//g, '_')];
+  const filteredGalleryApps = GALLERY_APPS.filter((app) => {
+    const override = systemOverrides[app.path.replace(/\//g, "_")];
     const finalLabel = override?.name || app.label;
-    return isAppVisible(app.path, app.superadminOnly) && finalLabel.toLowerCase().includes(searchQuery.toLowerCase());
+    return (
+      isAppVisible(app.path, app.superadminOnly) &&
+      finalLabel.toLowerCase().includes(searchQuery.toLowerCase())
+    );
   });
-  const filteredCustomApps = customApps.filter(app => {
+
+  const filteredCustomApps = customApps.filter((app) => {
     const path = app.path || "/";
     return isAppVisible(path) && app.name.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   return (
     <div className="flex flex-col items-center relative h-full w-full">
-      {/* Admin Action Buttons */}
-
-
       <div className="flex flex-col h-full w-full overflow-hidden">
         <div className="flex-1 overflow-y-auto p-2 sm:p-5 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20">
           <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-12 justify-items-center">
-            {filteredInitialApps.map((app, index) => {
-              const override = systemOverrides[app.path.replace(/\//g, '_')];
-              const Icon = (override?.icon && iconMap[override.icon]) ? iconMap[override.icon] : app.icon;
+            {filteredGalleryApps.map((app, index) => {
+              const override = systemOverrides[app.path.replace(/\//g, "_")];
+              const Icon =
+                override?.icon && iconMap[override.icon] ? iconMap[override.icon] : app.icon;
               const finalLabel = override?.name || app.label;
               const finalColor = override?.color || app.colorClass;
 
               return (
-              <div key={app.label} className={isManaging ? "opacity-50 pointer-events-none grayscale" : ""}>
-                <Link
-                  to={app.path}
-                  target={app.path === '/delivery' ? "_blank" : undefined}
-                  rel={app.path === '/delivery' ? "noopener noreferrer" : undefined}
+                <div
+                  key={app.id}
+                  className={isManaging ? "opacity-50 pointer-events-none grayscale" : ""}
                 >
-                  <AppIcon
-                    icon={Icon}
-                    label={getTranslation(app.key, {}, finalLabel)}
-                    colorClass={finalColor}
-                    delay={150 + index * 50}
-                  />
-                </Link>
-              </div>
-            )})}
+                  <Link to={app.path}>
+                    <AppIcon
+                      icon={Icon}
+                      label={getTranslation(app.key, {}, finalLabel)}
+                      colorClass={finalColor}
+                      delay={150 + index * 50}
+                    />
+                  </Link>
+                </div>
+              );
+            })}
 
             {filteredCustomApps.map((app, index) => {
               const Icon = iconMap[app.icon] || Package;
@@ -178,16 +134,14 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
               const path = app.path || "/";
               const openDestination = isCustomAppExternalDestination(path, app.type);
               const destinationHref = openDestination ? normalizeDestinationUrl(path) : path;
-              const openNewTab =
-                !isManaging &&
-                (openDestination || !!app.openInNewTab);
+              const openNewTab = !isManaging && (openDestination || !!app.openInNewTab);
 
               const iconEl = (
                 <AppIcon
                   icon={Icon}
                   label={app.name}
                   colorClass={colorClass}
-                  delay={150 + (initialApps.length + index) * 50}
+                  delay={150 + (GALLERY_APPS.length + index) * 50}
                 />
               );
 
@@ -209,7 +163,6 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
                     </Link>
                   )}
 
-                  {/* Edit/Delete Overlay */}
                   {isManaging && (userRole === "admin" || userRole === "superadmin") && (
                     <div className="absolute -top-2 -right-2 flex gap-1 z-20 animate-in zoom-in-50 duration-200">
                       <button
@@ -235,15 +188,14 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
               );
             })}
 
-            {/* Add App Button - Only for Admin */}
             {(userRole === "admin" || userRole === "superadmin") && (
               <button
                 onClick={() => {
                   setCurrentAppToEdit(null);
                   setIsModalOpen(true);
                 }}
-                className={`group flex flex-col items-center gap-2 cursor-pointer opacity-0 animate-fade-in ${isManaging ? 'opacity-50' : ''}`}
-                style={{ animationDelay: `${initialApps.length * 50 + 150}ms` }}
+                className={`group flex flex-col items-center gap-2 cursor-pointer opacity-0 animate-fade-in ${isManaging ? "opacity-50" : ""}`}
+                style={{ animationDelay: `${GALLERY_APPS.length * 50 + 150}ms` }}
               >
                 <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-[1.5rem] bg-slate-100/50 dark:bg-slate-800/50 border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:border-blue-400 dark:group-hover:border-blue-500 group-hover:scale-110 group-active:scale-95 transition-all duration-300 shadow-sm hover:shadow-md backdrop-blur-sm">
                   <Plus className="w-8 h-8 sm:w-10 sm:h-10" strokeWidth={1.5} />
@@ -275,7 +227,9 @@ const AppGrid = ({ isManaging = false, searchQuery = "" }: { isManaging?: boolea
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-slate-100 dark:bg-slate-800">{getTranslation("common.cancel")}</AlertDialogCancel>
+            <AlertDialogCancel className="bg-slate-100 dark:bg-slate-800">
+              {getTranslation("common.cancel")}
+            </AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700 text-white"
               onClick={() => {

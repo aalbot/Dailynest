@@ -13,25 +13,15 @@ import {
     Eye, EyeOff, Save, Package, LayoutDashboard, Pencil, Check, Search, X, Palette,
 } from "lucide-react";
 
-const defaultApps = [
-    { id: "_dashboard",          path: "/dashboard",          label: "Dashboard",           defaultIcon: "TrendingUp",    defaultColor: "bg-rose-500" },
-    { id: "_employee-management",path: "/employee-management",label: "Employee Management", defaultIcon: "Users",          defaultColor: "bg-indigo-600" },
-    { id: "_overview",           path: "/overview",           label: "Report",              defaultIcon: "LayoutDashboard",defaultColor: "bg-cyan-500" },
-    { id: "_orders",             path: "/orders",             label: "Orders",              defaultIcon: "ClipboardList",  defaultColor: "bg-pink-500" },
-    { id: "_delivery",           path: "/delivery",           label: "Delivery",            defaultIcon: "Truck",          defaultColor: "bg-emerald-500" },
-    { id: "_stock-entry",        path: "/stock-entry",        label: "Stocks",              defaultIcon: "Package",        defaultColor: "bg-blue-500" },
-    { id: "_product-entry",      path: "/product-entry",      label: "Products",            defaultIcon: "ShoppingBag",    defaultColor: "bg-violet-500" },
-    { id: "_back-office",        path: "/back-office",        label: "Purchase",            defaultIcon: "Building2",      defaultColor: "bg-teal-500" },
-    { id: "_premium-entry",      path: "/premium-entry",      label: "Wallet & users",      defaultIcon: "Crown",          defaultColor: "bg-yellow-500" },
-    { id: "_rating-entry",       path: "/rating-entry",       label: "Promotions",          defaultIcon: "Star",           defaultColor: "bg-orange-500" },
-    { id: "_keyword-entry",      path: "/keyword-entry",      label: "SEO",                 defaultIcon: "Keyboard",       defaultColor: "bg-indigo-500" },
-    { id: "_tasks",              path: "/tasks",              label: "Task Manager",        defaultIcon: "Grid3X3",        defaultColor: "bg-violet-600" },
-    { id: "_notifications",      path: "/notifications",      label: "Notification",        defaultIcon: "Bell",           defaultColor: "bg-red-500" },
-    { id: "_staffes",            path: "/staffes",            label: "Onboard",             defaultIcon: "Users",          defaultColor: "bg-cyan-600" },
-    { id: "_infra",              path: "/infra",              label: "Infra",               defaultIcon: "ShieldAlert",    defaultColor: "bg-red-600" },
-    { id: "_broadcast",           path: "/broadcast",           label: "Broadcast",            defaultIcon: "MessageSquare",  defaultColor: "bg-emerald-600" },
-    { id: "_banner-manage",       path: "/banner-manage",       label: "Banner Manage",        defaultIcon: "Image",          defaultColor: "bg-teal-600" },
-];
+import { GALLERY_APPS } from "@/config/apps";
+
+const defaultApps = GALLERY_APPS.map((app) => ({
+    id: app.id,
+    path: app.path,
+    label: app.label,
+    defaultIcon: app.defaultIcon,
+    defaultColor: app.defaultColor,
+}));
 
 
 const COLOR_PALETTE = [

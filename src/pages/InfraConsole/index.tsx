@@ -960,7 +960,7 @@ const InfraConsole = () => {
                                                     </label>
                                                     {data.brandingConfig.logoUrl && data.brandingConfig.logoUrl.startsWith('data:') && (
                                                         <button
-                                                            onClick={() => dispatch({ type: "UPDATE_BRANDING_CONFIG", key: "logoUrl", value: "/logo.png" })}
+                                                            onClick={() => dispatch({ type: "UPDATE_BRANDING_CONFIG", key: "logoUrl", value: "/logo.svg" })}
                                                             className="px-5 py-4 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-2xl text-sm font-bold text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 transition-all"
                                                         >
                                                             <Trash2 size={16} />
@@ -974,11 +974,11 @@ const InfraConsole = () => {
                                             <div className="p-6 rounded-3xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
                                                 <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">Preview</h4>
                                                 <div className="flex items-center gap-3 p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
-                                                    <img decoding="async" loading="lazy"                                                         src={data.brandingConfig.logoUrl || "/logo.png"}
+                                                    <img decoding="async" loading="lazy"                                                         src={data.brandingConfig.logoUrl || "/logo.svg"}
                                                         alt="Logo Preview"
                                                         className="w-9 h-9 rounded-xl object-contain"
                                                         onError={(e) => {
-                                                            (e.target as HTMLImageElement).src = "/logo.png";
+                                                            (e.target as HTMLImageElement).src = "/logo.svg";
                                                         }}
                                                     />
                                                     <span className="font-bold text-lg tracking-tight text-slate-500 dark:text-slate-400">

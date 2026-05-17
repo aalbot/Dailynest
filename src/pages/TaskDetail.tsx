@@ -678,7 +678,7 @@ const TaskDetail = () => {
             pdf.setFontSize(8);
             pdf.setTextColor(156, 163, 175);
             pdf.setFont(undefined, 'italic');
-            pdf.text(`DailyClub Portal • Task Report • ${new Date().toLocaleDateString()}`, pageWidth / 2, footerY, { align: 'center' });
+            pdf.text(`DailyNest Portal • Task Report • ${new Date().toLocaleDateString()}`, pageWidth / 2, footerY, { align: 'center' });
 
             // Save PDF
             pdf.save(`task_${task.id}_${new Date().toISOString().split('T')[0]}.pdf`);

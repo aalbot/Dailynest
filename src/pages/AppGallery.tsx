@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import SearchBar from "@/components/SearchBar";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ChevronRight, Users, Settings, Clock, ShieldAlert } from "lucide-react";
 import AppGrid from "@/components/AppGrid";
 import NotificationWidget from "@/components/NotificationWidget";
@@ -11,6 +11,7 @@ import "firebase/compat/database";
 import { useLang } from "@/contexts/LanguageContext";
 
 const AppGallery = () => {
+  const navigate = useNavigate();
   const [isManaging, setIsManaging] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -19,16 +20,31 @@ const AppGallery = () => {
 
   useEffect(() => {
     const role = sessionStorage.getItem("user_role");
+    const adminAuth = sessionStorage.getItem("admin_auth");
+    const staffAuth = sessionStorage.getItem("staff_auth");
     const status = sessionStorage.getItem("user_status");
+
+    const isAuthed =
+      role === "superadmin" ||
+      role === "admin" ||
+      adminAuth === "true" ||
+      staffAuth === "true" ||
+      role === "external";
+
+    if (!role || !isAuthed) {
+      navigate("/", { replace: true });
+      return;
+    }
+
     setUserRole(role);
     setUserStatus(status);
 
-    const handleGlobalSearch = (e: any) => {
+    const handleGlobalSearch = (e: CustomEvent<string>) => {
       setSearchQuery(e.detail);
     };
-    window.addEventListener('global-search', handleGlobalSearch);
-    return () => window.removeEventListener('global-search', handleGlobalSearch);
-  }, []);
+    window.addEventListener("global-search", handleGlobalSearch as EventListener);
+    return () => window.removeEventListener("global-search", handleGlobalSearch as EventListener);
+  }, [navigate]);
 
   const isPending = userStatus?.toLowerCase() === "pending";
 
