@@ -100,7 +100,7 @@
         "appGallery": {
             "sidebar": {
                 "quickActions": "Quick Actions",
-                "manageStaff": "Manage Staff",
+                "manageStaff": "managestaff",
                 "manageApps": "Manage Apps",
                 "doneEditing": "Done Editing",
                 "darkMode": "Dark Mode",

@@ -42,7 +42,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { STAFF_ASSIGNABLE_APPS } from "@/config/apps";
 /* =====================================================
-   ACTION REQUEST (LOCAL, FRAMEWORK-COMPATIBLE)
+ import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";  ACTION REQUEST (LOCAL, FRAMEWORK-COMPATIBLE)
    ===================================================== */
 
 type ActionResult<T = any> = {
@@ -527,7 +533,7 @@ function renderPageHeader(actions: any, data: PageData) {
 
             <Button size="sm" className="h-9 shrink-0 rounded-xl" onClick={actions.onAddStaffClick}>
                 <UserPlus className="mr-1.5 h-4 w-4" />
-                Add Staff
+                Edit User
             </Button>
         </div>
     );
@@ -773,7 +779,7 @@ const StaffTable = ({ staff, attendance, currentTime, onEdit, onDelete }: StaffT
                         </tr>
                     ) : (
                         staff.map((s) => (
-                            <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors group">
+                            <tr key={s.id} className="hover:bg-cyan-500/10 hover:shadow-lg transition-all duration-200 cursor-pointer">
                                 <td className="px-4 py-2.5">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
@@ -884,7 +890,7 @@ const StaffModal = ({ data, apps, actions }: StaffModalProps) => {
                                                     actions.onFormPatch({
                                                         employeeId: val,
                                                         name: `${emp.firstName} ${emp.lastName}`,
-                                                        role: emp.role || data.form.role
+                                                        role: ""
                                                     });
                                                 }
                                             }}
@@ -923,12 +929,37 @@ const StaffModal = ({ data, apps, actions }: StaffModalProps) => {
                                 </div>
                                 <div className="space-y-2">
                                     <Label className="text-xs font-semibold ml-1">Staff Role</Label>
-                                    <Input
-                                        placeholder="e.g. Sales Associate"
-                                        value={data.form.role}
-                                        onChange={(e) => actions.onFormPatch({ role: e.target.value })}
-                                        className="rounded-2xl h-12 bg-slate-50 dark:bg-slate-800 border-none"
-                                    />
+                                    <div className="space-y-2">
+
+  <Select
+    value={data.form.role}
+    onValueChange={(val) =>
+      actions.onFormPatch({ role: val })
+    }
+  >
+    <SelectTrigger className="rounded-2xl h-12 bg-slate-50 dark:bg-slate-800 border-none">
+      <SelectValue placeholder="Choose role" />
+    </SelectTrigger>
+
+    <SelectContent>
+      <SelectItem value="DailyNest Staff">
+        DailyNest Staff
+      </SelectItem>
+
+      <SelectItem value="Delivery Partner">
+        Delivery Partner
+      </SelectItem>
+
+      <SelectItem value="Manager">
+        Manager
+      </SelectItem>
+
+      <SelectItem value="Admin">
+        Admin
+      </SelectItem>
+    </SelectContent>
+  </Select>
+</div>
                                 </div>
                             </div>
 
