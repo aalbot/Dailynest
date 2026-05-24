@@ -84,6 +84,9 @@ const initialAppsList = STAFF_ASSIGNABLE_APPS.map((app) => ({
     path: app.path,
     icon: app.icon,
 }));
+
+
+
 // Import the logger
 import { logger } from "@/data/utils/LogManager";
 
@@ -579,6 +582,7 @@ function useDerivedUIData(data: PageData) {
     return { filteredStaff, availableApps };
 }
 export function UI({ data, logic }: UIProps) {
+    const [selectedStaff, setSelectedStaff] = useState<any>(null);
     const actions = useUIActions(logic);
     const { filteredStaff, availableApps } = useDerivedUIData(data);
 
@@ -643,6 +647,7 @@ export function UI({ data, logic }: UIProps) {
                                             currentTime={data.currentTime}
                                             onEdit={actions.onEditStaff}
                                             onDelete={actions.onDeleteStaff}
+                                            setSelectedStaff={setSelectedStaff}
                                         />
                                     </div>
                                 </TabsContent>
@@ -665,6 +670,39 @@ export function UI({ data, logic }: UIProps) {
                 </div>
 
                 <StaffModal data={data} apps={availableApps} actions={actions} />
+                {selectedStaff && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+
+    <div className="bg-slate-900 border border-slate-700 rounded-3xl p-6 w-[400px] shadow-2xl">
+
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold text-white">
+          Staff Details
+        </h2>
+
+        <button
+          onClick={() => setSelectedStaff(null)}
+          className="text-slate-400 hover:text-white"
+        >
+          ✕
+        </button>
+      </div>
+
+      <div className="space-y-3 text-sm text-white">
+        <p><span className="font-semibold">Name:</span> {selectedStaff.name}</p>
+
+        <p><span className="font-semibold">Role:</span> {selectedStaff.role}</p>
+
+        <p><span className="font-semibold">Username:</span> @{selectedStaff.username}</p>
+
+        <p><span className="font-semibold">Status:</span> {selectedStaff.checkedIn ? "Online" : "Offline"}</p>
+
+        <p><span className="font-semibold">Employee ID:</span> {selectedStaff.employeeId}</p>
+      </div>
+
+    </div>
+  </div>
+)}
             </main>
         </div>
     );
@@ -754,9 +792,11 @@ interface StaffTableProps {
     currentTime: Date;
     onEdit: (staff: Staff) => void;
     onDelete: (id: string) => void;
+    setSelectedStaff: (staff: Staff) => void;
 }
 
-const StaffTable = ({ staff, attendance, currentTime, onEdit, onDelete }: StaffTableProps) => {
+const StaffTable = ({ staff, attendance, currentTime, onEdit, onDelete, setSelectedstaff }: any) => {
+   const [selecetedStaff, setSelectedStaff] = useState<Staff | null>(null);
     return (
         <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -779,7 +819,9 @@ const StaffTable = ({ staff, attendance, currentTime, onEdit, onDelete }: StaffT
                         </tr>
                     ) : (
                         staff.map((s) => (
-                            <tr key={s.id} className="hover:bg-cyan-500/10 hover:shadow-lg transition-all duration-200 cursor-pointer">
+                            <tr key={s.id} 
+                           onClick={() => setSelectedStaff(s)}
+                            className="hover:bg-cyan-500/10 hover:shadow-lg transition-all duration-200 cursor-pointer">
                                 <td className="px-4 py-2.5">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
@@ -847,6 +889,7 @@ const StaffTable = ({ staff, attendance, currentTime, onEdit, onDelete }: StaffT
                     )}
                 </tbody>
             </table>
+            
         </div>
     );
 };
@@ -858,6 +901,10 @@ interface StaffModalProps {
 }
 
 const StaffModal = ({ data, apps, actions }: StaffModalProps) => {
+        const [isAddingRole, setIsAddingRole] = useState(false);
+    const [customRole,setCustomRole] = useState("");
+    const [showCustomRole,setShowCustomRole] = useState(false);
+    
     return (
         <Dialog open={data.isAddModalOpen} onOpenChange={actions.onCloseModal}>
             <DialogContent className="max-w-3xl rounded-[32px] border-none shadow-2xl p-0 overflow-hidden dark:bg-slate-900">
@@ -929,37 +976,87 @@ const StaffModal = ({ data, apps, actions }: StaffModalProps) => {
                                 </div>
                                 <div className="space-y-2">
                                     <Label className="text-xs font-semibold ml-1">Staff Role</Label>
-                                    <div className="space-y-2">
+                                  <Select
+  value={data.form.role || ""}
+  onValueChange={(value) => {
 
-  <Select
-    value={data.form.role}
-    onValueChange={(val) =>
-      actions.onFormPatch({ role: val })
+    if (value === "add-role") {
+
+      setShowCustomRole(true);
+
+    } else {
+
+      setShowCustomRole(false);
+
+      actions.onFormPatch({
+        role: value
+      });
     }
-  >
-    <SelectTrigger className="rounded-2xl h-12 bg-slate-50 dark:bg-slate-800 border-none">
-      <SelectValue placeholder="Choose role" />
-    </SelectTrigger>
+  }}
+>
 
-    <SelectContent>
-      <SelectItem value="DailyNest Staff">
-        DailyNest Staff
-      </SelectItem>
+  <SelectTrigger className="rounded-2xl h-12 bg-slate-50 dark:bg-slate-800 border-none">
 
-      <SelectItem value="Delivery Partner">
-        Delivery Partner
-      </SelectItem>
+    <SelectValue placeholder="Select role" />
 
-      <SelectItem value="Manager">
-        Manager
-      </SelectItem>
+  </SelectTrigger>
 
-      <SelectItem value="Admin">
-        Admin
-      </SelectItem>
-    </SelectContent>
-  </Select>
-</div>
+  <SelectContent>
+
+    <SelectItem value="DailyNest Staff">
+      DailyNest Staff
+    </SelectItem>
+
+    <SelectItem value="Delivery Partner">
+      Delivery Partner
+    </SelectItem>
+
+    <SelectItem value="Manager">
+      Manager
+    </SelectItem>
+
+    <SelectItem value="Admin">
+      Admin
+    </SelectItem>
+
+    <SelectItem value="add-role">
+      + Add Role
+    </SelectItem>
+
+  </SelectContent>
+</Select>
+{showCustomRole && (
+
+  <Input
+    placeholder="Enter custom role"
+    value={customRole}
+
+    onChange={(e) =>
+      setCustomRole(e.target.value)
+    }
+
+    onKeyDown={(e) => {
+
+      if (e.key === "Enter") {
+
+        if (customRole.trim() !== "") {
+
+          actions.onFormPatch({
+            role: customRole
+          });
+
+          setShowCustomRole(false);
+
+          setCustomRole("");
+        }
+      }
+    }}
+
+    className="rounded-2xl h-12 bg-slate-50 dark:bg-slate-800 border-none"
+  />
+
+)}
+
                                 </div>
                             </div>
 
@@ -1053,7 +1150,13 @@ const StaffModal = ({ data, apps, actions }: StaffModalProps) => {
 };
 
 export default function Staffes() {
+
     const [, rerender] = useState(0);
+    const [selectedStaff, setSelectedStaff] = useState<any | null>(null);
+
+    const [customRole, setCustomRole] = useState("");
+    const [showCustomRole, setShowCustomRole] = useState(false);
+
     const dataRef = useRef<PageData>();
     const logicRef = useRef<any>();
 
@@ -1073,7 +1176,55 @@ export default function Staffes() {
         };
     }, []);
 
-    return <UI data={dataRef.current!} logic={logicRef.current} />;
+    return (
+    <>
+        <UI data={dataRef.current!} logic={logicRef.current} />
+
+        {selectedStaff && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+
+                <div className="bg-slate-900 border border-slate-700 rounded-3xl p-6 w-[400px] shadow-2xl">
+
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold text-white">
+                            Staff Details
+                        </h2>
+
+                        <button
+                            onClick={() => setSelectedStaff(null)}
+                            className="text-slate-400 hover:text-white"
+                        >
+                            ✕
+                        </button>
+                    </div>
+
+                    <div className="space-y-3 text-sm text-white">
+                        <p>
+                            <span className="font-semibold">Name:</span>{" "}
+                            {selectedStaff.name}
+                        </p>
+
+                        <p>
+                            <span className="font-semibold">Role:</span>{" "}
+                            {selectedStaff.role}
+                        </p>
+
+                        <p>
+                            <span className="font-semibold">Username:</span>{" "}
+                            @{selectedStaff.username}
+                        </p>
+
+                        <p>
+                            <span className="font-semibold">Status:</span>{" "}
+                            {selectedStaff.checkedIn ? "Currently In" : "Offline"}
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+        )}
+    </>
+);
 }
 /* =====================================================
    ACTION REQUEST ENTRY (CALLABLE FROM ANYWHERE)

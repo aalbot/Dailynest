@@ -509,7 +509,7 @@ const Gateway = () => {
                                                 <Key className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${isDark ? 'text-slate-500 group-focus-within:text-purple-400' : 'text-slate-400 group-focus-within:text-purple-600'}`} />
                                                 <Input
                                                     type="password"
-                                                    placeholder="••••"
+                                                    placeholder="••••••••"
                                                     value={signupData.password}
                                                     onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
                                                     className={`h-14 pl-12 rounded-2xl transition-all border-2 ${isDark ? 'bg-white/5 border-slate-800 text-white focus:ring-purple-500/40 focus:border-purple-500/40' : 'bg-slate-50 border-slate-100 text-slate-900 focus:ring-purple-500/20 focus:border-purple-500/50'}`}
@@ -522,7 +522,7 @@ const Gateway = () => {
                                                 <Key className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${isDark ? 'text-slate-500 group-focus-within:text-purple-400' : 'text-slate-400 group-focus-within:text-purple-600'}`} />
                                                 <Input
                                                     type="password"
-                                                    placeholder="••••"
+                                                    placeholder="••••••••"
                                                     value={signupData.confirmPassword}
                                                     onChange={(e) => setSignupData({ ...signupData, confirmPassword: e.target.value })}
                                                     className={`h-14 pl-12 rounded-2xl transition-all border-2 ${isDark ? 'bg-white/5 border-slate-800 text-white focus:ring-purple-500/40 focus:border-purple-500/40' : 'bg-slate-50 border-slate-100 text-slate-900 focus:ring-purple-500/20 focus:border-purple-500/50'}`}
