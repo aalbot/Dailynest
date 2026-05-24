@@ -585,6 +585,13 @@ export function UI({ data, logic }: UIProps) {
     const [selectedStaff, setSelectedStaff] = useState<any>(null);
     const actions = useUIActions(logic);
     const { filteredStaff, availableApps } = useDerivedUIData(data);
+    const openStaffPopup = (staff: any) => {
+  setSelectedStaff(staff);
+};
+
+const closePopup = () => {
+  setSelectedStaff(null);
+};
 
     return (
         <div className="flex h-screen overflow-hidden bg-slate-50 font-sans transition-colors duration-300 dark:bg-slate-950">
@@ -699,6 +706,19 @@ export function UI({ data, logic }: UIProps) {
 
         <p><span className="font-semibold">Employee ID:</span> {selectedStaff.employeeId}</p>
       </div>
+
+    </div>
+  </div>
+)}{selectedStaff && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+
+    <div className="w-[350px] rounded-xl bg-slate-900 p-6 text-white">
+
+      <h2>{selectedStaff.name}</h2>
+
+      <button onClick={closePopup}>
+        Close
+      </button>
 
     </div>
   </div>
@@ -819,8 +839,8 @@ const StaffTable = ({ staff, attendance, currentTime, onEdit, onDelete, setSelec
                         </tr>
                     ) : (
                         staff.map((s) => (
-                            <tr key={s.id} 
-                           onClick={() => setSelectedStaff(s)}
+                            <tr key={staff.id} 
+                           onClick={() => openStaffPopup(staff)}
                             className="hover:bg-cyan-500/10 hover:shadow-lg transition-all duration-200 cursor-pointer">
                                 <td className="px-4 py-2.5">
                                     <div className="flex items-center gap-3">

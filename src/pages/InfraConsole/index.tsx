@@ -78,7 +78,7 @@ const InfraConsole = () => {
                         <Card className="bg-white dark:bg-slate-900 border-none shadow-xl rounded-3xl overflow-hidden p-2">
                             <Tabs value={data.activeTab} onValueChange={(v: any) => dispatch({ type: "SET_TAB", tab: v })} className="w-full">
                                 <TabsList className="flex flex-col h-auto bg-transparent p-0 gap-1">
-                                    <TabsTrigger value="status" className="w-full justify-start gap-3 px-4 py-4 rounded-2xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-lg data-[state=active]:border-slate-200 dark:data-[state=active]:border-slate-800 transition-all duration-300 group border border-transparent">
+                                    <TabsTrigger value="status" className="w-full justify-start gap-3 px-4 py-4 rounded-2xl transition-all duration-300 hover:bg-white/10 hover:text-white hover:translate-x-1 cursor-pointer">
                                         <div className="flex items-center gap-3">
                                             <div className="w-4 h-4 rounded bg-indigo-500/20 flex items-center justify-center">
                                                 <Activity size={10} className="text-indigo-500" />
@@ -86,30 +86,31 @@ const InfraConsole = () => {
                                             <span className="font-bold text-sm tracking-tight">Status</span>
                                         </div>
                                     </TabsTrigger>
-                                    <TabsTrigger value="backup" className="w-full justify-start gap-3 px-4 py-4 rounded-2xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-lg data-[state=active]:border-slate-200 dark:data-[state=active]:border-slate-800 transition-all duration-300 group border border-transparent">
+                                    <TabsTrigger value="backup" className="w-full justify-start gap-3 px-4 py-4 rounded-2xl transition-all duration-300 hover:bg-white/10 hover:text-white hover:translate-x-1 cursor-pointer">
                                         <Database size={18} /> Backup
                                     </TabsTrigger>
-                                    <TabsTrigger value="restore" className="w-full justify-start gap-3 px-4 py-4 rounded-2xl data-[state=active]:bg-slate-100 dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-none font-bold text-slate-600 dark:text-slate-400 transition-all">
+                                    <TabsTrigger value="restore" className="w-full justify-start gap-3 px-4 py-4 rounded-2xl transition-all duration-300 hover:bg-white/10 hover:text-white hover:translate-x-1 cursor-pointer">
                                         <RefreshCcw size={18} /> Restore
                                     </TabsTrigger>
-                                    <TabsTrigger value="cleanup" className="w-full justify-start gap-3 px-4 py-4 rounded-2xl data-[state=active]:bg-slate-100 dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-none font-bold text-slate-600 dark:text-slate-400 transition-all text-red-500">
+                                    <TabsTrigger value="cleanup" className="w-full justify-start gap-3 px-4 py-4 rounded-2xl transition-all duration-300 hover:bg-white/10 hover:text-white hover:translate-x-1 cursor-pointer">
                                         <Trash2 size={18} /> Maintenance
                                     </TabsTrigger>
-                                    <TabsTrigger value="apps" className="w-full justify-start gap-3 px-4 py-4 rounded-2xl data-[state=active]:bg-slate-100 dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-none font-bold text-slate-600 dark:text-slate-400 transition-all text-blue-500">
+                                    <TabsTrigger value="apps" className="w-full justify-start gap-3 px-4 py-4 rounded-2xl transition-all duration-300 hover:bg-white/10 hover:text-white hover:translate-x-1 cursor-pointer">
                                         <Grid3X3 size={18} /> Manage Apps
                                     </TabsTrigger>
-                                    <TabsTrigger value="logs" className="w-full justify-start gap-3 px-4 py-4 rounded-2xl data-[state=active]:bg-slate-100 dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-none font-bold text-slate-600 dark:text-slate-400 transition-all">
+                                    <TabsTrigger value="logs" className="w-full justify-start gap-3 px-4 py-4 rounded-2xl transition-all duration-300 hover:bg-white/10 hover:text-white hover:translate-x-1 cursor-pointer">
                                         <HistoryIcon size={18} /> Audit Trail
                                     </TabsTrigger>
-                                    <TabsTrigger value="migration" className="w-full justify-start gap-3 px-4 py-4 rounded-2xl data-[state=active]:bg-slate-100 dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-none font-bold text-slate-600 dark:text-slate-400 transition-all">
+                                    <TabsTrigger value="migration" className="w-full justify-start gap-3 px-4 py-4 rounded-2xl transition-all duration-300 hover:bg-white/10 hover:text-white hover:translate-x-1 cursor-pointer">
                                         <div className="flex items-center gap-3">
                                             <div className="w-4 h-4 rounded bg-amber-500/20 flex items-center justify-center">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 group-hover:bg-white transition-all duration-300" />
                                             </div>
                                             Migration
+                                            
                                         </div>
                                     </TabsTrigger>
-                                    <TabsTrigger value="firebase" className="w-full justify-start gap-3 px-4 py-4 rounded-2xl data-[state=active]:bg-slate-100 dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-none font-bold text-slate-600 dark:text-slate-400 transition-all">
+                                    <TabsTrigger value="Configuration" className="w-full justify-start gap-3 px-4 py-4 rounded-2xl data-[state=active]:bg-slate-100 dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-none font-bold text-slate-600 dark:text-slate-400 transition-all">
                                         <div className="flex items-center gap-3">
                                             <div className="w-4 h-4 rounded bg-orange-500/20 flex items-center justify-center">
                                                 <Zap size={10} className="text-orange-500" />
@@ -117,7 +118,7 @@ const InfraConsole = () => {
                                             Configuration
                                         </div>
                                     </TabsTrigger>
-                                    <TabsTrigger value="branding" className="w-full justify-start gap-3 px-4 py-4 rounded-2xl data-[state=active]:bg-slate-100 dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-none font-bold text-slate-600 dark:text-slate-400 transition-all">
+                                    <TabsTrigger value="branding" className="w-full justify-start gap-3 px-4 py-4 rounded-2xl transition-all duration-300 hover:bg-white/10 hover:text-white hover:translate-x-1 cursor-pointer">
                                         <div className="flex items-center gap-3">
                                             <div className="w-4 h-4 rounded bg-pink-500/20 flex items-center justify-center">
                                                 <Sparkles size={10} className="text-pink-500" />
