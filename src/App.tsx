@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from "react";
+import React, { Suspense, lazy,useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -45,7 +45,38 @@ const PageLoader = () => (
   </div>
 );
 
-const App = () => (
+const App = () => {
+
+  useEffect(() => {
+
+    const handleMouseMove = (e: MouseEvent) => {
+
+      const mouseY = e.clientY;
+
+      const screenHeight = window.innerHeight;
+
+      const percentage = mouseY / screenHeight;
+
+      const maxScroll =
+        document.documentElement.scrollHeight -
+        window.innerHeight;
+
+      window.scrollTo({
+        top: percentage * maxScroll,
+        behavior: "smooth",
+      });
+
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+    };
+
+  }, []);
+
+  return (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <LanguageProvider>
@@ -78,5 +109,6 @@ const App = () => (
     </ThemeProvider>
   </QueryClientProvider>
 );
+};
 
 export default App;

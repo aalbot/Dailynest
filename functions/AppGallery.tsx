@@ -49,7 +49,7 @@ const AppGallery = () => {
   const isPending = userStatus?.toLowerCase() === "pending";
 
   return (
-    <div className="min-h-[300vh] gradient-bg flex flex-col">
+    <div className="h-screen overflow-hidden gradient-bg flex flex-col">
       <Navbar />
 
       {/* Floating decorative elements & Noise */}

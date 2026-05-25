@@ -25,6 +25,33 @@ const Gateway = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [isSignup, setIsSignup] = useState(false);
 
+useEffect(() => {
+
+  const handleMouseMove = (e: MouseEvent) => {
+
+    const mouseY = e.clientY;
+
+    const screenHeight = window.innerHeight;
+
+    const percentage = mouseY / screenHeight;
+
+    const maxScroll =
+      document.documentElement.scrollHeight -
+      window.innerHeight;
+
+    window.scrollTo({
+      top: percentage * maxScroll,
+      behavior: "smooth",
+    });
+  };
+
+  document.addEventListener("mousemove", handleMouseMove);
+
+  return () => {
+    document.removeEventListener("mousemove", handleMouseMove);
+  };
+
+}, []);
     // Login Form State
     const [loginData, setLoginData] = useState({ identity: '', password: '' });
 
@@ -313,6 +340,7 @@ emailRegex.test(value.trim())
 };
 
     return (
+        
         <div className={`min-h-screen flex items-center justify-center p-6 sm:p-8 overflow-hidden relative selection:bg-blue-500/30 font-sans antialiased transition-colors duration-500 ${isDark ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-800'}`}>
 
             {/* Theme Toggle Button */}
