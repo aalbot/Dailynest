@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useLang } from "@/contexts/LanguageContext";
 import { useBranding } from "@/contexts/BrandingContext";
 import { useData } from '@/data/react/useData';
+import PhoneInput from "react-phone-input-2";
+import "react-phone-input-2/lib/style.css";
 
 const Gateway = () => {
     const navigate = useNavigate();
@@ -567,7 +569,7 @@ font-bold
                                                 <Input
                                                     placeholder={getTranslation("gateway.signup.phonePlaceholder")}
                                                     value={signupData.phone}
-                                                    onChange={(e) => setSignupData({ ...signupData, phone: e.target.value })}
+                                                    onChange={(e) => setSignupData({ ...signupData, phone: e.target.value.replace(/\D/g,"") })}
                                                     className={`h-14 pl-12 rounded-2xl transition-all border-2 ${isDark ? 'bg-white/5 border-slate-800 text-white focus:ring-purple-500/40 focus:border-purple-500/40' : 'bg-slate-50 border-slate-100 text-slate-900 focus:ring-purple-500/20 focus:border-purple-500/50'}`}
                                                 />
                                             </div>
