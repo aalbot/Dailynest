@@ -105,17 +105,19 @@ const AppGallery = () => {
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 h-full">
               {/* Left Sidebar - Notifications & Quick Actions */}
               <div className="hidden xl:flex xl:col-span-1 h-full min-h-0 animate-in fade-in slide-in-from-left-8 duration-700 delay-100 flex-col gap-4">
-                <div className="flex-[2] min-h-0">
-                  <NotificationWidget />
-                </div>
                 <div className="flex-1">
-                  <QuickActionCard
-                    onSearch={setSearchQuery}
-                    isManaging={isManaging}
-                    setIsManaging={setIsManaging}
-                    userRole={userRole}
-                  />
-                </div>
+  <QuickActionCard
+    onSearch={setSearchQuery}
+    isManaging={isManaging}
+    setIsManaging={setIsManaging}
+    userRole={userRole}
+  />
+</div>
+
+<div className="flex-[2] min-h-0">
+  <NotificationWidget />
+</div>
+                
               </div>
 
               {/* Main Content Area */}

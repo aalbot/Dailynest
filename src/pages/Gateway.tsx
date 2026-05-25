@@ -12,6 +12,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLang } from "@/contexts/LanguageContext";
 import { useBranding } from "@/contexts/BrandingContext";
+import { useData } from '@/data/react/useData';
 
 const Gateway = () => {
     const navigate = useNavigate();
@@ -35,6 +36,7 @@ const Gateway = () => {
         roleType: 'Staff' as 'Staff' | 'Delivery' | 'External',
         photoUrl: ''
     });
+    const [isValidEmail, setIsValidEmail] = useState(false);
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -293,6 +295,20 @@ const Gateway = () => {
             setLoading(false);
         }
     };
+    const validateEmail = (value) => {
+
+        setSignupData({
+        ...signupData,
+        email: value});
+
+const emailRegex =
+/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+
+setIsValidEmail(
+emailRegex.test(value.trim())
+);
+
+};
 
     return (
         <div className={`min-h-screen flex items-center justify-center p-6 sm:p-8 overflow-hidden relative selection:bg-blue-500/30 font-sans antialiased transition-colors duration-500 ${isDark ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-800'}`}>
@@ -478,16 +494,71 @@ const Gateway = () => {
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label className={`text-[10px] font-bold uppercase tracking-[0.2em] ml-1 transition-colors ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{getTranslation("gateway.signup.emailLabel")}</Label>
-                                            <div className="relative group">
-                                                <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${isDark ? 'text-slate-500 group-focus-within:text-purple-400' : 'text-slate-400 group-focus-within:text-purple-600'}`} />
-                                                <Input
-                                                    type="email"
-                                                    placeholder={getTranslation("gateway.signup.emailPlaceholder")}
-                                                    value={signupData.email}
-                                                    onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
-                                                    className={`h-14 pl-12 rounded-2xl transition-all border-2 ${isDark ? 'bg-white/5 border-slate-800 text-white focus:ring-purple-500/40 focus:border-purple-500/40' : 'bg-slate-50 border-slate-100 text-slate-900 focus:ring-purple-500/20 focus:border-purple-500/50'}`}
-                                                />
-                                            </div>
+                                          <div className="relative group">
+
+<Mail
+className="
+absolute
+left-4
+top-1/2
+-translate-y-1/2
+w-4
+h-4
+z-10"
+/>
+
+<Input
+type="email"
+placeholder={getTranslation(
+"gateway.signup.emailPlaceholder"
+)}
+
+value={signupData.email}
+
+onChange={(e)=>
+validateEmail(
+e.target.value
+)
+}
+
+className="pl-12 pr-12"
+/>
+
+{isValidEmail && (
+
+<div
+className="
+absolute
+right-4
+top-1/2
+-transform
+-translate-y-1/2
+w-5
+h-5
+bg-green-500
+rounded-full
+flex
+items-center
+justify-center
+shadow-sm
+"
+>
+
+<span
+className="
+text-white
+text-xs
+font-bold
+"
+>
+
+✓
+
+</span>
+
+</div>
+
+)}</div>
                                         </div>
                                         <div className="space-y-2">
                                             <Label className={`text-[10px] font-bold uppercase tracking-[0.2em] ml-1 transition-colors ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{getTranslation("gateway.signup.phoneLabel")}</Label>
